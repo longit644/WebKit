@@ -16,7 +16,7 @@ set(VCPKG_LIBRARY_LINKAGE dynamic)
 # CMake's ABI check under clang-cl ("multiple source files"), and switches
 # CMake to the WindowsStore platform. What WindowsStore mode would buy is
 # covered manually instead: curl schannel-off via explicit openssl features,
-# ICU UWP via -DU_PLATFORM_HAS_WINUWP_API=1 in flags, OpenSSL already built
+# ICU UWP via -DU_PLATFORM_HAS_WINUWP_API=1 -D_WINRT_DLL in flags, OpenSSL already built
 # as VC-WIN32-ARM-UWP. See ARM-WALLS.md. Revisit per-port if a future dep
 # truly needs IS_UWP.
 
@@ -61,7 +61,7 @@ set(_WK_UCRT "C:/PROGRA~2/WI3CF2~1/10/Lib/100226~1.0/ucrt/arm/ucrt.lib")
 set(_WK_CRTSTART "C:/Users/Longi/WORKSP~1/WebKit/Tools/uwp/lib/ARM-CR~1.LIB")
 # Own CRT startup (no ARM32 vcpkg140_app ships; see toolchain/arm-crtstart.c).
 # No /ENTRY override: default per-subsystem entries resolve from this lib.
-set(VCPKG_C_FLAGS "/MD -DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP -D_HAS_EXCEPTIONS=0 -DU_PLATFORM_HAS_WINUWP_API=1 /FIC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include/intrin.h -imsvcC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/ucrt -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/um -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/shared -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/winrt")
+set(VCPKG_C_FLAGS "/MD -DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP -D_HAS_EXCEPTIONS=0 -DU_PLATFORM_HAS_WINUWP_API=1 -D_WINRT_DLL /FIC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include/intrin.h -imsvcC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/ucrt -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/um -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/shared -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/winrt")
 set(VCPKG_CXX_FLAGS "${VCPKG_C_FLAGS}")
 # --target/-fuse-ld/-B ride the toolchain file (detection input); CPPFLAGS
 # is the one caller-ENV channel vcpkg preserves into configure (see

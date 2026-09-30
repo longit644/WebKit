@@ -57,11 +57,18 @@ static void wk_run_atexits(void)
         g_atexit_fns[--g_atexit_count]();
 }
 
-// --- int64 -> double ---
-extern double __floatdidf(long long);
-double __i64tod(long long v) { return __floatdidf(v); }
+// --- MinGW-style float conversion aliases (compiler-rt only defines these
+// for __MINGW32__, but clang emits them for windows-msvc ARM too; see
+// fixsfdi.c/floatdisf.c COMPILER_RT_ALIAS lines). s-toi-64 = single->i64,
+// i64-to-s = i64->single. Wrappers (not aliases: keep it simple, tail calls).
+extern long long __fixsfdi(float);
+extern float __floatdisf(long long);
+extern "C" long long __stoi64(float f) { return __fixsfdi(f); }
+extern "C" float __i64tos(long long v) { return __floatdisf(v); }
 
 // --- MSVC float conversion helpers -> compiler-rt generics ---
+extern double __floatdidf(long long);
+double __i64tod(long long v) { return __floatdidf(v); }
 extern double __floatundidf(unsigned long long);
 extern long long __fixdfdi(double);
 extern unsigned long long __fixunsdfdi(double);

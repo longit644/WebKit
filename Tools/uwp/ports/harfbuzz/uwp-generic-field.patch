@@ -1,0 +1,16 @@
+--- a/src/hb-ft.cc
++++ b/src/hb-ft.cc
+@@ -50,5 +50,13 @@
+ #include FT_COLOR_H
+ #endif
+
++/* WebKitView UWP: FreeType renames the FT_FaceRec_::generic member to
++ * GenericFromFreeTypeLibrary when WINAPI_FAMILY is not DESKTOP_APP
++ * (freetype.h, to dodge the C++/CX contextual keyword). Map it back so the
++ * ->generic uses below keep working. Mirrors FreeType's own guard. */
++#if defined(WINAPI_FAMILY) && (WINAPI_FAMILY != WINAPI_FAMILY_DESKTOP_APP)
++#define generic GenericFromFreeTypeLibrary
++#endif
++
+
+ /**
