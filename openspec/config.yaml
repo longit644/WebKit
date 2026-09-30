@@ -1,0 +1,35 @@
+schema: spec-driven
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+context: |
+  WPE WebKit port to UWP ARM32 (Lumia 950 XL, Win10M 15254). Base tag wpewebkit-2.54.0,
+  branch wpe-uwp-arm32/main. Lessons borrowed from Project Apotheosis, no dependency on it.
+  Tech: clang-cl (thumbv7-unknown-windows-msvc) for engine, MSVC for harness, CMake+Ninja,
+  vcpkg (icu, cairo, curl...), Strawberry Perl + bison for codegen.
+  Conventions: upstream edits guarded with #if defined(WK_WEBKITVIEW) + WebKitView: comment.
+  ASCII paths only. Exceptions off (_HAS_EXCEPTIONS=0, /EHs-c-). Single engine thread.
+  Software Cairo render first; no JIT/GPU until M3. Milestone tags (wkview-m0/m1/m2/m3)
+  are cut only on real-device proof, owner tests on hardware, agent builds on this PC.
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing
