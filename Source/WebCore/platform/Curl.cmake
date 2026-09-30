@@ -60,9 +60,10 @@ list(APPEND WebCore_LIBRARIES
 )
 
 if (WK_WEBKITVIEW_UWP)
-    # WebKitView: no libpsl on UWP; naive stub in WebKitView/Driver.
+    # WebKitView: no libpsl on UWP; naive stub next to the curl backend
+    # (mirrors PublicSuffixStoreSoup/Cocoa placement).
     list(APPEND WebCore_SOURCES
-        "${CMAKE_SOURCE_DIR}/WebKitView/Driver/PublicSuffixStoreStub.cpp"
+        platform/network/curl/PublicSuffixStoreUWP.cpp
     )
 else ()
     list(APPEND WebCore_SOURCES

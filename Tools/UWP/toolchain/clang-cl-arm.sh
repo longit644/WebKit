@@ -9,6 +9,8 @@
 # Toolchain-ARM32-UWP-clang.cmake (KEEP IN SYNC).
 # NOTE: vcpkg's msys sh lacks ${var#pat} trimming; sed is used instead.
 export PATH="/c/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/Llvm/bin:$PATH"
+# NOTE: bare `sed` may resolve to Chocolatey sed (broken quoting) via
+# inherited Windows PATH. Always use msys sed by absolute path below.
 # msys converts /FOO args to POSIX paths (eating linker flags); exclude ours.
 # Dash-args are never converted; C:/... drive paths pass through; /tmp/... must convert.
 export MSYS2_ARG_CONV_EXCL="/link;/APPCONTAINER;/MACHINE;/machine;/SUBSYSTEM;/subsystem;/NODEFAULTLIB;/nodefaultlib;/LIBPATH;/libpath;/ENTRY;/entry;/INCREMENTAL;/incremental;/MANIFEST;/manifest;/DYNAMICBASE;/dynamicbase;/NXCOMPAT;/nxcompat;/ALTERNATENAME;/alternatename;/DLL;/dll;/NOENTRY;/noentry;/IMPLIB;/implib;/DEF;/def;/OUT;/out;/MD;/MT;/LD;-imsvc;-FI;-showIncludes;-Fo;-Fe;-Fd;-Fm;-Fp;-Fa;-FR;-Fr;-Fx"
@@ -33,7 +35,7 @@ done
 args=""
 for a in "$@"; do
   case "$a" in
-    -Wl,*) rest=`echo "$a" | sed 's/^-Wl,//;s/,/ /g'`; args="$args $rest" ;;
+    -Wl,*) rest=`echo "$a" | /usr/bin/sed 's/^-Wl,//;s/,/ /g'`; args="$args $rest" ;;
     *) args="$args \"$a\"" ;;
   esac
 done
@@ -42,11 +44,11 @@ for a in "$@"; do
   case "$a" in
     -Xcompiler|-Xlinker) continue ;;
     -B*|-fuse-ld=*) continue ;;
-    -l*) a=`echo "$a" | sed 's/^-l//'`; a="$a.lib" ;;
+    -l*) a=`echo "$a" | /usr/bin/sed 's/^-l//'`; a="$a.lib" ;;
   esac
   case "$a" in
     -APPCONTAINER|-MACHINE:*|-machine:*|-SUBSYSTEM:*|-subsystem:*|-NODEFAULTLIB:*|-nodefaultlib:*|-LIBPATH:*|-libpath:*|-ENTRY:*|-entry:*|-INCREMENTAL*|-incremental*|-MANIFEST*|-manifest*|-DYNAMICBASE*|-dynamicbase*|-NXCOMPAT*|-nxcompat*|-ALTERNATENAME*|-alternatename*|-DLL|-dll|-IMPLIB:*|-implib:*|-DEF:*|-def:*|-OUT:*|-out:*)
-      a=`echo "$a" | sed 's/^-/\//'` ;;
+      a=`echo "$a" | /usr/bin/sed 's/^-/\//'` ;;
   esac
   case "$a" in
     /APPCONTAINER|/MACHINE:*|/machine:*|/SUBSYSTEM:*|/subsystem:*|/NODEFAULTLIB:*|/nodefaultlib:*|/LIBPATH:*|/libpath:*|/ENTRY:*|/entry:*|/INCREMENTAL*|/incremental*|/MANIFEST*|/manifest*|/ALTERNATENAME*|/alternatename*|/DLL|/dll|/IMPLIB:*|/implib:*|/DEF:*|/def:*|/OUT:*|/out:*|*.lib|*.Lib|*.LIB)
@@ -54,7 +56,7 @@ for a in "$@"; do
       # single-backslash paths like -IMPLIB:".libs\x.lib", which sh/lld eat
       # as escapes). Safe: link tokens never carry meaningful backslash
       # escapes. (comp side untouched: -D"..." values need theirs.)
-      a=`echo "$a" | sed 's/"//g;s/\\/\//g'`
+      a=`echo "$a" | /usr/bin/sed 's/"//g;s/\\/\//g'`
       link="$link \"$a\""
       continue ;;
   esac

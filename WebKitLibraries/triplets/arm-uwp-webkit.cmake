@@ -1,7 +1,7 @@
 # vcpkg overlay triplet: ARM32-UWP WebKitView (thumbv7, AppContainer).
-# Usage: vcpkg install <port> --overlay-triplets=<repo>/WebKitView/triplets
+# Usage: vcpkg install <port> --overlay-triplets=<repo>/WebKitLibraries/triplets
 #   --triplet arm-uwp-webkit   (classic C:\vcpkg instance)
-# Chainloads WebKitView/Toolchain-ARM32-UWP-clang.cmake (clang-cl 19.15,
+# Chainloads WebKitLibraries/toolchains/Toolchain-ARM32-UWP-clang.cmake (clang-cl 19.15,
 # static try-compile, Release CRT, Store link surface). See ARM-WALLS.md.
 
 set(VCPKG_TARGET_ARCHITECTURE arm)
@@ -23,7 +23,7 @@ set(VCPKG_CHAINLOAD_TOOLCHAIN_FILE "${CMAKE_CURRENT_LIST_DIR}/../Toolchain-ARM32
 # -Xcompiler/-Xlinker escapes that clang-cl rejects, silently dropping them.
 # The wrapper strips escapes and maps -lfoo to foo.lib. Live copy outside the
 # repo (msys needs an extensionless path): C:/Users/Longi/llvm-tools/clang-cl-arm
-# Master: WebKitView/toolchain/clang-cl-arm.sh (KEEP IN SYNC).
+# Master: Tools/UWP/toolchain/clang-cl-arm.sh (KEEP IN SYNC).
 # Full short paths: vcpkg scrubs PATH for port builds. No spaces, so msys sh
 # word-splits correctly.
 # Shim dir FIRST on PATH so our `link` (lld, not msys coreutils) wins for
@@ -43,11 +43,11 @@ set(ENV{CXX} "C:/Users/Longi/llvm-tools/clang-cl-arm")
 # flags. lld-link by absolute path (vcpkg scrubs PATH), Store CRT recipe.
 set(_WK_LLD "lld")
 set(ENV{CPPFLAGS} "--target=thumbv7-unknown-windows-msvc")
-set(_WK_BUILTINS "C:/Users/Longi/WORKSP~1/WebKit/WEBKIT~2/THIRDP~1/clang_rt.builtins-arm.lib")
+set(_WK_BUILTINS "C:/Users/Longi/WORKSP~1/WebKit/Tools/UWP/lib/CLANG_~1.LIB")
 set(_WK_MSCVCRT "C:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/lib/arm/msvcurt.lib")
 set(_WK_UAP "C:/PROGRA~2/WI3CF2~1/10/Lib/100226~1.0/um/arm/OneCoreUAP.lib")
 set(_WK_UCRT "C:/PROGRA~2/WI3CF2~1/10/Lib/100226~1.0/ucrt/arm/ucrt.lib")
-set(_WK_CRTSTART "C:/Users/Longi/WORKSP~1/WebKit/WEBKIT~2/THIRDP~1/arm-crtstart.lib")
+set(_WK_CRTSTART "C:/Users/Longi/WORKSP~1/WebKit/Tools/UWP/lib/ARM-CR~1.LIB")
 # Own CRT startup (no ARM32 vcpkg140_app ships; see toolchain/arm-crtstart.c).
 # No /ENTRY override: default per-subsystem entries resolve from this lib.
 set(VCPKG_C_FLAGS "/MD -DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP -D_HAS_EXCEPTIONS=0 -DU_PLATFORM_HAS_WINUWP_API=1 -FIC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include/intrin.h -imsvcC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/ucrt -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/um -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/shared -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/winrt")

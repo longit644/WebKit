@@ -1,7 +1,7 @@
 # ARM32-UWP walls (probe log, 2026-09-30; link recipe closed same day)
 
-Toolchain: `WebKitView/Toolchain-ARM32-UWP-clang.cmake` v0.3 +
-`WebKitView/arm32-uwp-env.ps1`. clang-cl 19.15, SDK 22621 ARM libs present.
+Toolchain: `WebKitLibraries/toolchains/Toolchain-ARM32-UWP-clang.cmake` v0.3 +
+`Tools/UWP/arm32-uwp-env.ps1`. clang-cl 19.15, SDK 22621 ARM libs present.
 
 ## Solved
 
@@ -18,7 +18,7 @@ Toolchain: `WebKitView/Toolchain-ARM32-UWP-clang.cmake` v0.3 +
    thumb2 base + optfp + sync + aeabi RT/CLIB + idivmod/ldivmod/uidivmod/
    uldivmod/chkstk), `CMAKE_ASM_COMPILER_TARGET` set for .S files.
    Result: 180 objects, `__aeabi_*`/`__divsi3`/`__addsf3` present.
-   Committed: `WebKitView/thirdparty/clang_rt.builtins-arm.lib` (143 KB).
+   Committed: `Tools/UWP/lib/clang_rt.builtins-arm.lib` (143 KB).
    Rebuild recipe: sparse llvm-project (compiler-rt, cmake, llvm/cmake),
    `cmake -S compiler-rt/lib/builtins -B build-rt-arm -G Ninja
    -DCMAKE_C_COMPILER=clang -DCMAKE_C_COMPILER_TARGET=thumbv7-unknown-windows-msvc
@@ -45,5 +45,5 @@ Toolchain: `WebKitView/Toolchain-ARM32-UWP-clang.cmake` v0.3 +
 ## Next (M3)
 
 - Acquire/produce `builtins-arm.lib`, prebuilt ARM icu/curl/xml2/zlib/png.
-- First `WK_WEBKITVIEW` source shims per `WebKitView/SHIM-PLAN.md`
+- First `WK_WEBKITVIEW` source shims per `Tools/UWP/SHIM-PLAN.md`
   (generic RunLoop, no-BSTR, curl caps, thread stacks).

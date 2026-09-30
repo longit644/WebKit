@@ -18,7 +18,7 @@ lifecycle + compositing), `PageClientImpl.*` (input/scroll/popups).
      (Cairo bitmap v0, SwapChainPanel later), settings passthrough.
    - `PageClientImplUWP.h/.cpp` — touch/keyboard/pinch → WebCore events,
      popup-menu + dialog stubs (deferred to v0.2).
-2. `WebKitView/UWP-MAPPING.md` — GObject→WinRT, signals→events,
+2. `Tools/UWP/UWP-MAPPING.md` — GObject→WinRT, signals→events,
    HWND→CoreWindow/SwapChainPanel, glib-loop→generic RunLoop (already done).
 3. Rules: new files are 100% ours (no guards inside); shared-file edits keep
    `WK_WEBKITVIEW` guards; `uwp/` is NOT referenced by any build list until

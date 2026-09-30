@@ -10,7 +10,7 @@ zlib/png/jpeg → xml2/sqlite/webp → harfbuzz.
 
 ## What
 
-1. `WebKitView/triplets/arm-uwp-webkit.cmake` (new): chainload our clang
+1. `WebKitLibraries/triplets/arm-uwp-webkit.cmake` (new): chainload our clang
    toolchain, CC/CXX=clang-cl, `--target=thumbv7-unknown-windows-msvc`,
    CRT/link recipe from toolchain v0.3 (msvcurt, OneCoreUAP, ucrt arm,
    builtins), Release-only.

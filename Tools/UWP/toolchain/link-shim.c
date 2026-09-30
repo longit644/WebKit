@@ -2,7 +2,7 @@
 // ICU's mh-msys-msvc fragment links DLLs via LINK.EXE with gcc-style
 // -Xlinker escapes that neither MSVC link nor raw lld-link accept.
 // This strips -Xlinker, maps -lfoo to foo.lib, flips dash-form link flags
-// to slash-form, and execs lld-link. Master: WebKitView/toolchain/link-shim.c
+// to slash-form, and execs lld-link. Master: Tools/UWP/toolchain/link-shim.c
 #include <windows.h>
 #include <stdio.h>
 #include <string.h>

@@ -1,6 +1,6 @@
 # Tasks — wkview-m3-deps-2
 
-- [x] Agent: write `WebKitView/triplets/arm-uwp-webkit.cmake`
+- [x] Agent: write `WebKitLibraries/triplets/arm-uwp-webkit.cmake`
 - [x] Agent: `vcpkg install icu` for the triplet, iterate failures
 - [x] Agent: verify ARMNT libs, log versions, commit, push
 - [ ] Agent: curl + zlib same way (or split change if walls differ)

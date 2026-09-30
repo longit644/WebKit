@@ -2,8 +2,8 @@
 #
 # Target: thumbv7-unknown-windows-msvc, AppContainer (phone 15254 API surface,
 # link surface from Win11 SDK 22621 ARM libs which still ship ARM32).
-# Usage: -DCMAKE_TOOLCHAIN_FILE=<this file> with WebKitView/arm32-uwp-env.ps1
-# sourced first. See WebKitView/ARM-WALLS.md for status.
+# Usage: -DCMAKE_TOOLCHAIN_FILE=<this file> with Tools/UWP/arm32-uwp-env.ps1
+# sourced first. See Tools/UWP/ARM-WALLS.md for status.
 
 set(CMAKE_SYSTEM_NAME Windows)
 set(CMAKE_SYSTEM_VERSION 10.0)
@@ -64,4 +64,4 @@ set(WK_UWP_LINK_FLAGS "/APPCONTAINER /MACHINE:ARM /SUBSYSTEM:CONSOLE /NODEFAULTL
 set(CMAKE_EXE_LINKER_FLAGS_INIT "${WK_UWP_LINK_FLAGS}")
 set(CMAKE_SHARED_LINKER_FLAGS_INIT "${WK_UWP_LINK_FLAGS}")
 set(CMAKE_MODULE_LINKER_FLAGS_INIT "${WK_UWP_LINK_FLAGS}")
-set(WK_UWP_BUILTINS_ARM "${CMAKE_CURRENT_LIST_DIR}/thirdparty/clang_rt.builtins-arm.lib")
+set(WK_UWP_BUILTINS_ARM "C:/Users/Longi/WORKSP~1/WebKit/Tools/UWP/lib/CLANG_~1.LIB")
