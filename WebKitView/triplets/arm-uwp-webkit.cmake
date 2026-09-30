@@ -8,6 +8,12 @@ set(VCPKG_TARGET_ARCHITECTURE arm)
 set(VCPKG_CRT_LINKAGE dynamic)
 set(VCPKG_LIBRARY_LINKAGE dynamic)
 
+# WindowsStore: first-class UWP in vcpkg ports (curl drops SCHANNEL, icu gets
+# WINUWP_API+tzset handling). Same as community arm-uwp. The chainloaded
+# toolchain file keeps CMAKE_SYSTEM_NAME=Windows for the actual build.
+set(VCPKG_CMAKE_SYSTEM_NAME WindowsStore)
+set(VCPKG_CMAKE_SYSTEM_VERSION 10.0)
+
 # Debug CRT does not exist for this target (no msvcrtd/oldnames for ARM32).
 set(VCPKG_BUILD_TYPE release)
 
@@ -27,6 +33,9 @@ set(ENV{PATH} "C:/Users/Longi/llvm-tools;C:/PROGRA~2/WI3CF2~1/10/bin/100226~1.0/
 # INCLUDE for native host tools that don't take our flags (rc.exe needs the
 # um headers; short paths, semicolon-separated as Windows expects).
 set(ENV{INCLUDE} "C:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include;C:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/ucrt;C:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/um;C:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/shared;C:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/winrt")
+# NMAKE: vcpkg's find_program misses it in scrubbed env; preset (arch-neutral
+# driver; actual compile/link still ours). Harmless for non-nmake ports.
+set(NMAKE "C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/nmake.exe" CACHE FILEPATH "nmake for vcpkg ports")
 set(ENV{CC} "C:/Users/Longi/llvm-tools/clang-cl-arm")
 set(ENV{CXX} "C:/Users/Longi/llvm-tools/clang-cl-arm")
 
@@ -41,7 +50,7 @@ set(_WK_UCRT "C:/PROGRA~2/WI3CF2~1/10/Lib/100226~1.0/ucrt/arm/ucrt.lib")
 set(_WK_CRTSTART "C:/Users/Longi/WORKSP~1/WebKit/WEBKIT~2/THIRDP~1/arm-crtstart.lib")
 # Own CRT startup (no ARM32 vcpkg140_app ships; see toolchain/arm-crtstart.c).
 # No /ENTRY override: default per-subsystem entries resolve from this lib.
-set(VCPKG_C_FLAGS "/MD -DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP -D_HAS_EXCEPTIONS=0 -DU_PLATFORM_HAS_WINUWP_API=1 -imsvcC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/ucrt -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/um -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/shared -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/winrt")
+set(VCPKG_C_FLAGS "/MD -DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP -D_HAS_EXCEPTIONS=0 -DU_PLATFORM_HAS_WINUWP_API=1 -FIC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include/intrin.h -imsvcC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/ucrt -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/um -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/shared -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/winrt")
 set(VCPKG_CXX_FLAGS "${VCPKG_C_FLAGS}")
 # --target/-fuse-ld/-B ride the toolchain file (detection input); CPPFLAGS
 # is the one caller-ENV channel vcpkg preserves into configure (see

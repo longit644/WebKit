@@ -69,6 +69,24 @@ double __u64tod(unsigned long long v) { return __floatundidf(v); }
 long long __dtoi64(double v) { return __fixdfdi(v); }
 unsigned long long __dtou64(double v) { return __fixunsdfdi(v); }
 
+// --- _InterlockedAdd64: clang has no ARM lowering; ldrex/strex via GCC
+// sync builtin. Returns the INITIAL value (MSVC InterlockedAdd semantics).
+long long _InterlockedAdd64(volatile long long* addend, long long value)
+{
+    return __sync_fetch_and_add_8(addend, value);
+}
+
+// --- _onexit: CRT onexit-table entry; ours feeds the atexit registry.
+// Exact UCRT signature: _onexit_t _onexit(_onexit_t). Returns func/NULL.
+typedef int (__cdecl *_onexit_t)(void);
+_onexit_t _onexit(_onexit_t func)
+{
+    extern int atexit(void (__cdecl *)(void));
+    if (!func)
+        return 0;
+    return atexit((void (__cdecl *)(void))func) == 0 ? func : 0;
+}
+
 // (RTTI root node: see C++-linkage definition after extern "C" below;
 // crtvft.S carries the undecorated vftable twin.)
 
@@ -84,16 +102,32 @@ int __stdcall __std_init_once_complete_clr(void** lpInitOnce, unsigned long dwFl
 }
 void __stdcall __std_init_once_link_alternate_names_and_abort(void) { abort(); }
 
-// --- DLL entry: .CRT init walk, user DllMain forward, atexit on detach ---
+// --- POSIX undecorated aliases (ARM ucrt.lib exports only _open/_close/
+// _read/_write; desktop msvcrt had both). Matches MSVC's own open().
+// Declarations manual: avoids header remap surprises.
+extern "C" int _open(const char*, int, ...);
+extern "C" int _close(int);
+extern "C" int _read(int, void*, unsigned int);
+extern "C" int _write(int, const void*, unsigned int);
+extern "C" int open(const char* f, int o, ...)
+{
+    // _open ignores pmode unless O_CREAT, so always forwarding is safe.
+    return _open(f, o, 0);
+}
+extern "C" int close(int fd) { return _close(fd); }
+extern "C" int read(int fd, void* buf, unsigned int n) { return _read(fd, buf, n); }
+extern "C" int write(int fd, const void* buf, unsigned int n) { return _write(fd, buf, n); }
+
+// --- DLL entry: .CRT init walk, default DllMain, atexit on detach ---
 typedef void (__cdecl *_PVFV)(void);
 // selectany: real .CRT anchors (linker-synthesized when objects carry .CRT
 // sections) override these empties; with none present the walk is a no-op.
 __declspec(selectany) _PVFV __xc_a[1] = { 0 };
 __declspec(selectany) _PVFV __xc_z[1] = { 0 };
-// selectany: a strong user DllMain in some future configuration would
-// collide at link time (revisit then); today nothing defines one, and the
-// MSVC CRT default it replaces just returned TRUE.
-BOOL __stdcall DllMain(HINSTANCE, DWORD, LPVOID) { return TRUE; }
+// NOTE: the default DllMain lives in crdllmain.c (separate object) so that
+// targets defining their own DllMain (e.g. OpenSSL dllmain.c) never collide:
+// archive members load on demand, and a direct object definition wins.
+extern BOOL __stdcall DllMain(HINSTANCE, DWORD, LPVOID);
 
 BOOL __stdcall _DllMainCRTStartup(HINSTANCE hinst, DWORD reason, LPVOID reserved)
 {

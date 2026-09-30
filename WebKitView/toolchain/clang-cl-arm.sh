@@ -11,7 +11,7 @@
 export PATH="/c/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/Llvm/bin:$PATH"
 # msys converts /FOO args to POSIX paths (eating linker flags); exclude ours.
 # Dash-args are never converted; C:/... drive paths pass through; /tmp/... must convert.
-export MSYS2_ARG_CONV_EXCL="/link;/APPCONTAINER;/MACHINE;/machine;/SUBSYSTEM;/subsystem;/NODEFAULTLIB;/nodefaultlib;/LIBPATH;/libpath;/ENTRY;/entry;/INCREMENTAL;/incremental;/MANIFEST;/manifest;/DYNAMICBASE;/dynamicbase;/NXCOMPAT;/nxcompat;/ALTERNATENAME;/alternatename;/MD;/MT;/LD;-imsvc"
+export MSYS2_ARG_CONV_EXCL="/link;/APPCONTAINER;/MACHINE;/machine;/SUBSYSTEM;/subsystem;/NODEFAULTLIB;/nodefaultlib;/LIBPATH;/libpath;/ENTRY;/entry;/INCREMENTAL;/incremental;/MANIFEST;/manifest;/DYNAMICBASE;/dynamicbase;/NXCOMPAT;/nxcompat;/ALTERNATENAME;/alternatename;/DLL;/dll;/NOENTRY;/noentry;/IMPLIB;/implib;/DEF;/def;/OUT;/out;/MD;/MT;/LD;-imsvc;-FI;-showIncludes;-Fo;-Fe;-Fd;-Fm;-Fp;-Fa;-FR;-Fr;-Fx"
 cc="C:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/Llvm/bin/clang-cl.exe"
 tgt="--target=thumbv7-unknown-windows-msvc"
 compile_only=0
@@ -22,27 +22,51 @@ for a in "$@"; do
 done
 comp=""
 link=""
+is_dll=0
+for a in "$@"; do
+  case "$a" in
+    *.la|-Fe*.dll|-Fe*.DLL) is_dll=1 ;;
+  esac
+done
+# Expand -Wl,a,b into separate args first (clang-cl 19 VS build does not
+# unpack -Wl, itself; verified: raw token reaches lld which ignores it).
+args=""
+for a in "$@"; do
+  case "$a" in
+    -Wl,*) rest=`echo "$a" | sed 's/^-Wl,//;s/,/ /g'`; args="$args $rest" ;;
+    *) args="$args \"$a\"" ;;
+  esac
+done
+eval "set -- $args"
 for a in "$@"; do
   case "$a" in
     -Xcompiler|-Xlinker) continue ;;
     -B*|-fuse-ld=*) continue ;;
-    -EHsc|-EHa*) continue ;;
-    -l*) a=`echo "$a" | sed 's/^-l//'`
-         a="$a.lib" ;;
+    -l*) a=`echo "$a" | sed 's/^-l//'`; a="$a.lib" ;;
   esac
   case "$a" in
-    -APPCONTAINER|-MACHINE:*|-machine:*|-SUBSYSTEM:*|-subsystem:*|-NODEFAULTLIB:*|-nodefaultlib:*|-LIBPATH:*|-libpath:*|-ENTRY:*|-entry:*|-INCREMENTAL*|-incremental*|-MANIFEST*|-manifest*|-DYNAMICBASE*|-dynamicbase*|-NXCOMPAT*|-nxcompat*|-ALTERNATENAME*|-alternatename*)
+    -APPCONTAINER|-MACHINE:*|-machine:*|-SUBSYSTEM:*|-subsystem:*|-NODEFAULTLIB:*|-nodefaultlib:*|-LIBPATH:*|-libpath:*|-ENTRY:*|-entry:*|-INCREMENTAL*|-incremental*|-MANIFEST*|-manifest*|-DYNAMICBASE*|-dynamicbase*|-NXCOMPAT*|-nxcompat*|-ALTERNATENAME*|-alternatename*|-DLL|-dll|-IMPLIB:*|-implib:*|-DEF:*|-def:*|-OUT:*|-out:*)
       a=`echo "$a" | sed 's/^-/\//'` ;;
   esac
   case "$a" in
-    /APPCONTAINER|/MACHINE:*|/machine:*|/SUBSYSTEM:*|/subsystem:*|/NODEFAULTLIB:*|/nodefaultlib:*|/LIBPATH:*|/libpath:*|/ENTRY:*|/entry:*|/INCREMENTAL*|/incremental*|/MANIFEST*|/manifest*|/ALTERNATENAME*|/alternatename*|*.lib|*.Lib|*.LIB)
+    /APPCONTAINER|/MACHINE:*|/machine:*|/SUBSYSTEM:*|/subsystem:*|/NODEFAULTLIB:*|/nodefaultlib:*|/LIBPATH:*|/libpath:*|/ENTRY:*|/entry:*|/INCREMENTAL*|/incremental*|/MANIFEST*|/manifest*|/ALTERNATENAME*|/alternatename*|/DLL|/dll|/IMPLIB:*|/implib:*|/DEF:*|/def:*|/OUT:*|/out:*|*.lib|*.Lib|*.LIB)
+      # Strip embedded quotes and turn ALL backslashes to / (libtool passes
+      # single-backslash paths like -IMPLIB:".libs\x.lib", which sh/lld eat
+      # as escapes). Safe: link tokens never carry meaningful backslash
+      # escapes. (comp side untouched: -D"..." values need theirs.)
+      a=`echo "$a" | sed 's/"//g;s/\\/\//g'`
       link="$link \"$a\""
       continue ;;
   esac
   comp="$comp \"$a\""
 done
 if [ "$compile_only" = "1" ]; then
-  eval "exec \"$cc\" $tgt -fuse-ld=lld $comp"
+  eval "exec \"$cc\" $tgt -fuse-ld=lld -FIC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include/intrin.h $comp"
+elif [ "$is_dll" = "1" ]; then
+  # libtool .la shared libs: entry resolves via our arm-crtstart
+  # (_DllMainCRTStartup -> default DllMain in its own lazy member).
+  # No /NOENTRY: lld skips the import lib with it.
+  eval "exec \"$cc\" $tgt -fuse-ld=lld -FIC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include/intrin.h $comp /link /DLL $link"
 else
-  eval "exec \"$cc\" $tgt -fuse-ld=lld $comp /link $link"
+  eval "exec \"$cc\" $tgt -fuse-ld=lld -FIC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include/intrin.h $comp /link $link"
 fi
