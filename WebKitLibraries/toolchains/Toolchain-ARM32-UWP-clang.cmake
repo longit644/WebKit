@@ -36,7 +36,7 @@ add_compile_options(/EHs-c- /GR-)
 # through CMAKE_*_FLAGS_INIT here, or ports silently compile for the host.
 # -B gives clang a space-free linker search dir (vcpkg scrubs PATH, so a bare
 # -fuse-ld=lld would not resolve there).
-set(WK_UWP_C_FLAGS "--target=${WK_UWP_TRIPLE} -BC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/Llvm/bin -fuse-ld=lld /MD -DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP -D_HAS_EXCEPTIONS=0 -DU_PLATFORM_HAS_WINUWP_API=1 -FIC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include/intrin.h /EHs-c- /GR- -imsvcC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/ucrt -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/um -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/shared -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/winrt")
+set(WK_UWP_C_FLAGS "--target=${WK_UWP_TRIPLE} -BC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/Llvm/bin -fuse-ld=lld /MD -DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP -D_HAS_EXCEPTIONS=0 -DU_PLATFORM_HAS_WINUWP_API=1 /FIC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include/intrin.h /EHs-c- /GR- -imsvcC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/ucrt -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/um -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/shared -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/winrt")
 set(CMAKE_C_FLAGS_INIT "${WK_UWP_C_FLAGS}")
 set(CMAKE_CXX_FLAGS_INIT "${WK_UWP_C_FLAGS}")
 
@@ -60,8 +60,8 @@ set(CMAKE_CONFIGURATION_TYPES Release RelWithDebInfo)
 # ti_inst.obj (unparseable). __RTDynamicCast stub + exact-named type_info
 # vftable documented in toolchain/crrtti.c + crtvft.S. (An /ALTERNATENAME
 # approach was rejected: resolving the alias forced lld to scan ti_inst.)
-set(WK_UWP_LINK_FLAGS "/APPCONTAINER /MACHINE:ARM /SUBSYSTEM:CONSOLE /NODEFAULTLIB:libcmt /NODEFAULTLIB:libcmtd /NODEFAULTLIB:msvcrt /NODEFAULTLIB:msvcrtd /NODEFAULTLIB:msvcprt /NODEFAULTLIB:msvcprtd /NODEFAULTLIB:oldnames /LIBPATH:C:/PROGRA~2/WI3CF2~1/10/Lib/100226~1.0/um/arm /LIBPATH:C:/PROGRA~2/WI3CF2~1/10/Lib/100226~1.0/ucrt/arm C:/Users/Longi/WORKSP~1/WebKit/WEBKIT~2/THIRDP~1/clang_rt.builtins-arm.lib C:/Users/Longi/WORKSP~1/WebKit/WEBKIT~2/THIRDP~1/arm-crtstart.lib C:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/lib/arm/msvcurt.lib C:/PROGRA~2/WI3CF2~1/10/Lib/100226~1.0/um/arm/OneCoreUAP.lib C:/PROGRA~2/WI3CF2~1/10/Lib/100226~1.0/ucrt/arm/ucrt.lib")
+set(WK_UWP_LINK_FLAGS "/APPCONTAINER /MACHINE:ARM /SUBSYSTEM:CONSOLE /NODEFAULTLIB:libcmt /NODEFAULTLIB:libcmtd /NODEFAULTLIB:msvcrt /NODEFAULTLIB:msvcrtd /NODEFAULTLIB:msvcprt /NODEFAULTLIB:msvcprtd /NODEFAULTLIB:oldnames /LIBPATH:C:/PROGRA~2/WI3CF2~1/10/Lib/100226~1.0/um/arm /LIBPATH:C:/PROGRA~2/WI3CF2~1/10/Lib/100226~1.0/ucrt/arm /LIBPATH:C:/Users/Longi/WORKSP~1/WebKit/Tools/uwp/lib C:/Users/Longi/WORKSP~1/WebKit/Tools/uwp/lib/CLANG_~1.LIB C:/Users/Longi/WORKSP~1/WebKit/Tools/uwp/lib/ARM-CR~1.LIB C:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/lib/arm/msvcurt.lib C:/PROGRA~2/WI3CF2~1/10/Lib/100226~1.0/um/arm/OneCoreUAP.lib C:/PROGRA~2/WI3CF2~1/10/Lib/100226~1.0/ucrt/arm/ucrt.lib")
 set(CMAKE_EXE_LINKER_FLAGS_INIT "${WK_UWP_LINK_FLAGS}")
 set(CMAKE_SHARED_LINKER_FLAGS_INIT "${WK_UWP_LINK_FLAGS}")
 set(CMAKE_MODULE_LINKER_FLAGS_INIT "${WK_UWP_LINK_FLAGS}")
-set(WK_UWP_BUILTINS_ARM "C:/Users/Longi/WORKSP~1/WebKit/Tools/UWP/lib/CLANG_~1.LIB")
+set(WK_UWP_BUILTINS_ARM "C:/Users/Longi/WORKSP~1/WebKit/Tools/uwp/lib/CLANG_~1.LIB")

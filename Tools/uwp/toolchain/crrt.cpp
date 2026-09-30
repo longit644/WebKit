@@ -118,6 +118,19 @@ extern "C" int close(int fd) { return _close(fd); }
 extern "C" int read(int fd, void* buf, unsigned int n) { return _read(fd, buf, n); }
 extern "C" int write(int fd, const void* buf, unsigned int n) { return _write(fd, buf, n); }
 
+// --- more underscore aliases (same story): UCRT ARM exports _x only ---
+// Exact UCRT signatures (stdio.h declares the undecorated names too, but
+// the ARM import lib lacks them).
+extern "C" struct _iobuf;
+extern "C" _iobuf* _fdopen(int, char const*);
+extern "C" _iobuf* fdopen(int fd, char const* mode) { return _fdopen(fd, mode); }
+extern "C" int _fileno(_iobuf*);
+extern "C" int fileno(_iobuf* f) { return _fileno(f); }
+extern "C" int _setmode(int, int);
+extern "C" int setmode(int fd, int mode) { return _setmode(fd, mode); }
+extern "C" int _isatty(int);
+extern "C" int isatty(int fd) { return _isatty(fd); }
+
 // --- DLL entry: .CRT init walk, default DllMain, atexit on detach ---
 typedef void (__cdecl *_PVFV)(void);
 // selectany: real .CRT anchors (linker-synthesized when objects carry .CRT

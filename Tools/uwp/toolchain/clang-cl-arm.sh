@@ -54,9 +54,9 @@ for a in "$@"; do
     /APPCONTAINER|/MACHINE:*|/machine:*|/SUBSYSTEM:*|/subsystem:*|/NODEFAULTLIB:*|/nodefaultlib:*|/LIBPATH:*|/libpath:*|/ENTRY:*|/entry:*|/INCREMENTAL*|/incremental*|/MANIFEST*|/manifest*|/ALTERNATENAME*|/alternatename*|/DLL|/dll|/IMPLIB:*|/implib:*|/DEF:*|/def:*|/OUT:*|/out:*|*.lib|*.Lib|*.LIB)
       # Strip embedded quotes and turn ALL backslashes to / (libtool passes
       # single-backslash paths like -IMPLIB:".libs\x.lib", which sh/lld eat
-      # as escapes). Safe: link tokens never carry meaningful backslash
-      # escapes. (comp side untouched: -D"..." values need theirs.)
-      a=`echo "$a" | /usr/bin/sed 's/"//g;s/\\/\//g'`
+      # as escapes). NOTE: inside backticks, \X collapses (except \$,\`,\\),
+      # so the program is written doubled to deliver s/"//g;s/\\/\//g.
+      a=`echo "$a" | /usr/bin/sed 's/"//g;s/\\\\/\//g'`
       link="$link \"$a\""
       continue ;;
   esac
