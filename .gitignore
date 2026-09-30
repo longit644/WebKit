@@ -100,3 +100,9 @@ CLAUDE.md
 
 # Ignore libpas builds and log-outputs
 /Source/bmalloc/build*/
+
+# WebKitViewUWP port: stray build products (our scripts output into Tools/uwp/lib)/
+/*.obj
+/*.lib
+/build-arm-uwp/
+
