@@ -1,9 +1,9 @@
-# ARM32-UWP walls (probe log, 2026-09-30)
+# ARM32-UWP walls (probe log, 2026-09-30; link recipe closed same day)
 
-Toolchain: `WebKitView/Toolchain-ARM32-UWP-clang.cmake` v0.2 +
+Toolchain: `WebKitView/Toolchain-ARM32-UWP-clang.cmake` v0.3 +
 `WebKitView/arm32-uwp-env.ps1`. clang-cl 19.15, SDK 22621 ARM libs present.
 
-## Solved in probe
+## Solved
 
 1. **Compiler-check link** (`msvcrtd.lib`/`oldnames.lib` missing): fixed with
    `CMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY` + Release-only CRT.
@@ -11,15 +11,26 @@ Toolchain: `WebKitView/Toolchain-ARM32-UWP-clang.cmake` v0.2 +
 2. **Configure from repo root**, not `Source/` (`WEBKIT_FRAMEWORK_DECLARE`).
 3. **CMake 3.31 empty-var `string(REPLACE)`** (OptionsMSVC 108-113): pre-seed
    the six `*_LINKER_FLAGS*` with `/INCREMENTAL:NO` (line 114 adds it anyway).
-
-## Open (M3 work)
-
-4. **clang `builtins-arm.lib` missing.** Neither scoop LLVM23 nor VS clang 19
-   ship Windows/ARM builtins. Needed at link time. Fix: official LLVM 20+
-   release (check for `clang_rt.builtins-arm.lib`) or build compiler-rt.
-5. **MSVC ships no ARM32 CRT/vcruntime.** Link surface = SDK 22621
-   `um\arm` (OneCore/OneCoreUAP/WindowsApp/mincore) + `ucrt\arm` — present.
-   Debug configs unsupported, Release only.
+4. **builtins-arm.lib: BUILT from source.** No released LLVM ships Windows/ARM
+   builtins (checked scoop 23, VS 19, official 23.1.0 package). Upstream
+   `compiler-rt/lib/builtins/CMakeLists.txt` defines no `arm_SOURCES` for
+   WIN32-non-MINGW. Fix used: local `elseif(WIN32)` branch (GENERIC +
+   thumb2 base + optfp + sync + aeabi RT/CLIB + idivmod/ldivmod/uidivmod/
+   uldivmod/chkstk), `CMAKE_ASM_COMPILER_TARGET` set for .S files.
+   Result: 180 objects, `__aeabi_*`/`__divsi3`/`__addsf3` present.
+   Committed: `WebKitView/thirdparty/clang_rt.builtins-arm.lib` (143 KB).
+   Rebuild recipe: sparse llvm-project (compiler-rt, cmake, llvm/cmake),
+   `cmake -S compiler-rt/lib/builtins -B build-rt-arm -G Ninja
+   -DCMAKE_C_COMPILER=clang -DCMAKE_C_COMPILER_TARGET=thumbv7-unknown-windows-msvc
+   -DCMAKE_ASM_COMPILER=clang -DCMAKE_ASM_COMPILER_TARGET=thumbv7-unknown-windows-msvc
+   -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON`.
+5. **ARM link recipe PROVEN** (`wmain-arm.exe`, COFF-ARM/ARMNT): clang-cl 19.15
+   `--target=thumbv7-unknown-windows-msvc`, `-fuse-ld=lld`, `/MD`,
+   `/APPCONTAINER /MACHINE:ARM /SUBSYSTEM:WINDOWS` (WINDOWSCE rejected),
+   `/ENTRY:<own>` (no ARM32 vcruntime140_app ships), NODEFAULTLIB desktop
+   CRTs, `msvcurt.lib` (MSVC lib\arm Store CRT) + OneCoreUAP + ucrt (22621
+   arm) + our builtins. MSVC CRT/vcruntime for ARM32 do not exist — Store
+   CRT path is the only one. Debug unsupported, Release only.
 6. **vcpkg cannot build ARM32 deps.** No ARM32 MSVC compiler exists, so
    manifest/classic port builds (icu, curl, …) can't target ARM. Deps must
    arrive prebuilt (own curl like Apotheosis, WebKitLibraries-style drops).

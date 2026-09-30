@@ -16,7 +16,6 @@ list(APPEND WTF_SOURCES
     win/MemoryPressureHandlerWin.cpp
     win/OSAllocatorWin.cpp
     win/PathWalker.cpp
-    win/RunLoopWin.cpp
     win/SignalsWin.cpp
     win/ThreadingWin.cpp
     win/WTFCRTDebug.cpp
@@ -42,3 +41,10 @@ list(APPEND WTF_LIBRARIES
     synchronization
     winmm
 )
+
+if (WK_WEBKITVIEW_UWP)
+    # WebKitView: RunLoopWin needs an HWND, impossible in an AppContainer.
+    list(APPEND WTF_SOURCES generic/RunLoopGeneric.cpp)
+else ()
+    list(APPEND WTF_SOURCES win/RunLoopWin.cpp)
+endif ()

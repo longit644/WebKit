@@ -1,9 +1,15 @@
-list(APPEND JavaScriptCore_SOURCES
-    API/JSStringRefBSTR.cpp
-)
+if (NOT WK_WEBKITVIEW_UWP)
+    # WebKitView: no BSTR in the AppContainer API partition.
+    list(APPEND JavaScriptCore_SOURCES
+        API/JSStringRefBSTR.cpp
+    )
+
+    list(APPEND JavaScriptCore_PUBLIC_FRAMEWORK_HEADERS
+        API/JSStringRefBSTR.h
+    )
+endif ()
 
 list(APPEND JavaScriptCore_PUBLIC_FRAMEWORK_HEADERS
-    API/JSStringRefBSTR.h
     API/JavaScriptCore.h
 )
 

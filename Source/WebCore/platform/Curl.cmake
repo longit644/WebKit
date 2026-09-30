@@ -22,7 +22,6 @@ list(APPEND WebCore_SOURCES
     platform/network/curl/NetworkStorageSessionCurl.cpp
     platform/network/curl/OpenSSLHelper.cpp
     platform/network/curl/ProtectionSpaceCurl.cpp
-    platform/network/curl/PublicSuffixStoreCurl.cpp
     platform/network/curl/ResourceErrorCurl.cpp
     platform/network/curl/ResourceRequestCurl.cpp
     platform/network/curl/ResourceResponseCurl.cpp
@@ -57,6 +56,19 @@ list(APPEND WebCore_PRIVATE_FRAMEWORK_HEADERS
 
 list(APPEND WebCore_LIBRARIES
     CURL::libcurl
-    LibPSL::LibPSL
     OpenSSL::SSL
 )
+
+if (WK_WEBKITVIEW_UWP)
+    # WebKitView: no libpsl on UWP; naive stub in WebKitView/Driver.
+    list(APPEND WebCore_SOURCES
+        "${CMAKE_SOURCE_DIR}/WebKitView/Driver/PublicSuffixStoreStub.cpp"
+    )
+else ()
+    list(APPEND WebCore_SOURCES
+        platform/network/curl/PublicSuffixStoreCurl.cpp
+    )
+    list(APPEND WebCore_LIBRARIES
+        LibPSL::LibPSL
+    )
+endif ()

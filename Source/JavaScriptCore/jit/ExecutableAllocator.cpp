@@ -409,7 +409,12 @@ static ALWAYS_INLINE JITReservation initializeJITPageReservation()
         RELEASE_ASSERT(reservation.pageReservation.base() == addressHint && "Failed to accomodate JSC_jitMemoryReservationAddress");
 
     if (Options::verboseExecutablePoolAllocation())
+#if defined(WK_WEBKITVIEW)
+        // WebKitView: getpid() is absent from the AppContainer CRT.
+        dataLog(getCurrentProcessID(), ": Got executable pool reservation at ", RawPointer(reservation.pageReservation.base()), "...", RawPointer(reservation.pageReservation.end()), ", while I'm at ", RawPointer(reinterpret_cast<void*>(initializeJITPageReservation)), "\n");
+#else
         dataLog(getpid(), ": Got executable pool reservation at ", RawPointer(reservation.pageReservation.base()), "...", RawPointer(reservation.pageReservation.end()), ", while I'm at ", RawPointer(reinterpret_cast<void*>(initializeJITPageReservation)), "\n");
+#endif
     
     if (reservation.pageReservation) {
         ASSERT(reservation.pageReservation.size() == reservation.size);
