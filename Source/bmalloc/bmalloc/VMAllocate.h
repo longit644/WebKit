@@ -417,7 +417,13 @@ inline void vmZeroAndPurge(void* p, size_t vmSize, VMTag usage)
         MEMORY_BASIC_INFORMATION memInfo;
         VirtualQuery(currentPtr, &memInfo, sizeof(memInfo));
         RELEASE_BASSERT(memInfo.RegionSize > 0);
+#if defined(WTF_PLATFORM_UWP)
+        // WebKitWebView: on 32-bit Windows SIZE_T (unsigned long) and size_t
+        // (unsigned int) are distinct types; pin the template argument.
+        size_t chunkSize = std::min<size_t>(memInfo.RegionSize, vmSize - totalSeen);
+#else
         size_t chunkSize = std::min(memInfo.RegionSize, vmSize - totalSeen);
+#endif
         BOOL freeResult = VirtualFree(currentPtr, chunkSize, MEM_DECOMMIT);
         RELEASE_BASSERT(freeResult);
         void* allocResult = VirtualAlloc(currentPtr, chunkSize, MEM_COMMIT, PAGE_READWRITE);

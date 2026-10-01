@@ -1,4 +1,4 @@
-// Minimal native CRT startup for ARM32 AppContainer (WebKitView port).
+// Minimal native CRT startup for ARM32 AppContainer (WebKitWebView port).
 // MSVC 14.4x ships no ARM32 vcruntime140_app: msvcurt.lib only carries
 // C++/CX managed entries (?mainCRTStartup@@...), no undecorated ones.
 // These call the user mains with empty args (configure tests and simple

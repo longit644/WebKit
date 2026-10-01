@@ -1,4 +1,4 @@
-// WebKitView RTTI stubs for ARM32 Store CRT (v0 semantics, DOCUMENTED).
+// WebKitWebView RTTI stubs for ARM32 Store CRT (v0 semantics, DOCUMENTED).
 // MSVC 14.4x ships no native ARM32 vcruntime: __RTDynamicCast and the
 // type_info vftable exist only in msvcurt.lib's MANAGED ti_inst.obj, which
 // lld-link cannot parse ("should not refer to special section 0").

@@ -28,6 +28,20 @@
 #include <wtf/Lock.h>
 #include <wtf/Noncopyable.h>
 
+#if PLATFORM(UWP)
+// WebKitWebView: dbghelp.h needs the desktop partition; v0 captures stack
+// addresses only, no symbol resolution (inline false-stub, no .cpp body).
+namespace WTF {
+
+namespace DbgHelper {
+
+inline bool SymFromAddress(HANDLE, DWORD64, DWORD64*, void*) { return false; }
+
+};
+
+} // namespace WTF
+#else
+
 #include <dbghelp.h>
 
 namespace WTF {
@@ -39,3 +53,5 @@ WTF_EXPORT_PRIVATE bool SymFromAddress(HANDLE hProc, DWORD64 address, DWORD64* d
 };
 
 } // namespace WTF
+
+#endif // PLATFORM(UWP)

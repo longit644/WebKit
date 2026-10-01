@@ -127,12 +127,16 @@ public:
         if (!symbols)
             return;
 #elif OS(WINDOWS)
+#if PLATFORM(UWP)
+        // WebKitWebView: no DbgHelp symbol resolution on UWP; addresses only.
+#else
         HANDLE hProc = GetCurrentProcess();
         uint8_t symbolData[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)] = { 0 };
         auto symbolInfo = reinterpret_cast<SYMBOL_INFO*>(symbolData);
 
         symbolInfo->SizeOfStruct = sizeof(SYMBOL_INFO);
         symbolInfo->MaxNameLen = MAX_SYM_NAME;
+#endif
 #endif
         for (size_t i = 0; i < m_stack.size(); ++i) {
             const char* name = nullptr;
@@ -143,8 +147,10 @@ public:
             if (!name || !strcmp(name, "<redacted>"))
                 name = symbols[i];
 #elif OS(WINDOWS)
+#if !PLATFORM(UWP)
             if (!name && DbgHelper::SymFromAddress(hProc, reinterpret_cast<DWORD64>(m_stack[i]), nullptr, symbolInfo))
                 name = symbolInfo->Name;
+#endif
 #endif
             functor(i + 1, m_stack[i], name);
         }

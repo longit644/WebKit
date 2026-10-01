@@ -168,9 +168,14 @@ static inline double currentTime()
     double highResTime = highResUpTime();
 
     if (!syncedTime) {
+#if !PLATFORM(UWP)
         timeBeginPeriod(1); // increase time resolution around low-res time getter
+#endif
         syncLowResUTCTime = lowResTime = lowResUTCTime();
+#if !PLATFORM(UWP)
+        // WebKitWebView: winmm time{Begin,End}Period are desktop-only; skip.
         timeEndPeriod(1); // restore time resolution
+#endif
         syncHighResUpTime = highResTime;
         syncedTime = true;
     }

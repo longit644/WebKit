@@ -24,12 +24,13 @@ using namespace Windows::Foundation;
 using namespace ABI::Windows::System::Threading;
 
 // Thread local storage for Windows Store support
-typedef vector<void *> ThreadLocalData;
+// (std:: qualification: this block has no "using namespace std" in scope.)
+typedef std::vector<void *> ThreadLocalData;
 
 static __declspec(thread) ThreadLocalData *currentThreadData = nullptr;
-static set<ThreadLocalData *> allThreadData;
+static std::set<ThreadLocalData *> allThreadData;
 static DWORD nextTlsIndex = 0;
-static vector<DWORD> freeTlsIndices;
+static std::vector<DWORD> freeTlsIndices;
 
 #endif
 

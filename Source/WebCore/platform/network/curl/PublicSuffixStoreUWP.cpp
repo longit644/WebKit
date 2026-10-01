@@ -1,4 +1,4 @@
-// WebKitView PublicSuffixStore stub (no libpsl on UWP).
+// WebKitWebView PublicSuffixStore stub (no libpsl on UWP).
 // Naive last-two-labels fallback: safe degradation, cookies keep working,
 // over-broad suffix matching accepted until a real PSL ships.
 #include "config.h"

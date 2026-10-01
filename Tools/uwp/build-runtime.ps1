@@ -22,6 +22,10 @@ $crrtObj = Join-Path $root "lib\crrt.obj"
 & $clang --target=armv7-unknown-windows-msvc -c (Join-Path $root "toolchain\crrt.cpp") -Fo"$crrtObj" "-DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP" "-I$incDir\um" "-I$incDir\shared" "-I$incDir\ucrt" /MD /GR- /EHs-c-
 if ($LASTEXITCODE -ne 0) { throw "compile failed: crrt" }
 $objs += $crrtObj
+$wkstlObj = Join-Path $root "lib\wkstl.obj"
+& $clang --target=armv7-unknown-windows-msvc -c (Join-Path $root "toolchain\wkstl.cpp") -Fo"$wkstlObj" "-DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP" "-I$incDir\um" "-I$incDir\shared" "-I$incDir\ucrt" /MD /GR- /EHs-c-
+if ($LASTEXITCODE -ne 0) { throw "compile failed: wkstl" }
+$objs += $wkstlObj
 $crtvftObj = Join-Path $root "lib\crtvft.obj"
 & $llvm --target=armv7-unknown-windows-msvc -c (Join-Path $root "toolchain\crtvft.S") -o "$crtvftObj"
 if ($LASTEXITCODE -ne 0) { throw "compile failed: crtvft" }

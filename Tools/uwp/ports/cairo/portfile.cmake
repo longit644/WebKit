@@ -14,7 +14,7 @@ vcpkg_extract_source_archive(
     ARCHIVE "${ARCHIVE}"
     PATCHES
         msvc-convenience.diff
-        uwp-skip-win32-gdi.patch # WebKitView: no GDI backends on UWP/Store
+        uwp-skip-win32-gdi.patch # WebKitWebView: no GDI backends on UWP/Store
         ${EXTRA_PATCHES}
 )
 
@@ -51,7 +51,7 @@ else()
     list(APPEND OPTIONS -Dlzo=disabled)
 endif()
 
-# WebKitView arm-uwp-webkit: DWrite font backend is entangled with the
+# WebKitWebView arm-uwp-webkit: DWrite font backend is entangled with the
 # skipped GDI backend (win32-font fallback, GDI blits); FreeType
 # covers v0 fonts, DWrite comes back via WebKit itself in phase 2.
 if(TARGET_TRIPLET STREQUAL "arm-uwp-webkit")

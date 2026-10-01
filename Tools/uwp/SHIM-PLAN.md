@@ -1,7 +1,7 @@
 # WK_WEBKITVIEW shim plan (derived from Apotheosis wk-winuwp.patch analysis)
 
 Base: WPE `wpewebkit-2.54.0`. Every item guarded `#if defined(WK_WEBKITVIEW)`
-with a `WebKitView:` comment. Order = dependency order (WTF first).
+with a `WebKitWebView:` comment. Order = dependency order (WTF first).
 
 ## 1. WTF core (M1)
 

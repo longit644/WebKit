@@ -50,8 +50,8 @@ find_package(OpenSSL REQUIRED)
 find_package(PNG 1.6.34 REQUIRED)
 find_package(SQLite3 3.23.1 REQUIRED)
 find_package(ZLIB 1.2.11 REQUIRED)
-if (NOT WK_WEBKITVIEW_UWP)
-    # WebKitView: no libpsl on UWP (stubbed PublicSuffixStore, no PSL use).
+if (NOT WK_UWP)
+    # WebKitWebView: no libpsl on UWP (stubbed PublicSuffixStore, no PSL use).
     find_package(LibPSL 0.20.2 REQUIRED)
 endif ()
 find_package(WebP REQUIRED COMPONENTS demux)

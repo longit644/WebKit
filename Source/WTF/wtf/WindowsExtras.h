@@ -39,6 +39,24 @@ const HWND HWND_MESSAGE = 0;
 
 namespace WTF {
 
+#if PLATFORM(UWP)
+// WebKitWebView: SHGetValueW (shlwapi) and Get/SetWindowLongPtr (USER32 HWNDs)
+// are desktop-only; v0 stubs (registry reads fail, no HWND backing).
+inline HRESULT getRegistryValue(HKEY, LPCWSTR, LPCWSTR, LPDWORD, LPVOID, LPDWORD)
+{
+    return E_FAIL;
+}
+
+inline void* getWindowPointer(HWND, int)
+{
+    return nullptr;
+}
+
+inline void* setWindowPointer(HWND, int, void*)
+{
+    return nullptr;
+}
+#else
 inline HRESULT getRegistryValue(HKEY hkey, LPCWSTR pszSubKey, LPCWSTR pszValue, LPDWORD pdwType, LPVOID pvData, LPDWORD pcbData)
 {
     return ::SHGetValueW(hkey, pszSubKey, pszValue, pdwType, pvData, pcbData);
@@ -53,6 +71,7 @@ inline void* setWindowPointer(HWND hWnd, int index, void* value)
 {
     return reinterpret_cast<void*>(::SetWindowLongPtr(hWnd, index, reinterpret_cast<LONG_PTR>(value)));
 }
+#endif
 
 } // namespace WTF
 

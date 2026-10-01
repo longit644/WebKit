@@ -1,5 +1,5 @@
 #!/bin/sh
-# WebKitView ARM32-UWP compiler wrapper for autotools ports (master copy).
+# WebKitWebView ARM32-UWP compiler wrapper for autotools ports (master copy).
 # Live copy: C:/Users/Longi/llvm-tools/clang-cl-arm (extensionless, msys-exec).
 # vcpkg/libtool wrap every flag in -Xcompiler/-Xlinker escapes, which clang-cl
 # rejects ("unknown argument ignored" -> flags silently lost). This unwraps,

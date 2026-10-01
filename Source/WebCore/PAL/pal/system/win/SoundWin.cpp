@@ -30,6 +30,13 @@
 
 namespace PAL {
 
-void systemBeep() { MessageBeep(static_cast<UINT>(-1)); }
+void systemBeep()
+{
+#if PLATFORM(UWP)
+    // WebKitWebView: MessageBeep (USER32) is desktop-only; v0 is silent.
+#else
+    MessageBeep(static_cast<UINT>(-1));
+#endif
+}
 
 } // namespace PAL

@@ -1,4 +1,4 @@
-// WebKitView: desktop-partition Win32 APIs that exist in OneCoreUAP (ARM)
+// WebKitWebView: desktop-partition Win32 APIs that exist in OneCoreUAP (ARM)
 // but whose headers hide them under PC_APP (WINAPI_PARTITION_DESKTOP|SYSTEM).
 // Plain-C declarations (no SAL: this header is force-included first).
 // Types match the SDK exactly (HANDLE=void*, DWORD=unsigned long, etc.),
@@ -23,6 +23,12 @@ typedef struct _SECURITY_ATTRIBUTES SECURITY_ATTRIBUTES, *PSECURITY_ATTRIBUTES, 
 typedef const void* LPCVOID;
 typedef unsigned long* LPDWORD;
 
+#ifdef __cplusplus
+// C++ TUs mangle undecorated declarations; these must stay C-linked to match
+// the import libs (a missing block once produced mangled CreateFileW refs).
+extern "C" {
+#endif
+
 HANDLE __stdcall CreateFileA(
     LPCSTR lpFileName,
     DWORD dwDesiredAccess,
@@ -44,7 +50,9 @@ HANDLE __stdcall CreateFileW(
     );
 
 BOOL __stdcall AreFileApisANSI(void);
-
+// CreateFile (unsuffixed): the SDK macro mapping to CreateFileW lives in the
+// desktop partition; WebKit builds UNICODE so map it here.
+#define CreateFile CreateFileW
 DWORD __stdcall GetFileSize(
     HANDLE hFile,
     LPDWORD lpFileSizeHigh
@@ -71,9 +79,19 @@ unsigned int __stdcall GetWindowsDirectoryA(
     char* lpBuffer,
     unsigned int uSize
     );
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
+
 // Non-UNICODE TUs (fontconfig) use the unsuffixed name; the SDK macro that
 // maps it is hidden with the declaration, so map it here.
 #define GetWindowsDirectory GetWindowsDirectoryA
+
+// CSIDL folder IDs (shlobj.h is desktop-only); real values, used as opaque
+// keys now that storageDirectory() is temp-backed on UWP.
+#define CSIDL_APPDATA 0x001a
+#define CSIDL_LOCAL_APPDATA 0x001c
 
 // --- file-mapping: CreateFileMapping (desktop) is absent under PC_APP
 // (only ...FromApp, whose 5-arg signature differs). The SDK's own inline

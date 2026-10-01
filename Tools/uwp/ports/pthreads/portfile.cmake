@@ -37,7 +37,7 @@ file(TO_NATIVE_PATH "${CURRENT_PACKAGES_DIR}" DESTROOT_RELEASE)
 vcpkg_list(SET OPTIONS_DEBUG "DESTROOT=${DESTROOT_DEBUG}")
 vcpkg_list(SET OPTIONS_RELEASE "DESTROOT=${DESTROOT_RELEASE}" "BUILD_RELEASE=1")
 
-# WebKitView arm-uwp-webkit: nmake runs under cmd.exe, so the extensionless
+# WebKitWebView arm-uwp-webkit: nmake runs under cmd.exe, so the extensionless
 # clang-cl-arm wrapper cannot be CC, and vcpkg's _CL_ env carries clang-only
 # flags (-Wno-error=...) that MSVC cl rejects (D8021). Drive raw clang-cl
 # with a self-contained flag set via the CC macro, and feed the ARM link

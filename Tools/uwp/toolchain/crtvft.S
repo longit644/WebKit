@@ -1,4 +1,4 @@
-// WebKitView type_info vftable dummy (ARM32 Store CRT lacks a native one;
+// WebKitWebView type_info vftable dummy (ARM32 Store CRT lacks a native one;
 // the only copy lives in msvcurt's managed ti_inst.obj, which lld cannot
 // parse). The reference comes from /GR- dynamic_cast lowering; our
 // __RTDynamicCast stub (crrtti.c) ignores its typeinfo arguments, so this

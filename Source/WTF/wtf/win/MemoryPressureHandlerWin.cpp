@@ -35,7 +35,12 @@ namespace WTF {
 
 void MemoryPressureHandler::platformInitialize()
 {
+#if !PLATFORM(UWP)
     m_lowMemoryHandle = Win32Handle::adopt(::CreateMemoryResourceNotification(LowMemoryResourceNotification));
+#else
+    // WebKitWebView: CreateMemoryResourceNotification is desktop-only; the
+    // measurement timer below still reports coarse pressure. v0 limitation.
+#endif
 }
 
 VOID CALLBACK lowMemoryNotificationCallback(PVOID context, BOOLEAN)
@@ -50,8 +55,10 @@ void MemoryPressureHandler::beginWaitingForLowMemoryNotification()
     if (m_lowMemoryWaitHandle)
         return;
 
+#if !PLATFORM(UWP)
     if (!::RegisterWaitForSingleObject(&m_lowMemoryWaitHandle, m_lowMemoryHandle.get(), lowMemoryNotificationCallback, this, INFINITE, WT_EXECUTEONLYONCE))
         m_lowMemoryWaitHandle = nullptr;
+#endif
 }
 
 void MemoryPressureHandler::windowsLowMemoryNotificationFired()
@@ -63,10 +70,14 @@ void MemoryPressureHandler::windowsLowMemoryNotificationFired()
 
     BOOL memoryLow;
 
+#if !PLATFORM(UWP)
     if (QueryMemoryResourceNotification(m_lowMemoryHandle.get(), &memoryLow) && memoryLow) {
         setMemoryPressureStatus(SystemMemoryPressureStatus::Critical);
         releaseMemory(Critical::Yes);
     }
+#else
+    UNUSED_PARAM(memoryLow);
+#endif
     beginWaitingForLowMemoryNotification();
 }
 
@@ -76,11 +87,15 @@ void MemoryPressureHandler::windowsMeasurementTimerFired()
 
     BOOL memoryLow;
 
+#if !PLATFORM(UWP)
     if (m_lowMemoryHandle && QueryMemoryResourceNotification(m_lowMemoryHandle.get(), &memoryLow) && memoryLow) {
         setMemoryPressureStatus(SystemMemoryPressureStatus::Critical);
         releaseMemory(Critical::Yes);
         return;
     }
+#else
+    UNUSED_PARAM(memoryLow);
+#endif
 
 #if CPU(X86)
     PROCESS_MEMORY_COUNTERS_EX counters;
@@ -119,10 +134,12 @@ void MemoryPressureHandler::uninstall()
         return;
 
     m_windowsMeasurementTimer.stop();
+#if !PLATFORM(UWP)
     if (m_lowMemoryWaitHandle) {
         ::UnregisterWaitEx(m_lowMemoryWaitHandle, INVALID_HANDLE_VALUE);
         m_lowMemoryWaitHandle = nullptr;
     }
+#endif
     m_installed = false;
 }
 

@@ -4,7 +4,7 @@
  #include FT_COLOR_H
  #endif
 
-+/* WebKitView UWP: FreeType renames the FT_FaceRec_::generic member to
++/* WebKitWebView UWP: FreeType renames the FT_FaceRec_::generic member to
 + * GenericFromFreeTypeLibrary when WINAPI_FAMILY is not DESKTOP_APP
 + * (freetype.h, to dodge the C++/CX contextual keyword). Map it back so the
 + * ->generic uses below keep working. Mirrors FreeType's own guard. */

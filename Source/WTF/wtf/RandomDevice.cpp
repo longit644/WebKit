@@ -37,7 +37,11 @@
 
 #if OS(WINDOWS)
 #include <windows.h>
+#if PLATFORM(UWP)
+#include <bcrypt.h>
+#else
 #include <wincrypt.h> // windows.h must be included before wincrypt.h.
+#endif
 #endif
 
 #if OS(DARWIN)
@@ -106,6 +110,12 @@ void RandomDevice::cryptographicallyRandomValues(std::span<uint8_t> buffer)
             amountRead += currentRead;
     }
 #elif OS(WINDOWS)
+#if PLATFORM(UWP)
+    // WebKitWebView: legacy CryptoAPI (wincrypt) is desktop-only; CNG system
+    // preferred RNG is store-legal and needs no provider handle.
+    if (!BCRYPT_SUCCESS(BCryptGenRandom(nullptr, buffer.data(), static_cast<ULONG>(buffer.size()), BCRYPT_USE_SYSTEM_PREFERRED_RNG)))
+        CRASH();
+#else
     // FIXME: We cannot ensure that Cryptographic Service Provider context and CryptGenRandom are safe across threads.
     // If it is safe, we can acquire context per RandomDevice.
     HCRYPTPROV hCryptProv = 0;
@@ -114,6 +124,7 @@ void RandomDevice::cryptographicallyRandomValues(std::span<uint8_t> buffer)
     if (!CryptGenRandom(hCryptProv, buffer.size(), buffer.data()))
         CRASH();
     CryptReleaseContext(hCryptProv, 0);
+#endif
 #else
 #error "This configuration doesn't have a strong source of randomness."
 // WARNING: When adding new sources of OS randomness, the randomness must

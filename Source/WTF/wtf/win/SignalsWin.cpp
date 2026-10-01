@@ -152,7 +152,11 @@ void SignalHandlers::finalize()
 
     for (unsigned i = 0; i < numberOfSignals; ++i) {
         if (handlers.numberOfHandlers[i]) {
+#if !PLATFORM(UWP)
+            // WebKitWebView: AddVectoredExceptionHandler is desktop-only; crash
+            // handlers stay registered but inert (v0: crashes crash).
             AddVectoredExceptionHandler(1, vectoredHandler);
+#endif
             break;
         }
     }

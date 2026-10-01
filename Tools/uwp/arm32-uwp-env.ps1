@@ -1,4 +1,4 @@
-# WebKitView ARM32-UWP env (v0.1). Run in PowerShell before CMake configure.
+# WebKitWebView ARM32-UWP env (v0.1). Run in PowerShell before CMake configure.
 # ASCII paths only. VS2022 BuildTools + Win11 SDK 22621 (last SDK with ARM32 libs).
 
 $VSBT = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools"

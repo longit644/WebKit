@@ -42,9 +42,13 @@ list(APPEND WTF_LIBRARIES
     winmm
 )
 
-if (WK_WEBKITVIEW_UWP)
-    # WebKitView: RunLoopWin needs an HWND, impossible in an AppContainer.
+if (WK_UWP)
+    # WebKitWebView: RunLoopWin needs an HWND, impossible in an AppContainer.
     list(APPEND WTF_SOURCES generic/RunLoopGeneric.cpp)
+    # WebKitWebView: DbgHelp/shlwapi/winmm are desktop-only (no ARM import libs,
+    # no store LoadLibrary); DbgHelp paths stubbed, timers skipped.
+    # synchronization (SynchAPI) is App-partition legal.
+    list(REMOVE_ITEM WTF_LIBRARIES DbgHelp shlwapi winmm)
 else ()
     list(APPEND WTF_SOURCES win/RunLoopWin.cpp)
 endif ()

@@ -170,6 +170,11 @@ LONG Win32PageFaultHandler::handle(PEXCEPTION_POINTERS info)
 
 bool Win32PageFaultHandler::disable()
 {
+#if defined(ANGLE_ENABLE_WINDOWS_UWP)
+    // WebKitWebView: no vectored exception handlers on UWP/Store; never enabled.
+    mVectoredExceptionHandler = nullptr;
+    return true;
+#else
     if (mVectoredExceptionHandler)
     {
         ULONG res                 = RemoveVectoredExceptionHandler(mVectoredExceptionHandler);
@@ -182,10 +187,15 @@ bool Win32PageFaultHandler::disable()
         }
     }
     return true;
+#endif
 }
 
 bool Win32PageFaultHandler::enable()
 {
+#if defined(ANGLE_ENABLE_WINDOWS_UWP)
+    // WebKitWebView: no vectored exception handlers on UWP/Store.
+    return false;
+#else
     if (mVectoredExceptionHandler)
     {
         return true;
@@ -203,6 +213,7 @@ bool Win32PageFaultHandler::enable()
         return false;
     }
     return true;
+#endif
 }
 }  // namespace
 

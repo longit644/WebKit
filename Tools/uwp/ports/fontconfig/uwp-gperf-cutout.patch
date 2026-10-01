@@ -6,7 +6,7 @@
          write = True
 +        seen_gperf_start = False
          for l in input_lines:
-+            # WebKitView: force-include headers (-FI intrin.h) expand into the
++            # WebKitWebView: force-include headers (-FI intrin.h) expand into the
 +            # preprocessed gperf input; gperf copies leading junk into its
 +            # output. Drop everything before the first gperf directive.
 +            if not seen_gperf_start:

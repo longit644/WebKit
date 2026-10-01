@@ -7,7 +7,7 @@ vcpkg_from_github(
     PATCHES
         ${ANDROID_LOCALECONV_L_PATCH}
         no-threads-on-emscripten.patch
-        uwp-generic-field.patch # WebKitView: map FT generic member for UWP WINAPI_FAMILY
+        uwp-generic-field.patch # WebKitWebView: map FT generic member for UWP WINAPI_FAMILY
 )
 
 if("icu" IN_LIST FEATURES)

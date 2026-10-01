@@ -1,4 +1,4 @@
-// WebKitView LINK.EXE shim (host-x64 binary, lives in llvm-tools/).
+// WebKitWebView LINK.EXE shim (host-x64 binary, lives in llvm-tools/).
 // ICU's mh-msys-msvc fragment links DLLs via LINK.EXE with gcc-style
 // -Xlinker escapes that neither MSVC link nor raw lld-link accept.
 // This strips -Xlinker, maps -lfoo to foo.lib, flips dash-form link flags

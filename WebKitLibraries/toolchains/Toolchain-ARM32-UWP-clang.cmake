@@ -15,10 +15,13 @@ set(CMAKE_SYSTEM_PROCESSOR ARM)
 
 set(WK_UWP_TRIPLE armv7-unknown-windows-msvc)
 
-# WebKitView port switch: consumed by PlatformWin.cmake / Curl.cmake guards
-# and as the WK_WEBKITVIEW source guard. ON in this toolchain by definition.
-set(WK_WEBKITVIEW_UWP ON CACHE BOOL "WebKitView UWP/ARM32 port")
-add_compile_definitions(WK_WEBKITVIEW)
+# UWP port switch: consumed by PlatformWin.cmake / Curl.cmake guards (CMake var
+# below) and as the PLATFORM(UWP) source guard (compile definition). ON in
+# this toolchain by definition. Naming follows the tree convention
+# (PLATFORM(WIN)/PLATFORM(WPE)...): UWP is an environment modifier on the
+# WIN port, mirroring PLATFORM(MACCATALYST).
+set(WK_UWP ON CACHE BOOL "WebKitView UWP/ARM32 port")
+add_compile_definitions(WTF_PLATFORM_UWP=1)
 
 set(WK_UWP_CLANG_CL "C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/Llvm/bin/clang-cl.exe"
     CACHE FILEPATH "WebKitView ARM32-UWP clang-cl (19.15, MSVC 14.44)")

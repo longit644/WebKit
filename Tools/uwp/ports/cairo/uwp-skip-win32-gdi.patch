@@ -7,7 +7,7 @@
 
    add_project_arguments('-DWIN32_LEAN_AND_MEAN', '-DNOMINMAX', language: ['c', 'cpp'])
 
-+  # WebKitView: UWP/Store (WINAPI_FAMILY_PC_APP == 2) has no GDI device
++  # WebKitWebView: UWP/Store (WINAPI_FAMILY_PC_APP == 2) has no GDI device
 +  # contexts; the win32 GDI surface+font backends can neither compile
 +  # (desktop-partition APIs) nor link (desktop gdi32) there. Skip them;
 +  # the DWrite font backend below still applies.

@@ -31,6 +31,11 @@ namespace WTF {
 
 namespace DbgHelper {
 
+#if PLATFORM(UWP)
+// WebKitWebView: SymFromAddress is an inline false-stub in the header (no
+// DbgHelp on UWP); no .cpp body.
+#else
+
 // We are only calling these DbgHelp.dll functions in debug mode since the library is not threadsafe.
 // It's possible for external code to call the library at the same time as WebKit and cause memory corruption.
 
@@ -66,6 +71,8 @@ bool SymFromAddress(HANDLE, DWORD64, DWORD64*, SYMBOL_INFO*)
 }
 
 #endif // !defined(NDEBUG)
+
+#endif // !PLATFORM(UWP)
 
 } // namespace DbgHelper
 

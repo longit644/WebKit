@@ -32,7 +32,7 @@ vcpkg_cmake_configure(
         -DLIBXML2_WITH_CATALOG=ON
         -DLIBXML2_WITH_DEBUG=ON
         -DLIBXML2_WITH_ISO8859X=ON
-        # WebKitView: modules = runtime plugin loading via dlopen/shl_load
+        # WebKitWebView: modules = runtime plugin loading via dlopen/shl_load
         # probes that misdetect on UWP; useless on AppContainer anyway.
         -DLIBXML2_WITH_MODULES=OFF
         -DLIBXML2_WITH_OUTPUT=ON

@@ -103,10 +103,21 @@ CString fileSystemRepresentation(const String& path)
 static String storageDirectory(DWORD pathIdentifier)
 {
     Vector<char16_t> buffer(MAX_PATH);
+#if PLATFORM(UWP)
+    // WebKitWebView: SHGetFolderPath/CSIDL need shell32 (desktop-only); use the
+    // app temp dir as the v0 backing store (documented: the OS may evict it;
+    // WinRT ApplicationData is the proper fix).
+    UNUSED_PARAM(pathIdentifier);
+    int pathLength = ::GetTempPathW(static_cast<DWORD>(buffer.size()), wcharFrom(buffer.mutableSpan().data()));
+    if (pathLength <= 0 || static_cast<size_t>(pathLength) >= buffer.size())
+        return String();
+    buffer.shrink(pathLength);
+#else
     if (FAILED(SHGetFolderPathW(nullptr, pathIdentifier | CSIDL_FLAG_CREATE, nullptr, 0, wcharFrom(buffer.mutableSpan().data()))))
         return String();
 
     buffer.shrink(wcslen(wcharFrom(buffer.span().data())));
+#endif
     String directory = String::adopt(WTF::move(buffer));
 
     directory = pathByAppendingComponent(directory, "Apple Computer\\WebKit"_s);
