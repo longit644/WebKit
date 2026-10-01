@@ -15,7 +15,7 @@ export PATH="/c/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/Llvm/bin:$PATH"
 # Dash-args are never converted; C:/... drive paths pass through; /tmp/... must convert.
 export MSYS2_ARG_CONV_EXCL="/link;/APPCONTAINER;/MACHINE;/machine;/SUBSYSTEM;/subsystem;/NODEFAULTLIB;/nodefaultlib;/LIBPATH;/libpath;/ENTRY;/entry;/INCREMENTAL;/incremental;/MANIFEST;/manifest;/DYNAMICBASE;/dynamicbase;/NXCOMPAT;/nxcompat;/ALTERNATENAME;/alternatename;/DLL;/dll;/NOENTRY;/noentry;/IMPLIB;/implib;/DEF;/def;/OUT;/out;/MD;/MT;/LD;-imsvc;-FI;-showIncludes;-Fo;-Fe;-Fd;-Fm;-Fp;-Fa;-FR;-Fr;-Fx"
 cc="C:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/Llvm/bin/clang-cl.exe"
-tgt="--target=thumbv7-unknown-windows-msvc"
+tgt="--target=armv7-unknown-windows-msvc"
 compile_only=0
 for a in "$@"; do
   case "$a" in

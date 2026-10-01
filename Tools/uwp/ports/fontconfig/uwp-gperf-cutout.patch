@@ -1,0 +1,19 @@
+--- a/src/cutout.py
++++ b/src/cutout.py
+@@ -13,6 +13,15 @@
+     input_lines = Path(args.input).read_text(encoding='utf-8').splitlines()
+     with Path(args.output).open('w', encoding='utf-8') as out:
+         write = True
++        seen_gperf_start = False
+         for l in input_lines:
++            # WebKitView: force-include headers (-FI intrin.h) expand into the
++            # preprocessed gperf input; gperf copies leading junk into its
++            # output. Drop everything before the first gperf directive.
++            if not seen_gperf_start:
++                if l.startswith('%'):
++                    seen_gperf_start = True
++                else:
++                    continue
+             if l.startswith('CUT_OUT_BEGIN'):
+                 write = False
+ 

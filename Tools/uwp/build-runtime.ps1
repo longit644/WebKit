@@ -14,16 +14,18 @@ $objs = @()
 foreach ($f in @("crmain", "crwmain", "crwinmain", "crwwinmain", "crrtti", "crdllmain")) {
     $src = Join-Path $root "toolchain\$f.c"
     $o = Join-Path $root "lib\$f.obj"
-    & $clang --target=thumbv7-unknown-windows-msvc -c "$src" -Fo"$o" "-DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP" "-I$incDir\um" "-I$incDir\shared" "-I$incDir\ucrt" /MD /GR- /EHs-c-
+    & $clang --target=armv7-unknown-windows-msvc -c "$src" -Fo"$o" "-DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP" "-I$incDir\um" "-I$incDir\shared" "-I$incDir\ucrt" /MD /GR- /EHs-c-
     if ($LASTEXITCODE -ne 0) { throw "compile failed: $f" }
     $objs += $o
 }
-& $clang --target=thumbv7-unknown-windows-msvc -c (Join-Path $root "toolchain\crrt.cpp") -Fo(Join-Path $root "lib\crrt.obj") "-DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP" "-I$incDir\um" "-I$incDir\shared" "-I$incDir\ucrt" /MD /GR- /EHs-c-
+$crrtObj = Join-Path $root "lib\crrt.obj"
+& $clang --target=armv7-unknown-windows-msvc -c (Join-Path $root "toolchain\crrt.cpp") -Fo"$crrtObj" "-DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP" "-I$incDir\um" "-I$incDir\shared" "-I$incDir\ucrt" /MD /GR- /EHs-c-
 if ($LASTEXITCODE -ne 0) { throw "compile failed: crrt" }
-$objs += Join-Path $root "lib\crrt.obj"
-& $llvm --target=thumbv7-unknown-windows-msvc -c (Join-Path $root "toolchain\crtvft.S") -o (Join-Path $root "lib\crtvft.obj")
+$objs += $crrtObj
+$crtvftObj = Join-Path $root "lib\crtvft.obj"
+& $llvm --target=armv7-unknown-windows-msvc -c (Join-Path $root "toolchain\crtvft.S") -o "$crtvftObj"
 if ($LASTEXITCODE -ne 0) { throw "compile failed: crtvft" }
-$objs += Join-Path $root "lib\crtvft.obj"
+$objs += $crtvftObj
 foreach ($o in $objs) { if (-not (Test-Path -LiteralPath $o)) { throw "missing object: $o" } }
 Remove-Item -LiteralPath $libOut -Force -ErrorAction SilentlyContinue
 & $lib "/OUT:$libOut" @objs

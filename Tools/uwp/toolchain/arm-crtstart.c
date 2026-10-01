@@ -3,7 +3,7 @@
 // C++/CX managed entries (?mainCRTStartup@@...), no undecorated ones.
 // These call the user mains with empty args (configure tests and simple
 // tools don't parse argv) and exit via kernel32 ApiSet (in OneCoreUAP).
-// Build: clang-cl --target=thumbv7-unknown-windows-msvc -c arm-crtstart.c
+// Build: clang-cl --target=armv7-unknown-windows-msvc -c arm-crtstart.c
 //        llvm-lib /OUT:arm-crtstart.lib arm-crtstart.obj
 #include <windows.h>
 

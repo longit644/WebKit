@@ -5,7 +5,7 @@
 // managed object is never pulled. See ARM-WALLS.md. C++ file (operator
 // delete needs it); C symbols under extern "C". Built by hand into
 // arm-crtstart.lib (keeps one lib):
-//   clang-cl --target=thumbv7-unknown-windows-msvc -c crrt.cpp -DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP /MD /GR- /EHs-c-
+//   clang-cl --target=armv7-unknown-windows-msvc -c crrt.cpp -DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP /MD /GR- /EHs-c-
 #include <windows.h>
 #include <stdint.h>
 
@@ -149,6 +149,79 @@ extern "C" int _stricmp(char const*, char const*);
 extern "C" int stricmp(char const* a, char const* b) { return _stricmp(a, b); }
 extern "C" int _strnicmp(char const*, char const*, unsigned int);
 extern "C" int strnicmp(char const* a, char const* b, unsigned int n) { return _strnicmp(a, b, n); }
+
+// --- file/dir POSIX aliases (fontconfig link needs them; ARM ucrt.lib only
+// exports the underscore forms). Exact UCRT signatures.
+extern "C" int _unlink(char const*);
+extern "C" int unlink(char const* f) { return _unlink(f); }
+extern "C" int _rmdir(char const*);
+extern "C" int rmdir(char const* d) { return _rmdir(d); }
+extern "C" char* _strdup(char const*);
+extern "C" char* strdup(char const* s) { return _strdup(s); }
+extern "C" int _access(char const*, int);
+extern "C" int access(char const* p, int m) { return _access(p, m); }
+extern "C" int _chmod(char const*, int);
+extern "C" int chmod(char const* p, int m) { return _chmod(p, m); }
+
+// --- __u64tos: vcruntime int->string helper (absent from ARM-store libs;
+ // clang-cl emits calls for %p/%llu-style lowering, e.g. expat debug code).
+ // EXACT MSVC semantics: radix 2..36, lowercase digits, no prefix.
+ extern "C" char* __cdecl __u64tos(unsigned long long value, char* str, int radix)
+ {
+     static const char digits[] = "0123456789abcdefghijklmnopqrstuvwxyz";
+     char* p = str;
+     if (radix < 2 || radix > 36) {
+         *p = '\0';
+         return str;
+     }
+     // Generate reversed, then flip in place.
+     do {
+         *p++ = digits[value % (unsigned long long)radix];
+         value /= (unsigned long long)radix;
+     } while (value);
+     *p = '\0';
+     for (char* lo = str; lo < --p; ++lo) {
+         char t = *lo;
+         *lo = *p;
+         *p = t;
+     }
+     return str;
+ }
+
+ // --- _mbsrchr: reverse multibyte-char search. ARM ucrt.lib lacks it
+// (only _mbschr). v0: single-byte walk, no lead-byte tables on UWP;
+// correct for ASCII paths, which is all fontconfig uses it for ('\\').
+extern "C" unsigned char* __cdecl _mbsrchr(const unsigned char* s, unsigned int c)
+{
+    const unsigned char* found = 0;
+    unsigned char ch = (unsigned char)(c & 0xFF);
+    while (*s) {
+        if (*s == ch)
+            found = s;
+        ++s;
+    }
+    if (ch == 0)
+        return (unsigned char*)s; // match strrchr: NUL searches hit terminator
+    return (unsigned char*)found;
+}
+
+// --- GetWindowsDirectoryA: desktop-only; phone Windows dir is C:\Windows.
+// fontconfig takes its address as a GetSystemWindowsDirectoryA fallback.
+// EXACT SDK semantics: success = chars excl NUL; small buffer = need incl NUL.
+extern "C" unsigned int __stdcall GetWindowsDirectoryA(char* buf, unsigned int size)
+{
+    static const char wdir[] = "C:\\Windows";
+    unsigned int need = (unsigned int)(sizeof(wdir) - 1);
+    if (size == 0)
+        return need + 1;
+    unsigned int n = need < size - 1 ? need : size - 1;
+    for (unsigned int i = 0; i < n; ++i)
+        buf[i] = wdir[i];
+    buf[n] = '\0';
+    if (size <= need)
+        return need + 1;
+    return need;
+}
 
 // --- DLL entry: .CRT init walk, default DllMain, atexit on detach ---
 typedef void (__cdecl *_PVFV)(void);

@@ -1,0 +1,26 @@
+--- a/meson.build
++++ b/meson.build
+@@ -502,9 +502,16 @@
+
+ if host_machine.system() == 'windows'
+   add_languages('cpp', native: false)
+
+   add_project_arguments('-DWIN32_LEAN_AND_MEAN', '-DNOMINMAX', language: ['c', 'cpp'])
+
++  # WebKitView: UWP/Store (WINAPI_FAMILY_PC_APP == 2) has no GDI device
++  # contexts; the win32 GDI surface+font backends can neither compile
++  # (desktop-partition APIs) nor link (desktop gdi32) there. Skip them;
++  # the DWrite font backend below still applies.
++  winapi_family = cc.get_define('WINAPI_FAMILY', prefix: '#include <winapifamily.h>')
++  build_win32_gdi = winapi_family != '2'
++  if build_win32_gdi
+   win32_extra_deps = [
+     cc.find_library('gdi32'),
+     cc.find_library('msimg32'),
+@@ -527,4 +534,5 @@
+       'deps': win32_extra_deps,
+     }
+   ]
++  endif
+
+   cpp_compiler = meson.get_compiler('cpp')

@@ -50,6 +50,6 @@ with a `WebKitView:` comment. Order = dependency order (WTF first).
 
 - `Source/cmake/OptionsMiniWPE.cmake`, `WTF/wtf/PlatformMiniWPE.cmake`,
   `JavaScriptCore/PlatformMiniWPE.cmake`, `WebCore/PlatformMiniWPE.cmake`.
-- Exceptions off globally: `_HAS_EXCEPTIONS=0`, `/EHs-c-` (clang thumbv7
+- Exceptions off globally: `_HAS_EXCEPTIONS=0`, `/EHs-c-` (clang armv7
   cannot lower `cleanupret`).
-- clang-cl `--target=thumbv7-unknown-windows-msvc`, lld-link for driver.
+- clang-cl `--target=armv7-unknown-windows-msvc`, lld-link for driver.
