@@ -108,6 +108,11 @@ bool DragData::containsFiles() const
 
 unsigned DragData::numberOfFiles() const
 {
+#if PLATFORM(UWP)
+    // WebKitWebView: HDROP/DragQueryFileW (shell32) are desktop-only; file
+    // drag is XAML-mediated on UWP (v0: none).
+    return 0;
+#else
     if (!m_platformDragData)
         return 0;
 
@@ -126,12 +131,17 @@ unsigned DragData::numberOfFiles() const
     GlobalUnlock(medium.hGlobal);
 
     return numFiles;
+#endif
 }
 
 Vector<String> DragData::asFilenames() const
 {
     Vector<String> result;
 
+#if PLATFORM(UWP)
+    // WebKitWebView: see numberOfFiles.
+    return result;
+#else
     if (m_platformDragData) {
         WCHAR filename[MAX_PATH];
 
@@ -160,6 +170,7 @@ Vector<String> DragData::asFilenames() const
     result = m_dragDataMap.get(cfHDropFormat()->cfFormat);
 
     return result;
+#endif
 }
 
 bool DragData::containsPlainText() const

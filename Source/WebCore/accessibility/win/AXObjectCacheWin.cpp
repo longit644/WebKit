@@ -69,6 +69,13 @@ void AXObjectCache::handleScrolledToAnchor(const Node& anchorNode)
 
 void AXObjectCache::postPlatformNotification(AccessibilityObject& object, AXNotification notification)
 {
+#if PLATFORM(UWP)
+    // WebKitWebView: MSAA NotifyWinEvent (USER32) is desktop-only; UWP a11y
+    // is UIA-based (future work). v0 drops the notification.
+    UNUSED_PARAM(object);
+    UNUSED_PARAM(notification);
+    return;
+#else
     Document* document = object.document();
     if (!document)
         return;
@@ -123,6 +130,7 @@ void AXObjectCache::postPlatformNotification(AccessibilityObject& object, AXNoti
 
     auto objectID = object.objectID();
     NotifyWinEvent(msaaEvent, page->chrome().platformPageClient(), OBJID_CLIENT, -static_cast<LONG>(objectID.toUInt64()));
+#endif
 }
 
 void AXObjectCache::nodeTextChangePlatformNotification(AccessibilityObject*, AXTextChange, unsigned, const String&)

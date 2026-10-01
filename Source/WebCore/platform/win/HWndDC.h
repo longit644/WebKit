@@ -42,14 +42,27 @@ public:
 
     explicit HWndDC(HWND hwnd)
         : m_hwnd(hwnd)
+#if PLATFORM(UWP)
+        // WebKitWebView: GetDC (USER32) is desktop-only; null DC on UWP.
+        , m_hdc(0)
+#else
         , m_hdc(::GetDC(hwnd))
+#endif
     {
     }
 
     HWndDC(HWND hwnd, HRGN hrgnClip, DWORD flags)
         : m_hwnd(hwnd)
+#if PLATFORM(UWP)
+        , m_hdc(0)
+#else
         , m_hdc(::GetDCEx(hwnd, hrgnClip, flags))
+#endif
     {
+#if PLATFORM(UWP)
+        (void)hrgnClip;
+        (void)flags;
+#endif
     }
 
     ~HWndDC()
@@ -61,7 +74,9 @@ public:
     {
         clear();
         m_hwnd = hwnd;
+#if !PLATFORM(UWP)
         m_hdc = ::GetDC(hwnd);
+#endif
         return m_hdc;
     }
 
@@ -69,7 +84,9 @@ public:
     {
         if (!m_hdc)
             return;
+#if !PLATFORM(UWP)
         ::ReleaseDC(m_hwnd, m_hdc);
+#endif
         m_hwnd = 0;
         m_hdc = 0;
     }

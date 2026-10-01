@@ -38,6 +38,17 @@ namespace WebCore {
 
 #define HIGH_BIT_MASK_SHORT 0x8000
 
+#if PLATFORM(UWP)
+// WebKitWebView: windowsx.h message crackers need USER32; spell out the two
+// used ones (LOWORD/HIWORD are always visible).
+#ifndef GET_X_LPARAM
+#define GET_X_LPARAM(lp) ((int)(short)LOWORD(lp))
+#endif
+#ifndef GET_Y_LPARAM
+#define GET_Y_LPARAM(lp) ((int)(short)HIWORD(lp))
+#endif
+#endif
+
 static IntPoint positionForEvent(HWND, LPARAM lParam)
 {
     IntPoint point(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
@@ -47,7 +58,13 @@ static IntPoint positionForEvent(HWND, LPARAM lParam)
 static IntPoint globalPositionForEvent(HWND hWnd, LPARAM lParam)
 {
     POINT point = {GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
+#if PLATFORM(UWP)
+    // WebKitWebView: ClientToScreen (USER32) is desktop-only; XAML coords
+    // are already client-relative.
+    UNUSED_PARAM(hWnd);
+#else
     ClientToScreen(hWnd, &point);
+#endif
     return point;
 }
 
@@ -80,7 +97,12 @@ static PlatformEvent::Type messageToEventType(UINT message)
 }
 
 PlatformMouseEvent::PlatformMouseEvent(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam, bool didActivateWebView)
+#if PLATFORM(UWP)
+    // WebKitWebView: GetKeyState (USER32) is desktop-only; Alt state unknown here.
+    : PlatformEvent(messageToEventType(message), wParam & MK_SHIFT, wParam & MK_CONTROL, false, false, MonotonicTime::now())
+#else
     : PlatformEvent(messageToEventType(message), wParam & MK_SHIFT, wParam & MK_CONTROL, GetKeyState(VK_MENU) & HIGH_BIT_MASK_SHORT, GetKeyState(VK_MENU) & HIGH_BIT_MASK_SHORT, MonotonicTime::now())
+#endif
     , m_position(positionForEvent(hWnd, lParam))
     , m_globalPosition(globalPositionForEvent(hWnd, lParam))
     , m_clickCount(0)

@@ -43,7 +43,12 @@ public:
 
     ~FontMemoryResource()
     {
+#if !PLATFORM(UWP)
         RemoveFontMemResourceEx(m_fontResourceHandle);
+#else
+        // WebKitWebView: Add/RemoveFontMemResourceEx are GDI (desktop-only);
+        // FreeType memory faces need no OS registration on UWP.
+#endif
     }
     
 private:

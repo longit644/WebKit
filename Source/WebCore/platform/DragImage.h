@@ -34,6 +34,9 @@
 #include <wtf/Forward.h>
 
 #include <wtf/Platform.h>
+#if PLATFORM(UWP)
+#include "DragImageUWP.h"
+#endif
 #if PLATFORM(IOS_FAMILY)
 #include <wtf/RetainPtr.h>
 typedef struct CGImage *CGImageRef;
@@ -62,6 +65,8 @@ class Node;
 typedef RetainPtr<CGImageRef> DragImageRef;
 #elif PLATFORM(MAC)
 typedef RetainPtr<NSImage> DragImageRef;
+#elif PLATFORM(UWP)
+typedef RefPtr<DragImageUWP> DragImageRef;
 #elif USE(CAIRO) && PLATFORM(WIN)
 typedef HBITMAP DragImageRef;
 #elif USE(CAIRO)

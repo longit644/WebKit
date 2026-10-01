@@ -216,6 +216,12 @@ public:
 
     WEBCORE_EXPORT static std::unique_ptr<Pasteboard> createForCopyAndPaste(std::unique_ptr<PasteboardContext>&&);
 
+#if PLATFORM(UWP)
+    // Prepare a text snapshot asynchronously, then pass it to
+    // Editor::paste(Pasteboard&). Never wait for WinRT on the XAML UI thread.
+    WEBCORE_EXPORT static void createForCopyAndPasteAsync(std::unique_ptr<PasteboardContext>&&, CompletionHandler<void(HRESULT, std::unique_ptr<Pasteboard>)>&&);
+#endif
+
     static bool isSafeTypeForDOMToReadAndWrite(const String&);
     static bool canExposeURLToDOMWhenPasteboardContainsFiles(const String&);
 
@@ -393,6 +399,10 @@ private:
     COMPtr<IDataObject> m_dataObject;
     COMPtr<WCDataObject> m_writableDataObject;
     DragDataMap m_dragDataMap;
+#if PLATFORM(UWP)
+    String m_uwpText;
+    bool m_uwpHasText { false };
+#endif
 #endif
 };
 

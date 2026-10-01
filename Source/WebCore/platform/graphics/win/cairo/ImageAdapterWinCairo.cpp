@@ -29,12 +29,20 @@
 #if PLATFORM(WIN) && USE(CAIRO)
 
 #include "GraphicsContextCairo.h"
+#if !PLATFORM(UWP)
 #include <cairo-win32.h>
+#endif
 
 namespace WebCore {
 
 RefPtr<NativeImage> ImageAdapter::nativeImageOfHBITMAP(HBITMAP bmp)
 {
+#if PLATFORM(UWP)
+    // WebKitWebView: UWP consumes NativeImage directly; a GDI handle cannot
+    // be converted into a UWP image. Do not fabricate an empty bitmap.
+    UNUSED_PARAM(bmp);
+    return nullptr;
+#else
     DIBSECTION dibSection;
     if (!GetObject(bmp, sizeof(DIBSECTION), &dibSection))
         return nullptr;
@@ -49,10 +57,16 @@ RefPtr<NativeImage> ImageAdapter::nativeImageOfHBITMAP(HBITMAP bmp)
 
     auto surface = adoptRef(cairo_win32_surface_create_with_dib(CAIRO_FORMAT_ARGB32, dibSection.dsBm.bmWidth, dibSection.dsBm.bmHeight));
     return NativeImage::create(WTF::move(surface));
+#endif
 }
 
 bool ImageAdapter::getHBITMAPOfSize(HBITMAP bmp, const IntSize* size)
 {
+#if PLATFORM(UWP)
+    UNUSED_PARAM(bmp);
+    UNUSED_PARAM(size);
+    return false;
+#else
     ASSERT(bmp);
 
     BITMAP bmpInfo;
@@ -81,6 +95,7 @@ bool ImageAdapter::getHBITMAPOfSize(HBITMAP bmp, const IntSize* size)
     auto sourceRect = FloatRect { { }, imageSize };
     gc.drawImage(image(), destinationRect, sourceRect, { CompositeOperator::Copy });
     return true;
+#endif
 }
 
 } // namespace WebCore

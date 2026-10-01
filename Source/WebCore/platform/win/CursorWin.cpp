@@ -52,11 +52,23 @@ Ref<SharedCursor> SharedCursor::create(HCURSOR nativeCursor)
 
 SharedCursor::~SharedCursor()
 {
+#if !PLATFORM(UWP)
     DestroyIcon(m_nativeCursor);
+#else
+    // WebKitWebView: cursors never exist on UWP (touch-first; null handles).
+    (void)m_nativeCursor;
+#endif
 }
 
 static Ref<SharedCursor> createSharedCursor(Image* img, const IntPoint& hotSpot)
 {
+#if PLATFORM(UWP)
+    // WebKitWebView: GDI cursor construction (CreateIconIndirect, USER32) is
+    // desktop-only; null cursor on UWP (v0).
+    (void)img;
+    (void)hotSpot;
+    return SharedCursor::create(nullptr);
+#else
     IntPoint effectiveHotSpot = determineHotSpot(img, hotSpot);
     BitmapInfo cursorImage = BitmapInfo::create(IntSize(img->width(), img->height()));
 
@@ -81,11 +93,19 @@ static Ref<SharedCursor> createSharedCursor(Image* img, const IntPoint& hotSpot)
     ii.hbmColor = hCursor.get();
 
     return SharedCursor::create(::CreateIconIndirect(&ii));
+#endif
 }
 
 static Ref<SharedCursor> loadSharedCursor(HINSTANCE hInstance, LPCWSTR lpCursorName)
 {
+#if PLATFORM(UWP)
+    // WebKitWebView: LoadCursorW (USER32) is desktop-only; null cursor.
+    (void)hInstance;
+    (void)lpCursorName;
+    return SharedCursor::create(nullptr);
+#else
     return SharedCursor::create(::LoadCursorW(hInstance, lpCursorName));
+#endif
 }
 
 static Ref<SharedCursor> loadCursorByName(const char* name, int x, int y)

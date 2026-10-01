@@ -37,6 +37,12 @@ static const float defaultControlFontPixelSize = 13;
 
 auto SystemFontDatabase::platformSystemFontShorthandInfo(FontShorthand fontShorthand) -> SystemFontShorthandInfo
 {
+#if PLATFORM(UWP)
+    // WebKitWebView: SystemParametersInfo/GetStockObject (USER32/GDI) are
+    // desktop-only; return generic families with UI-plausible sizes (v0).
+    UNUSED_PARAM(fontShorthand);
+    return { WebKitFontFamilyNames::standardFamily, defaultControlFontPixelSize, normalWeightValue() };
+#else
     static bool initialized;
     static NONCLIENTMETRICS ncm;
 
@@ -83,6 +89,7 @@ auto SystemFontDatabase::platformSystemFontShorthandInfo(FontShorthand fontShort
     float size = shouldUseDefaultControlFontPixelSize ? defaultControlFontPixelSize : std::abs(logFont.lfHeight);
     auto weight = logFont.lfWeight >= 700 ? boldWeightValue() : normalWeightValue();
     return { logFont.lfFaceName, size, weight };
+#endif
 }
 
 void SystemFontDatabase::platformInvalidate()

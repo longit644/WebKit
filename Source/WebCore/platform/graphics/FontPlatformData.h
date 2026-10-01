@@ -33,7 +33,7 @@
 #include <wtf/TZoneMalloc.h>
 #include <wtf/Vector.h>
 
-#if PLATFORM(WIN)
+#if PLATFORM(WIN) && !PLATFORM(UWP)
 #include "COMPtr.h"
 #include "FontMemoryResource.h"
 #include "SharedGDIObject.h"
@@ -71,7 +71,7 @@ typedef const struct __CTFont* CTFontRef;
 #include <CoreGraphics/CoreGraphics.h>
 #endif
 
-#if PLATFORM(WIN)
+#if PLATFORM(WIN) && !PLATFORM(UWP)
 #include <wtf/win/GDIObject.h>
 typedef struct HFONT__* HFONT;
 interface IDWriteFont;
@@ -121,7 +121,7 @@ struct FontPlatformDataAttributes {
     WEBCORE_EXPORT std::optional<FontPlatformSerializedAttributes> serializableAttributes() const;
 #endif
 
-#if PLATFORM(WIN) && USE(CAIRO)
+#if PLATFORM(WIN) && USE(CAIRO) && !PLATFORM(UWP)
     FontPlatformDataAttributes(const FontMetadata& metadata, LOGFONT font)
         : m_metadata(metadata)
         , m_font(font)
@@ -139,7 +139,7 @@ struct FontPlatformDataAttributes {
 
     FontMetadata m_metadata;
 
-#if PLATFORM(WIN) && USE(CAIRO)
+#if PLATFORM(WIN) && USE(CAIRO) && !PLATFORM(UWP)
     LOGFONT m_font;
 #elif USE(CORE_TEXT)
     RetainPtr<CFDictionaryRef> m_attributes;
@@ -268,7 +268,7 @@ struct CustomFontCreationData {
 };
 
 struct FontPlatformSerializedData {
-#if PLATFORM(WIN)
+#if PLATFORM(WIN) && !PLATFORM(UWP)
     LOGFONT logFont;
 #endif
 };
@@ -314,7 +314,7 @@ public:
     WEBCORE_EXPORT FontPlatformData(RetainPtr<CTFontRef>&&, const FontMetadata&, const FontCustomPlatformData* = nullptr);
 #endif
 
-#if PLATFORM(WIN) && USE(CAIRO)
+#if PLATFORM(WIN) && USE(CAIRO) && !PLATFORM(UWP)
     WEBCORE_EXPORT FontPlatformData(GDIObject<HFONT>, float size, bool syntheticBold, bool syntheticOblique, const FontCustomPlatformData* = nullptr);
     FontPlatformData(GDIObject<HFONT>, cairo_font_face_t*, float size, bool bold, bool italic, const FontCustomPlatformData* = nullptr);
 #endif
@@ -339,7 +339,7 @@ public:
     static FontPlatformData cloneWithSize(const FontPlatformData&, float);
     void updateSizeWithFontSizeAdjust(const FontSizeAdjust&, float);
 
-#if PLATFORM(WIN)
+#if PLATFORM(WIN) && !PLATFORM(UWP)
     HFONT hfont() const { return m_hfont ? m_hfont->get() : 0; }
 #endif
 
@@ -426,7 +426,7 @@ public:
     struct CreationData {
         const Ref<SharedBuffer> fontFaceData;
         String itemInCollection;
-#if PLATFORM(WIN) && USE(CAIRO)
+#if PLATFORM(WIN) && USE(CAIRO) && !PLATFORM(UWP)
         Ref<FontMemoryResource> m_fontResource;
 #endif
     };
@@ -448,7 +448,7 @@ private:
     CGFloat ctFontSize() const;
 #endif
 
-#if PLATFORM(WIN)
+#if PLATFORM(WIN) && !PLATFORM(UWP)
     void platformDataInit(HFONT, float size);
 #endif
 
@@ -460,7 +460,7 @@ private:
     void buildScaledFont(cairo_font_face_t*);
 #endif
 
-#if PLATFORM(WIN)
+#if PLATFORM(WIN) && !PLATFORM(UWP)
     RefPtr<SharedGDIObject<HFONT>> m_hfont; // FIXME: Delete this in favor of m_hbFont
 #elif USE(CORE_TEXT)
     RetainPtr<CTFontRef> m_font;
@@ -532,7 +532,7 @@ private:
 
 #endif
 
-#if PLATFORM(WIN)
+#if PLATFORM(WIN) && !PLATFORM(UWP)
 // This is a scaling factor for Windows GDI fonts. We do this for
 // subpixel precision when rendering using Uniscribe.
 constexpr int cWindowsFontScaleFactor = 32;

@@ -43,7 +43,7 @@
 #include <wtf/UniqueArray.h>
 #include <wtf/Vector.h>
 
-#if OS(WINDOWS)
+#if OS(WINDOWS) && !PLATFORM(UWP)
 #include <cairo-win32.h>
 #endif
 
@@ -335,7 +335,7 @@ IntSize cairoSurfaceSize(cairo_surface_t* surface)
     switch (cairo_surface_get_type(surface)) {
     case CAIRO_SURFACE_TYPE_IMAGE:
         return IntSize(cairo_image_surface_get_width(surface), cairo_image_surface_get_height(surface));
-#if OS(WINDOWS)
+#if OS(WINDOWS) && !PLATFORM(UWP)
     case CAIRO_SURFACE_TYPE_WIN32:
         surface = cairo_win32_surface_get_image(surface);
         ASSERT(surface);

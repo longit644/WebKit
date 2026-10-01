@@ -51,6 +51,10 @@ OptionSet<PlatformEvent::Modifier> PlatformKeyboardEvent::currentStateOfModifier
 {
     OptionSet<PlatformEvent::Modifier> modifiers;
 
+#if PLATFORM(UWP)
+    // WebKitWebView: GetKeyState (USER32) is desktop-only; modifiers arrive
+    // via the XAML input layer in the UWP port (v0: none).
+#else
     if (GetKeyState(VK_SHIFT) & HIGH_BIT_MASK_SHORT)
         modifiers.add(PlatformEvent::Modifier::ShiftKey);
     if (GetKeyState(VK_CONTROL) & HIGH_BIT_MASK_SHORT)
@@ -60,6 +64,7 @@ OptionSet<PlatformEvent::Modifier> PlatformKeyboardEvent::currentStateOfModifier
     // No meta key.
     if (GetKeyState(VK_CAPITAL) & 1)
         modifiers.add(PlatformEvent::Modifier::CapsLockKey);
+#endif
 
     return modifiers;
 }

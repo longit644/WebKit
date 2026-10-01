@@ -55,9 +55,15 @@ inline unsigned short buttonsForEvent(WPARAM wparam)
 
 inline LONG getDoubleClickTime()
 {
+#if PLATFORM(UWP)
+    // WebKitWebView: GetDoubleClickTime (USER32) is desktop-only; the
+    // fallback value doubles as the UWP constant.
+    return 500;
+#else
     // GetDoubleClickTime() returns 0 in the non-interactive window station on Windows 10 version 2004
     LONG doubleClickTime = GetDoubleClickTime();
     return doubleClickTime ? doubleClickTime : 500;
+#endif
 }
 
 } // namespace WebCore

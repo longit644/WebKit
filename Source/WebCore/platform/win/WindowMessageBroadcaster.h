@@ -34,6 +34,11 @@
 #include <wtf/HashSet.h>
 #include <wtf/Noncopyable.h>
 
+#if PLATFORM(UWP)
+// WebKitWebView: WNDPROC (USER32) is desktop-only; opaque on UWP (never called).
+typedef void* WNDPROC;
+#endif
+
 namespace WebCore {
 
     class WindowMessageListener;

@@ -119,7 +119,14 @@ struct AXTreeData {
     {
         for (const String& warning : warnings)
             SAFE_FPRINTF(stderr, "WARNING: %s\n", warning.utf8());
-        SAFE_FPRINTF(stderr, "==AX Trees (PID %d)==\n%s\n%s\n", getpid(), liveTree.utf8(), isolatedTree.utf8());
+        SAFE_FPRINTF(stderr, "==AX Trees (PID %d)==\n%s\n%s\n",
+#if PLATFORM(UWP)
+            // WebKitWebView: getpid() is absent from the AppContainer CRT.
+            static_cast<int>(GetCurrentProcessId()),
+#else
+            getpid(),
+#endif
+            liveTree.utf8(), isolatedTree.utf8());
     }
 };
 

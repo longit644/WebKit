@@ -1,10 +1,7 @@
 # Proposal — wkview-m7-uwp-fonts: UWP font stack (fontconfig + FreeType + HarfBuzz)
 
 ## Why
-WebCore links everything except the font subsystem. The WIN+CAIRO font path
-is GDI at every step (HFONT/CreateFontIndirect, HDC/SelectObject/GetObject,
-DWrite-GDI-interop, Uniscribe shaping) — none exists on UWP. Text is
-non-negotiable for v0, so this blocks M6.
+The desktop WIN+CAIRO font path relies on GDI (HFONT/CreateFontIndirect, HDC/SelectObject/GetObject, DWrite-GDI interop) and Uniscribe shaping. UWP needs a compatible font backend to deliver text rendering for v0. This change selects the existing FreeType/fontconfig/HarfBuzz implementations and resolves related desktop-platform compilation paths. ARM32 WebCore DLL linkage was verified on 2026-10-01; runtime text rendering remains pending, as tracked in tasks.md.
 
 ## Decision: FreeType path, not DWrite-direct
 - All deps proven: fontconfig (installed), FreeType (installed),

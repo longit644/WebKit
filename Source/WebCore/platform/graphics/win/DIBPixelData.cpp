@@ -40,6 +40,11 @@ DIBPixelData::DIBPixelData(HBITMAP bitmap)
 
 void DIBPixelData::initialize(HBITMAP bitmap)
 {
+#if PLATFORM(UWP)
+    // WebKitWebView: GDI bitmap introspection (GetObject) is desktop-only;
+    // nothing creates HBITMAPs on UWP, so leave members zeroed.
+    UNUSED_PARAM(bitmap);
+#else
     BITMAP bmpInfo = {0, 0, 0, 0, 0, 0, nullptr};
     GetObject(bitmap, sizeof(bmpInfo), &bmpInfo);
 
@@ -48,6 +53,7 @@ void DIBPixelData::initialize(HBITMAP bitmap)
     m_size = IntSize(bmpInfo.bmWidth, bmpInfo.bmHeight);
     m_bytesPerRow = bmpInfo.bmWidthBytes;
     m_bitsPerPixel = bmpInfo.bmBitsPixel;
+#endif
 }
 
 DIBPixelData::DIBPixelData(void* data, IntSize size)
@@ -97,6 +103,13 @@ void DIBPixelData::writeToFile(LPCWSTR filePath)
 
 void DIBPixelData::setRGBABitmapAlpha(HDC hdc, const IntRect& dstRect, unsigned char level)
 {
+#if PLATFORM(UWP)
+    // WebKitWebView: GDI DC access (GetCurrentObject/GetWorldTransform) is
+    // desktop-only; alpha stamping unreachable on UWP.
+    UNUSED_PARAM(hdc);
+    UNUSED_PARAM(dstRect);
+    UNUSED_PARAM(level);
+#else
     HBITMAP bitmap = static_cast<HBITMAP>(GetCurrentObject(hdc, OBJ_BITMAP));
 
     if (!bitmap)
@@ -132,6 +145,7 @@ void DIBPixelData::setRGBABitmapAlpha(HDC hdc, const IntRect& dstRect, unsigned 
         }
         bytes += pixelDataWidth;
     }
+#endif
 }
 
 } // namespace WebCore

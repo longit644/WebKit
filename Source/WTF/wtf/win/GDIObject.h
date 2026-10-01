@@ -115,14 +115,24 @@ template<typename T> inline void swap(GDIObject<T>& a, GDIObject<T>& b)
 // Nearly all GDI types use the same DeleteObject call.
 template<typename T> inline void deleteObject(T object)
 {
+#if PLATFORM(UWP)
+    // WebKitWebView: no GDI32 on UWP; nothing can create these handles, so
+    // nothing needs deleting (leak-only if one ever appears).
+    UNUSED_PARAM(object);
+#else
     if (object)
         ::DeleteObject(object);
+#endif
 }
 
 template<> inline void deleteObject<HDC>(HDC hdc)
 {
+#if PLATFORM(UWP)
+    UNUSED_PARAM(hdc);
+#else
     if (hdc)
         ::DeleteDC(hdc);
+#endif
 }
 
 } // namespace WTF

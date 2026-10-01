@@ -245,6 +245,10 @@ WindowsKeyNames::WindowsKeyNames()
 auto WindowsKeyNames::currentKeyModifiers() -> KeyModifierSet
 {
     KeyModifierSet modifiers;
+#if PLATFORM(UWP)
+    // WebKitWebView: GetKeyState (USER32) is desktop-only; modifiers arrive
+    // via the XAML input layer (v0: none).
+#else
     if (GetKeyState(VK_SHIFT) < 0)
         modifiers.add(KeyModifier::Shift);
     if (GetKeyState(VK_CONTROL) < 0)
@@ -253,6 +257,7 @@ auto WindowsKeyNames::currentKeyModifiers() -> KeyModifierSet
         modifiers.add(KeyModifier::Alt);
     if (GetKeyState(VK_CAPITAL) & 1)
         modifiers.add(KeyModifier::CapsLock);
+#endif
     return modifiers;
 }
 
@@ -307,7 +312,13 @@ bool WindowsKeyNames::shouldExposeLeftControlPlusRightAltAsAltGraph()
     // m_hasAltGraph is true only for layouts that actually define AltGraph; on
     // other layouts the right-Alt key behaves as a plain Alt and must not be
     // folded into AltGraph.
+#if PLATFORM(UWP)
+    // WebKitWebView: GetKeyState (USER32) is desktop-only; no AltGraph on UWP.
+    UNUSED_PARAM(m_hasAltGraph);
+    return false;
+#else
     return m_hasAltGraph && GetKeyState(VK_RMENU) < 0;
+#endif
 }
 
 bool WindowsKeyNames::shouldExposeAltGraphForKeyEvent(UINT message, WPARAM virtualKey, LPARAM)
@@ -321,8 +332,13 @@ bool WindowsKeyNames::shouldExposeAltGraphForKeyEvent(UINT message, WPARAM virtu
 
     // The remaining cases cover AltGr simulated purely via the Control+Alt
     // combination, which both Blink and Gecko expose as AltGraph.
+#if PLATFORM(UWP)
+    // WebKitWebView: GetKeyState (USER32) is desktop-only; no AltGraph on UWP.
+    return false;
+#else
     if (GetKeyState(VK_CONTROL) >= 0 || GetKeyState(VK_MENU) >= 0)
         return false;
+#endif
 
     // 2. A character message delivered while Control and Alt are held is, by
     //    definition, the product of the AltGr combination: a character was
@@ -533,6 +549,11 @@ String WindowsKeyNames::domCodeFromLParam(LPARAM lParam)
 
 void WindowsKeyNames::updateLayout()
 {
+#if PLATFORM(UWP)
+    // WebKitWebView: layout enumeration (GetKeyboardLayout/ToUnicodeEx,
+    // USER32) is desktop-only; the map stays empty (keys report
+    // "Unidentified", XAML TextBox owns real text input).
+#else
     HKL currentLayout = GetKeyboardLayout(0);
     if (currentLayout == m_keyboardLayout)
         return;
@@ -583,6 +604,7 @@ void WindowsKeyNames::updateLayout()
         }
     }
     SetKeyboardState(keyboardStateToRestore);
+#endif
 }
 
 } // namespace WebCore

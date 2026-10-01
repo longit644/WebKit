@@ -55,7 +55,12 @@ std::optional<DragOperation> DragController::dragOperation(const DragData& dragD
 
 bool DragController::isCopyKeyDown(const DragData&)
 {
+#if PLATFORM(UWP)
+    // WebKitWebView: GetAsyncKeyState (USER32) is desktop-only; v0 never copies.
+    return false;
+#else
     return ::GetAsyncKeyState(VK_CONTROL);
+#endif
 }
     
 const IntSize& DragController::maxDragImageSize()

@@ -56,6 +56,13 @@ if (NOT WK_UWP)
 endif ()
 find_package(WebP REQUIRED COMPONENTS demux)
 
+if (WK_UWP)
+    # WebKitWebView: UWP font stack is FreeType (never GDI).
+    find_package(Freetype 2.9.0 REQUIRED)
+    find_package(Fontconfig 2.13.0 REQUIRED)
+    SET_AND_EXPOSE_TO_BUILD(USE_FREETYPE ON)
+endif ()
+
 if (NOT TARGET SQLite3::SQLite3) # CMake < 4.3
     add_library(SQLite3::SQLite3 ALIAS SQLite::SQLite3)
 endif ()
@@ -129,7 +136,14 @@ SET_AND_EXPOSE_TO_BUILD(USE_HARFBUZZ ON)
 SET_AND_EXPOSE_TO_BUILD(USE_OPENSSL ON)
 SET_AND_EXPOSE_TO_BUILD(USE_TEXTURE_MAPPER ON)
 SET_AND_EXPOSE_TO_BUILD(USE_THEME_ADWAITA ON)
-SET_AND_EXPOSE_TO_BUILD(USE_MEDIA_FOUNDATION ${ENABLE_VIDEO})
+if (WK_UWP)
+    # WebKitWebView: the desktop MediaFoundation backend uses D3D9/GDI.
+    # Excluding its sources alone is insufficient: MediaPlayer registers it
+    # through this feature guard. UWP media needs its own backend later.
+    SET_AND_EXPOSE_TO_BUILD(USE_MEDIA_FOUNDATION OFF)
+else ()
+    SET_AND_EXPOSE_TO_BUILD(USE_MEDIA_FOUNDATION ${ENABLE_VIDEO})
+endif ()
 SET_AND_EXPOSE_TO_BUILD(USE_INSPECTOR_SOCKET_SERVER ${ENABLE_REMOTE_INSPECTOR})
 SET_AND_EXPOSE_TO_BUILD(HAVE_GL_FENCE ON)
 SET_AND_EXPOSE_TO_BUILD(ENABLE_DEVELOPER_MODE ${DEVELOPER_MODE})

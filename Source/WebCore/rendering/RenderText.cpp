@@ -107,7 +107,8 @@ struct SameSizeAsRenderText : public RenderObject {
     std::optional<bool> canUseSimplifiedTextMeasuring;
     std::optional<bool> hasPositionDependentContentWidth;
     std::optional<bool> m_hasStrongDirectionalityContent;
-    uint32_t bitfields : 14;
+    unsigned bitfields : 12;
+    FontCascade::CodePath fontCodePath : 2;
 };
 
 static_assert(sizeof(RenderText) == sizeof(SameSizeAsRenderText), "RenderText should stay small");

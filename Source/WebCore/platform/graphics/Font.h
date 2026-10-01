@@ -36,7 +36,7 @@
 #include <pal/cf/OTSVGTable.h>
 #endif
 
-#if PLATFORM(WIN)
+#if PLATFORM(WIN) && !PLATFORM(UWP)
 #include <usp10.h>
 #endif
 
@@ -250,7 +250,7 @@ public:
     WEBCORE_EXPORT IPCFontData toSerializableFont() const;
     WEBCORE_EXPORT std::optional<InstalledFont> toSerializableInstalledFont() const;
 #endif
-#if PLATFORM(WIN)
+#if PLATFORM(WIN) && !PLATFORM(UWP)
     SCRIPT_CACHE* scriptCache() const LIFETIME_BOUND { return &m_scriptCache; }
 #endif
 
@@ -389,7 +389,7 @@ private:
     mutable SupportsFeature m_supportsOpenTypeAlternateHalfWidths { SupportsFeature::Unknown };
 #endif
 
-#if PLATFORM(WIN)
+#if PLATFORM(WIN) && !PLATFORM(UWP)
     mutable SCRIPT_CACHE m_scriptCache { 0 };
 #endif
 

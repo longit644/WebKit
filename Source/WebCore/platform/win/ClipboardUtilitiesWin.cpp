@@ -25,6 +25,7 @@
 
 #include "config.h"
 #include "ClipboardUtilitiesWin.h"
+#include "WCDataObject.h"
 
 #include "DocumentFragment.h"
 #include "markup.h"
@@ -33,6 +34,7 @@
 #include <shlwapi.h>
 #include <wininet.h> // for INTERNET_MAX_URL_LENGTH
 #include <wtf/URL.h>
+#include <wtf/FileSystem.h>
 #include <wtf/Vector.h>
 #include <wtf/text/CString.h>
 #include <wtf/text/MakeString.h>
@@ -41,6 +43,22 @@
 #include <wtf/unicode/CharacterNames.h>
 
 namespace WebCore {
+
+#if PLATFORM(UWP)
+// WebKitWebView: COM memory media remain useful for in-process transfers;
+// their ownership does not require the desktop OLE clipboard transport.
+static void ReleaseStgMedium(STGMEDIUM* medium)
+{
+    StgMediumDeleter { }(medium);
+}
+#endif
+
+#if PLATFORM(UWP)
+// WebKitWebView: shell clipboard format names (shlobj.h is desktop-only);
+// real values, only passed to the stubbed registerClipboardFormat above.
+#define CFSTR_FILEDESCRIPTOR L"FileGroupDescriptorW"
+#define CFSTR_FILECONTENTS L"FileContents"
+#endif
 
 FORMATETC* cfHDropFormat()
 {
@@ -59,6 +77,13 @@ static bool getDataMapItem(const DragDataMap* dataObject, FORMATETC* format, Str
 
 static bool getWebLocData(IDataObject* dataObject, String& url, String* title) 
 {
+#if PLATFORM(UWP)
+    // WebKitWebView: HDROP/shell .url parsing is desktop-only (v0: no-op).
+    UNUSED_PARAM(dataObject);
+    UNUSED_PARAM(url);
+    UNUSED_PARAM(title);
+    return false;
+#else
     bool succeeded = false;
     WCHAR filename[MAX_PATH];
     WCHAR urlBuffer[INTERNET_MAX_URL_LENGTH];
@@ -94,10 +119,18 @@ exit:
     DragFinish(hdrop);
     GlobalUnlock(medium.hGlobal);
     return succeeded;
+#endif
 }
 
 static bool getWebLocData(const DragDataMap* dataObject, String& url, String* title) 
 {
+#if PLATFORM(UWP)
+    // WebKitWebView: see above.
+    UNUSED_PARAM(dataObject);
+    UNUSED_PARAM(url);
+    UNUSED_PARAM(title);
+    return false;
+#else
     WCHAR filename[MAX_PATH];
     WCHAR urlBuffer[INTERNET_MAX_URL_LENGTH];
 
@@ -118,6 +151,7 @@ static bool getWebLocData(const DragDataMap* dataObject, String& url, String* ti
     
     url = String(urlBuffer);
     return true;
+#endif
 }
 
 static String extractURL(const String& url, String* title)
@@ -135,7 +169,22 @@ static String extractURL(const String& url, String* title)
 
 static CLIPFORMAT registerClipboardFormat(LPCWSTR format)
 {
+#if PLATFORM(UWP)
+    // WebKitWebView: retain distinct format keys for in-process IDataObject
+    // transfers. These IDs are local, not system clipboard registrations;
+    // the WinRT DataPackage bridge uses format names instead.
+    static HashMap<String, CLIPFORMAT> formats;
+    String name(format);
+    if (auto found = formats.find(name); found != formats.end())
+        return found->value;
+    if (formats.size() >= 0x4000)
+        return 0;
+    auto identifier = static_cast<CLIPFORMAT>(0xC000 + formats.size());
+    formats.add(WTF::move(name), identifier);
+    return identifier;
+#else
     return static_cast<CLIPFORMAT>(RegisterClipboardFormat(format));
+#endif
 }
 
 // Firefox text/html
@@ -199,6 +248,11 @@ HGLOBAL createGlobalData(std::span<const uint8_t> data)
 
 static String getFullCFHTML(IDataObject* data)
 {
+#if PLATFORM(UWP)
+    // WebKitWebView: ReleaseStgMedium (ole32) is desktop-only; v0 no data.
+    UNUSED_PARAM(data);
+    return String();
+#else
     STGMEDIUM store;
     if (SUCCEEDED(data->GetData(htmlFormat(), &store))) {
         // MS HTML Format parsing
@@ -209,6 +263,7 @@ static String getFullCFHTML(IDataObject* data)
         return cfhtml;
     }
     return String();
+#endif
 }
 
 static void append(Vector<char>& vector, const char* string)
@@ -374,6 +429,13 @@ FORMATETC* fileContentFormatZero()
 
 void getFileDescriptorData(IDataObject* dataObject, int& size, String& pathname)
 {
+#if PLATFORM(UWP)
+    // WebKitWebView: shell virtual-file descriptors are replaced by XAML
+    // StorageItems transfers. Do not interpret them as desktop descriptors.
+    UNUSED_PARAM(dataObject);
+    size = 0;
+    pathname = emptyString();
+#else
     STGMEDIUM store;
     size = 0;
     if (FAILED(dataObject->GetData(fileDescriptorFormat(), &store)))
@@ -385,6 +447,7 @@ void getFileDescriptorData(IDataObject* dataObject, int& size, String& pathname)
 
     GlobalUnlock(store.hGlobal);
     ::ReleaseStgMedium(&store);
+#endif
 }
 
 void getFileContentData(IDataObject* dataObject, int size, void* dataBlob)
@@ -396,11 +459,16 @@ void getFileContentData(IDataObject* dataObject, int size, void* dataBlob)
     ::CopyMemory(dataBlob, data, size);
 
     GlobalUnlock(store.hGlobal);
-    ::ReleaseStgMedium(&store);
+    ReleaseStgMedium(&store);
 }
 
 void setFileDescriptorData(IDataObject* dataObject, int size, const String& passedPathname)
 {
+#if PLATFORM(UWP)
+    UNUSED_PARAM(dataObject);
+    UNUSED_PARAM(size);
+    UNUSED_PARAM(passedPathname);
+#else
     String pathname = passedPathname;
 
     STGMEDIUM medium { };
@@ -421,6 +489,7 @@ void setFileDescriptorData(IDataObject* dataObject, int size, const String& pass
     GlobalUnlock(medium.hGlobal);
 
     dataObject->SetData(fileDescriptorFormat(), &medium, TRUE);
+#endif
 }
 
 void setFileContentData(IDataObject* dataObject, int size, void* dataBlob)
@@ -462,7 +531,7 @@ String getURL(IDataObject* dataObject, DragData::FilenameConversionPolicy filena
         if (SUCCEEDED(dataObject->GetData(filenameWFormat(), &store))) {
             // file using unicode
             wchar_t* data = static_cast<wchar_t*>(GlobalLock(store.hGlobal));
-            if (data && data[0] && (PathFileExists(data) || PathIsUNC(data))) {
+            if (data && data[0] && (FileSystem::fileExists(String(data)) || String(data).startsWith("\\\\"_s))) {
                 url = URL::fileURLWithFileSystemPath(String(data)).fileSystemPath();
                 if (title)
                     *title = url;
@@ -472,7 +541,7 @@ String getURL(IDataObject* dataObject, DragData::FilenameConversionPolicy filena
         } else if (SUCCEEDED(dataObject->GetData(filenameFormat(), &store))) {
             // filename using ascii
             char* data = static_cast<char*>(GlobalLock(store.hGlobal));
-            if (data && data[0] && (PathFileExistsA(data) || PathIsUNCA(data))) {
+            if (data && data[0] && (FileSystem::fileExists(String::fromLatin1(data)) || String::fromLatin1(data).startsWith("\\\\"_s))) {
                 url = URL::fileURLWithFileSystemPath(String::fromLatin1(data)).fileSystemPath();
                 if (title)
                     *title = url;
@@ -501,9 +570,7 @@ String getURL(const DragDataMap* data, DragData::FilenameConversionPolicy filena
     if (!getDataMapItem(data, filenameWFormat(), stringData))
         getDataMapItem(data, filenameFormat(), stringData);
 
-    auto wideCharacters = stringData.wideCharacters();
-    auto wcharData = wideCharacters.span().data();
-    if (stringData.isEmpty() || (!PathFileExists(wcharData) && !PathIsUNC(wcharData)))
+    if (stringData.isEmpty() || (!FileSystem::fileExists(stringData) && !stringData.startsWith("\\\\"_s)))
         return url;
 
     url = URL::fileURLWithFileSystemPath(stringData).fileSystemPath();
@@ -708,6 +775,12 @@ void getUTF8Data(IDataObject* data, FORMATETC* format, Vector<String>& dataStrin
 
 void getHDropData(IDataObject* data, FORMATETC* format, Vector<String>& dataStrings)
 {
+#if PLATFORM(UWP)
+    // WebKitWebView: file drops arrive as StorageItems through XAML.
+    UNUSED_PARAM(data);
+    UNUSED_PARAM(format);
+    UNUSED_PARAM(dataStrings);
+#else
     STGMEDIUM store;
     if (FAILED(data->GetData(format, &store)))
         return;
@@ -726,6 +799,7 @@ void getHDropData(IDataObject* data, FORMATETC* format, Vector<String>& dataStri
 
     GlobalUnlock(store.hGlobal);
     ReleaseStgMedium(&store);
+#endif
 }
 
 // Setter functions.
@@ -762,6 +836,12 @@ void setUTF8Data(IDataObject* data, FORMATETC* format, const Vector<String>& dat
 
 void setHDropData(IDataObject* data, FORMATETC* format, const Vector<String>& dataStrings)
 {
+#if PLATFORM(UWP)
+    // WebKitWebView: XAML file transfers use StorageItems, not DROPFILES.
+    UNUSED_PARAM(data);
+    UNUSED_PARAM(format);
+    UNUSED_PARAM(dataStrings);
+#else
     STGMEDIUM medium { };
     medium.tymed = TYMED_HGLOBAL;
 
@@ -778,6 +858,7 @@ void setHDropData(IDataObject* data, FORMATETC* format, const Vector<String>& da
     GlobalUnlock(medium.hGlobal);
     data->SetData(format, &medium, FALSE);
     ::GlobalFree(medium.hGlobal);
+#endif
 }
 
 static const ClipboardFormatMap& getClipboardMap()

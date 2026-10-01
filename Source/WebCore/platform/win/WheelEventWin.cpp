@@ -35,13 +35,32 @@
 
 namespace WebCore {
 
+#if PLATFORM(UWP)
+// WebKitWebView: windowsx.h message crackers need USER32; spell out the two
+// used ones (LOWORD/HIWORD are always visible).
+#ifndef GET_X_LPARAM
+#define GET_X_LPARAM(lp) ((int)(short)LOWORD(lp))
+#endif
+#ifndef GET_Y_LPARAM
+#define GET_Y_LPARAM(lp) ((int)(short)HIWORD(lp))
+#endif
+#ifndef GET_WHEEL_DELTA_WPARAM
+#define GET_WHEEL_DELTA_WPARAM(wp) ((short)HIWORD(wp))
+#endif
+#endif
+
 #define HIGH_BIT_MASK_SHORT 0x8000
 #define SPI_GETWHEELSCROLLCHARS 0x006C
 
 static IntPoint positionForEvent(HWND hWnd, LPARAM lParam)
 {
     POINT point = {GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
+#if PLATFORM(UWP)
+    // WebKitWebView: ScreenToClient (USER32) is desktop-only.
+    UNUSED_PARAM(hWnd);
+#else
     ScreenToClient(hWnd, &point);
+#endif
     IntPoint logicalPoint(point);
     float inverseScaleFactor = 1.0f / deviceScaleFactorForWindow(hWnd);
     logicalPoint.scale(inverseScaleFactor, inverseScaleFactor);
@@ -58,22 +77,37 @@ static IntPoint globalPositionForEvent(HWND hWnd, LPARAM lParam)
 
 static int horizontalScrollChars()
 {
+#if PLATFORM(UWP)
+    // WebKitWebView: SystemParametersInfo (USER32) is desktop-only; default.
+    return 1;
+#else
     static ULONG scrollChars;
     if (!scrollChars && !SystemParametersInfo(SPI_GETWHEELSCROLLCHARS, 0, &scrollChars, 0))
         scrollChars = 1;
     return scrollChars;
+#endif
 }
 
 static unsigned verticalScrollLines()
 {
+#if PLATFORM(UWP)
+    // WebKitWebView: see horizontalScrollChars.
+    return 3;
+#else
     static ULONG scrollLines;
     if (!scrollLines && !SystemParametersInfo(SPI_GETWHEELSCROLLLINES, 0, &scrollLines, 0))
         scrollLines = 3;
     return scrollLines;
+#endif
 }
 
 PlatformWheelEvent::PlatformWheelEvent(HWND hWnd, WPARAM wParam, LPARAM lParam, bool isMouseHWheel)
+#if PLATFORM(UWP)
+    // WebKitWebView: GetKeyState (USER32) is desktop-only; Alt unknown here.
+    : PlatformEvent(PlatformEvent::Type::Wheel, wParam & MK_SHIFT, wParam & MK_CONTROL, false, false, MonotonicTime::now())
+#else
     : PlatformEvent(PlatformEvent::Type::Wheel, wParam & MK_SHIFT, wParam & MK_CONTROL, GetKeyState(VK_MENU) & HIGH_BIT_MASK_SHORT, GetKeyState(VK_MENU) & HIGH_BIT_MASK_SHORT, MonotonicTime::now())
+#endif
     , m_position(positionForEvent(hWnd, lParam))
     , m_globalPosition(globalPositionForEvent(hWnd, lParam))
 {

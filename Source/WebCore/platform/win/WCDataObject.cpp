@@ -28,6 +28,7 @@
 
 #include "ClipboardUtilitiesWin.h"
 #include "DragData.h"
+#include <cstring>
 #include <wtf/text/WTFString.h>
 
 namespace WebCore {
@@ -274,6 +275,37 @@ STDMETHODIMP WCDataObject::SetData(FORMATETC* pformatetc, STGMEDIUM* pmedium, BO
 
 void WCDataObject::CopyMedium(STGMEDIUM* pMedDest, STGMEDIUM* pMedSrc, FORMATETC* pFmtSrc)
 {
+#if PLATFORM(UWP)
+    // WebKitWebView: OleDuplicateData (ole32) is desktop-only; duplicate the
+    // HGLOBAL case by hand (only memory blobs exist on UWP), null the rest.
+    UNUSED_PARAM(pFmtSrc);
+    switch(pMedSrc->tymed)
+    {
+    case TYMED_HGLOBAL: {
+        SIZE_T size = GlobalSize(pMedSrc->hGlobal);
+        HGLOBAL copy = GlobalAlloc(GMEM_MOVEABLE, size ? size : 1);
+        if (copy) {
+            void* src = GlobalLock(pMedSrc->hGlobal);
+            void* dst = GlobalLock(copy);
+            if (src && dst)
+                memcpy(dst, src, size);
+            if (src)
+                GlobalUnlock(pMedSrc->hGlobal);
+            if (dst)
+                GlobalUnlock(copy);
+        }
+        pMedDest->hGlobal = copy;
+        pMedDest->tymed = TYMED_HGLOBAL;
+        break;
+    }
+    default:
+        memset(pMedDest, 0, sizeof(STGMEDIUM));
+        pMedDest->tymed = TYMED_NULL;
+        break;
+    }
+    pMedDest->pUnkForRelease = 0;
+    return;
+#else
     switch(pMedSrc->tymed)
     {
     case TYMED_HGLOBAL:
@@ -302,6 +334,7 @@ void WCDataObject::CopyMedium(STGMEDIUM* pMedDest, STGMEDIUM* pMedSrc, FORMATETC
     default:
         break;
     }
+#endif
     pMedDest->tymed = pMedSrc->tymed;
     pMedDest->pUnkForRelease = 0;
     if (pMedSrc->pUnkForRelease) {

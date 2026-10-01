@@ -12,6 +12,16 @@ elseif (USE_SKIA)
     include(platform/Skia.cmake)
 endif ()
 
+if (WK_UWP)
+    # WebKitWebView: FreeType font stack (never GDI on UWP).
+    include(platform/FreeType.cmake)
+    list(APPEND WebCore_SOURCES platform/uwp/ClipboardUWP.cpp)
+    list(APPEND WebCore_PRIVATE_FRAMEWORK_HEADERS platform/uwp/ClipboardUWP.h)
+    list(APPEND WebCore_PRIVATE_INCLUDE_DIRECTORIES "${WEBCORE_DIR}/platform/uwp")
+    list(APPEND WebCore_SOURCES platform/uwp/DragImageUWP.cpp)
+    list(APPEND WebCore_PRIVATE_FRAMEWORK_HEADERS platform/uwp/DragImageUWP.h)
+endif ()
+
 if (USE_DAWN)
     include(platform/Dawn.cmake)
 endif ()
@@ -238,4 +248,29 @@ endif ()
 
 if (USE_SKIA)
     list(APPEND WebCore_PRIVATE_LIBRARIES ${SHARPYUV_LIBS})
+endif ()
+
+if (WK_UWP)
+    # WebKitWebView: no media in v0 (D3D9 MediaFoundation is desktop-only).
+    # (Placed last: the files are appended in blocks above.)
+    list(REMOVE_ITEM WebCore_SOURCES
+        platform/graphics/win/MediaPlayerPrivateMediaFoundation.cpp
+        platform/graphics/win/cairo/MediaPlayerPrivateMediaFoundationCairo.cpp
+        platform/win/MainThreadSharedTimerWin.cpp
+        platform/win/cairo/DragImageWinCairo.cpp
+    )
+    # WebKitWebView: GDI/Uniscribe font files yield to the FreeType stack
+    # (platform/FreeType.cmake above defines the same entry points).
+    list(REMOVE_ITEM WebCore_SOURCES
+        platform/graphics/win/FontCacheWin.cpp
+        platform/graphics/win/FontCustomPlatformDataWin.cpp
+        platform/graphics/win/ComplexTextControllerUniscribe.cpp
+        platform/graphics/win/FontDescriptionWin.cpp
+        platform/graphics/win/FontPlatformDataWin.cpp
+        platform/graphics/win/GlyphPageTreeNodeWin.cpp
+        platform/graphics/win/SimpleFontDataWin.cpp
+        platform/graphics/win/cairo/FontCacheWinCairo.cpp
+        platform/graphics/win/cairo/FontCustomPlatformDataWinCairo.cpp
+        platform/graphics/win/cairo/FontPlatformDataWinCairo.cpp
+    )
 endif ()

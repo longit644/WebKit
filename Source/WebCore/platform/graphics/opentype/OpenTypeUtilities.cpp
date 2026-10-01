@@ -269,6 +269,13 @@ RefPtr<FontMemoryResource> renameAndActivateFont(const SharedBuffer& fontData, c
     if (!renameFont(fontData, fontName, rewrittenFontData))
         return { };
 
+#if PLATFORM(UWP)
+    // WebKitWebView: AddFontMemResourceEx is GDI (desktop-only); FreeType
+    // memory faces need no OS registration, so report success with a null
+    // resource (callers only need the renamed bytes, already in hand).
+    UNUSED_PARAM(fontData);
+    return FontMemoryResource::create(nullptr);
+#else
     DWORD numFonts = 0;
     HANDLE fontHandle = AddFontMemResourceEx(rewrittenFontData.mutableSpan().data(), rewrittenFontData.size(), 0, &numFonts);
     if (!fontHandle)
@@ -279,6 +286,7 @@ RefPtr<FontMemoryResource> renameAndActivateFont(const SharedBuffer& fontData, c
     }
 
     return FontMemoryResource::create(fontHandle);
+#endif
 }
 
 }

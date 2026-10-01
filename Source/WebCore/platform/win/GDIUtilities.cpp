@@ -36,10 +36,17 @@ namespace WebCore {
 
 float deviceScaleFactorForWindow(HWND window)
 {
+#if PLATFORM(UWP)
+    // WebKitWebView: GetDeviceCaps (GDI) is desktop-only; v0 reports 1.0
+    // (M4 XAML layer owns scaling).
+    UNUSED_PARAM(window);
+    return 1.0f;
+#else
     if (window && GetDpiForWindowPtr())
         return GetDpiForWindowPtr()(window) / 96.0f;
     HWndDC dc(window);
     return ::GetDeviceCaps(dc, LOGPIXELSX) / 96.0f;
+#endif
 }
 
 } // namespace WebCore

@@ -23,8 +23,11 @@ set(WK_UWP_TRIPLE armv7-unknown-windows-msvc)
 set(WK_UWP ON CACHE BOOL "WebKitView UWP/ARM32 port")
 add_compile_definitions(WTF_PLATFORM_UWP=1)
 
-set(WK_UWP_CLANG_CL "C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/Llvm/bin/clang-cl.exe"
-    CACHE FILEPATH "WebKitView ARM32-UWP clang-cl (19.15, MSVC 14.44)")
+# Use the x64 HOST compiler: the sibling Llvm/bin executable is i386 and
+# exhausts its address space on WebCore's generated style bundles. Target
+# objects remain ARM32 through CMAKE_*_COMPILER_TARGET and --target flags.
+set(WK_UWP_CLANG_CL "C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/Llvm/x64/bin/clang-cl.exe"
+    CACHE FILEPATH "WebKitWebView ARM32-UWP x64-host clang-cl (19.1.5, MSVC 14.44)")
 
 set(CMAKE_C_COMPILER "${WK_UWP_CLANG_CL}")
 set(CMAKE_CXX_COMPILER "${WK_UWP_CLANG_CL}")

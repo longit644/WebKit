@@ -37,7 +37,35 @@ namespace WebCore {
 struct StgMediumDeleter {
     void operator()(STGMEDIUM* medium)
     {
+#if PLATFORM(UWP)
+        // WebKitWebView: release memory and COM storage without the desktop
+        // ReleaseStgMedium API. The release owner, when present, owns the data.
+        if (medium->pUnkForRelease)
+            medium->pUnkForRelease->Release();
+        else {
+            switch (medium->tymed) {
+            case TYMED_HGLOBAL:
+                GlobalFree(medium->hGlobal);
+                break;
+            case TYMED_ISTREAM:
+                if (medium->pstm)
+                    medium->pstm->Release();
+                break;
+            case TYMED_ISTORAGE:
+                if (medium->pstg)
+                    medium->pstg->Release();
+                break;
+            case TYMED_FILE:
+                CoTaskMemFree(medium->lpszFileName);
+                break;
+            default:
+                break;
+            }
+        }
+        *medium = { };
+#else
         ::ReleaseStgMedium(medium);
+#endif
     }
 };
 
