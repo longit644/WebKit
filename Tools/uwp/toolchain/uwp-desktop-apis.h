@@ -8,7 +8,8 @@ typedef unsigned long DWORD;
 typedef int BOOL;
 typedef const char* LPCSTR;
 typedef const unsigned short* LPCWSTR;
-typedef void* LPSECURITY_ATTRIBUTES;
+struct _SECURITY_ATTRIBUTES;
+typedef struct _SECURITY_ATTRIBUTES SECURITY_ATTRIBUTES, *PSECURITY_ATTRIBUTES, *LPSECURITY_ATTRIBUTES;
 typedef const void* LPCVOID;
 typedef unsigned long* LPDWORD;
 

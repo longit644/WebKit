@@ -76,6 +76,10 @@ double __u64tod(unsigned long long v) { return __floatundidf(v); }
 long long __dtoi64(double v) { return __fixdfdi(v); }
 unsigned long long __dtou64(double v) { return __fixunsdfdi(v); }
 
+// --- _ReadWriteBarrier: clang has no ARM builtin for it; MemoryBarrier()
+// (OneCoreUAP) is the exact equivalent full barrier.
+extern "C" void _ReadWriteBarrier(void) { MemoryBarrier(); }
+
 // --- _InterlockedAdd64: clang has no ARM lowering; ldrex/strex via GCC
 // sync builtin. Returns the INITIAL value (MSVC InterlockedAdd semantics).
 long long _InterlockedAdd64(volatile long long* addend, long long value)
