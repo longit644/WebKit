@@ -63,12 +63,12 @@ for a in "$@"; do
   comp="$comp \"$a\""
 done
 if [ "$compile_only" = "1" ]; then
-  eval "exec \"$cc\" $tgt -fuse-ld=lld -FIC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include/intrin.h $comp"
+  eval "exec \"$cc\" $tgt -fuse-ld=lld -FIC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include/intrin.h -FIC:/Users/Longi/WORKSP~1/WebKit/Tools/uwp/toolchain/uwp-desktop-apis.h $comp"
 elif [ "$is_dll" = "1" ]; then
   # libtool .la shared libs: entry resolves via our arm-crtstart
   # (_DllMainCRTStartup -> default DllMain in its own lazy member).
   # No /NOENTRY: lld skips the import lib with it.
-  eval "exec \"$cc\" $tgt -fuse-ld=lld -FIC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include/intrin.h $comp /link /DLL $link"
+  eval "exec \"$cc\" $tgt -fuse-ld=lld -FIC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include/intrin.h -FIC:/Users/Longi/WORKSP~1/WebKit/Tools/uwp/toolchain/uwp-desktop-apis.h $comp /link /DLL $link"
 else
-  eval "exec \"$cc\" $tgt -fuse-ld=lld -FIC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include/intrin.h $comp /link $link"
+  eval "exec \"$cc\" $tgt -fuse-ld=lld -FIC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include/intrin.h -FIC:/Users/Longi/WORKSP~1/WebKit/Tools/uwp/toolchain/uwp-desktop-apis.h $comp /link $link"
 fi

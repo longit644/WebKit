@@ -137,6 +137,14 @@ extern "C" int _setmode(int, int);
 extern "C" int setmode(int fd, int mode) { return _setmode(fd, mode); }
 extern "C" int _isatty(int);
 extern "C" int isatty(int fd) { return _isatty(fd); }
+extern "C" int _dup(int);
+extern "C" int dup(int fd) { return _dup(fd); }
+extern "C" int _dup2(int, int);
+extern "C" int dup2(int a, int b) { return _dup2(a, b); }
+extern "C" int _stricmp(char const*, char const*);
+extern "C" int stricmp(char const* a, char const* b) { return _stricmp(a, b); }
+extern "C" int _strnicmp(char const*, char const*, unsigned int);
+extern "C" int strnicmp(char const* a, char const* b, unsigned int n) { return _strnicmp(a, b, n); }
 
 // --- DLL entry: .CRT init walk, default DllMain, atexit on detach ---
 typedef void (__cdecl *_PVFV)(void);
