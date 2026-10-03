@@ -44,7 +44,7 @@ WTF_IGNORE_WARNINGS_IN_THIRD_PARTY_CODE_BEGIN
 
 #if OS(ANDROID)
 #include <skia/ports/SkFontMgr_android.h>
-#elif PLATFORM(WIN)
+#elif PLATFORM(WIN) && !PLATFORM(UWP)
 #include <dwrite.h>
 #include <skia/ports/SkTypeface_win.h>
 #else
@@ -63,7 +63,7 @@ SkFontMgr& FontCache::fontManager() const
     if (!m_fontManager) {
 #if OS(ANDROID)
         m_fontManager = SkFontMgr_New_Android(nullptr, SkFontScanner_Make_FreeType());
-#elif OS(WINDOWS)
+#elif OS(WINDOWS) && !PLATFORM(UWP)
         auto result = createDWriteFactory();
         m_fontManager = SkFontMgr_New_DirectWrite(result.factory.get(), result.fontCollection.get());
 #else
@@ -179,7 +179,7 @@ bool FontCache::isSystemFontForbiddenForEditing(const String&)
 
 Ref<Font> FontCache::lastResortFallbackFont(const FontDescription& fontDescription)
 {
-#if PLATFORM(WIN)
+#if PLATFORM(WIN) && !PLATFORM(UWP)
     const auto defaultFontName = "Times New Roman"_s;
 #else
     const auto defaultFontName = "serif"_s;

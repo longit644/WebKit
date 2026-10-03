@@ -36,6 +36,20 @@
 #include <wtf/HashMap.h>
 #include <wtf/RefCounted.h>
 #include <wtf/RefPtr.h>
+#if PLATFORM(UWP)
+#include "TextureMapperFrameStatsUWP.h"
+#include <wtf/MonotonicTime.h>
+#if USE(SKIA)
+#include "GraphicsContextSkia.h"
+#include "SkiaGPUContextUWP.h"
+#include <skia/gpu/ganesh/GrDirectContext.h>
+#include <skia/gpu/ganesh/SkSurfaceGanesh.h>
+#include <skia/gpu/ganesh/gl/GrGLBackendSurface.h>
+#include <skia/gpu/ganesh/gl/GrGLTypes.h>
+#include <skia/core/SkCanvas.h>
+#include <GLES2/gl2ext.h>
+#endif
+#endif
 
 #if USE(CAIRO)
 #include "CairoUtilities.h"
@@ -220,6 +234,10 @@ BitmapTexture::BitmapTexture(EGLImage image, const IntSize& size, OptionSet<Flag
 
 void BitmapTexture::swapTexture(BitmapTexture& other)
 {
+#if PLATFORM(UWP) && USE(SKIA)
+    releaseSkiaSurface();
+    other.releaseSkiaSurface();
+#endif
     RELEASE_ASSERT(m_size == other.m_size);
     RELEASE_ASSERT(!m_flags.contains(Flags::DepthBuffer));
     RELEASE_ASSERT(!other.m_flags.contains(Flags::DepthBuffer));
@@ -241,6 +259,9 @@ void BitmapTexture::swapTexture(BitmapTexture& other)
 
 void BitmapTexture::reset(const IntSize& size, OptionSet<Flags> flags)
 {
+#if PLATFORM(UWP) && USE(SKIA)
+    releaseSkiaSurface();
+#endif
 #if USE(GBM)
     // We don't support switching from dmabuf backing to regular textures -- there is no use-case for that scenario.
     RELEASE_ASSERT(m_flags.contains(Flags::BackedByDMABuf) == flags.contains(Flags::BackedByDMABuf));
@@ -305,6 +326,10 @@ void BitmapTexture::reset(const IntSize& size, OptionSet<Flags> flags)
 
 void BitmapTexture::updateContents(const void* srcData, const IntRect& targetRect, const IntPoint& sourceOffset, int bytesPerLine, PixelFormat pixelFormat)
 {
+#if PLATFORM(UWP) && USE(SKIA)
+    // External writes invalidate Skia's view of the borrowed texture.
+    releaseSkiaSurface();
+#endif
     if (m_pixelFormat != pixelFormat) {
         // Only allow pixel format changes, if the whole texture content changes.
         ASSERT(targetRect.size() == m_size);
@@ -404,6 +429,55 @@ void BitmapTexture::updateContents(NativeImage* frameImage, const IntRect& targe
 
 void BitmapTexture::updateContents(GraphicsLayer* sourceLayer, const IntRect& targetRect, const IntPoint& offset, float scale)
 {
+#if PLATFORM(UWP)
+    auto rasterStart = MonotonicTime::now();
+#endif
+#if PLATFORM(UWP) && USE(SKIA)
+    if (auto* gpuContext = currentSkiaGPUContextUWP(); gpuContext && !gpuContext->abandoned()
+        && !m_flags.contains(Flags::UseBGRALayout) && m_pixelFormat == PixelFormat::RGBA8) {
+        // Paint into the TextureMapper-owned texture. Top-left origin matches
+        // the texture coordinates used for CPU-uploaded tiles; do not read back.
+        if (m_skiaPaintContext.get() != gpuContext) releaseSkiaSurface();
+        if (!m_skiaSurface) {
+            // Use the existing backend-texture descriptor and retain the
+            // surface/FBO until the texture's storage or ownership changes.
+            m_skiaSurface = SkSurfaces::WrapBackendTexture(gpuContext, createSkiaBackendTexture(), kTopLeft_GrSurfaceOrigin, 0, kRGBA_8888_SkColorType, nullptr, nullptr);
+            if (m_skiaSurface) {
+                m_skiaPaintContext = sk_ref_sp(gpuContext);
+                m_skiaNativeContext = GLContext::current();
+            }
+        }
+        if (m_skiaSurface) {
+            auto* canvas = m_skiaSurface->getCanvas();
+            canvas->save();
+            canvas->clipIRect(SkIRect::MakeXYWH(targetRect.x(), targetRect.y(), targetRect.width(), targetRect.height()));
+            canvas->clear(SK_ColorTRANSPARENT);
+            {
+                GraphicsContextSkia context(*canvas, RenderingMode::Accelerated, RenderingPurpose::Unspecified);
+                IntRect sourceRect(targetRect);
+                sourceRect.setLocation(offset);
+                sourceRect.scale(1 / scale);
+                context.applyDeviceScaleFactor(scale);
+                // sourceRect is rounded only for paint traversal/culling. The
+                // raster transform must keep the exact device-pixel tile origin
+                // across dirty rectangles, especially at fractional DPI scales.
+                context.translate((static_cast<float>(targetRect.x()) - offset.x()) / scale,
+                    (static_cast<float>(targetRect.y()) - offset.y()) / scale);
+                context.setTextDrawingMode(TextDrawingMode::Fill);
+                sourceLayer->paintGraphicsLayerContents(context, sourceRect);
+            }
+            canvas->restore();
+            // The compositor submits all dirty tile painting once, before
+            // TextureMapper samples those textures on the same GL stream.
+            auto& stats = textureMapperFrameStatsUWP();
+            ++stats.rasterCalls;
+            ++stats.gpuPaintCalls;
+            stats.rasterPixels += static_cast<uint64_t>(targetRect.width()) * targetRect.height();
+            stats.rasterSeconds += (MonotonicTime::now() - rasterStart).seconds();
+            return;
+        }
+    }
+#endif
     // Making an unconditionally unaccelerated buffer here is OK because this code
     // isn't used by any platforms that respect the accelerated bit.
     auto imageBuffer = ImageBuffer::create(targetRect.size(), RenderingMode::Unaccelerated, RenderingPurpose::Unspecified, 1, DestinationColorSpace::SRGB(), PixelFormat::BGRA8);
@@ -425,8 +499,41 @@ void BitmapTexture::updateContents(GraphicsLayer* sourceLayer, const IntRect& ta
     if (!image)
         return;
 
+#if PLATFORM(UWP)
+    auto uploadStart = MonotonicTime::now();
+    auto& stats = textureMapperFrameStatsUWP();
+    ++stats.rasterCalls;
+    stats.rasterPixels += static_cast<uint64_t>(targetRect.width()) * targetRect.height();
+    stats.rasterSeconds += (uploadStart - rasterStart).seconds();
+#endif
     updateContents(image.get(), targetRect, IntPoint());
+#if PLATFORM(UWP)
+    stats.uploadSeconds += (MonotonicTime::now() - uploadStart).seconds();
+#endif
 }
+
+#if PLATFORM(UWP) && USE(SKIA)
+void BitmapTexture::releaseSkiaSurface()
+{
+    auto release = [this] {
+        if (m_skiaSurface && m_skiaPaintContext && !m_skiaPaintContext->abandoned()) {
+            m_skiaPaintContext->resetContext();
+            m_skiaPaintContext->flushAndSubmit(m_skiaSurface.get(), GrSyncCpu::kNo);
+        }
+        m_skiaSurface.reset();
+        m_skiaPaintContext.reset();
+        m_skiaNativeContext = nullptr;
+    };
+    // The host abandons Ganesh before destroying its EGL context, so a
+    // non-abandoned paint context always has a live native context here.
+    if (m_skiaPaintContext && !m_skiaPaintContext->abandoned() && m_skiaNativeContext
+        && m_skiaNativeContext != GLContext::current()) {
+        GLContext::ScopedGLContextCurrent current(*m_skiaNativeContext);
+        release();
+    } else
+        release();
+}
+#endif
 
 void BitmapTexture::initializeStencil()
 {
@@ -495,6 +602,9 @@ void BitmapTexture::createFboIfNeeded()
 
 void BitmapTexture::bindAsSurface()
 {
+#if PLATFORM(UWP) && USE(SKIA)
+    releaseSkiaSurface();
+#endif
     glBindTexture(m_renderTarget, 0);
     createFboIfNeeded();
     glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
@@ -509,6 +619,9 @@ void BitmapTexture::bindAsSurface()
 
 BitmapTexture::~BitmapTexture()
 {
+#if PLATFORM(UWP) && USE(SKIA)
+    releaseSkiaSurface();
+#endif
     glDeleteTextures(1, &m_id);
 
     if (m_fbo)
@@ -523,6 +636,9 @@ BitmapTexture::~BitmapTexture()
 
 void BitmapTexture::copyFromExternalTexture(GLuint sourceTextureID, const IntRect& targetRect, const IntSize& sourceOffset)
 {
+#if PLATFORM(UWP) && USE(SKIA)
+    releaseSkiaSurface();
+#endif
     RELEASE_ASSERT(sourceOffset.width() + targetRect.width() <= m_size.width());
     RELEASE_ASSERT(sourceOffset.height() + targetRect.height() <= m_size.height());
 

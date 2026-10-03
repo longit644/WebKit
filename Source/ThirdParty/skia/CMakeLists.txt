@@ -1,7 +1,7 @@
 set_property(DIRECTORY . PROPERTY FOLDER "skia")
 
 # Skia dependencies not used directly in WebKit.
-if (NOT WIN32 AND NOT PLAYSTATION)
+if (WK_UWP OR (NOT WIN32 AND NOT PLAYSTATION))
     find_package(Freetype 2.9.0 REQUIRED)
     find_package(Fontconfig 2.13.0 REQUIRED)
 endif ()
@@ -238,6 +238,7 @@ add_library(Skia STATIC
     src/core/SkStream.cpp
     src/core/SkStrike.cpp
     src/core/SkStrikeCache.cpp
+    src/core/SkStrikeRef.cpp
     src/core/SkStrikeSpec.cpp
     src/core/SkString.cpp
     src/core/SkStringUtils.cpp
@@ -811,7 +812,7 @@ add_library(Skia STATIC
     modules/skcms/src/skcms_TransformSkx.cc
 )
 
-if (WIN32)
+if (WIN32 AND NOT WK_UWP)
     target_sources(Skia PRIVATE
         src/ports/SkFontHost_win.cpp
         src/ports/SkFontMgr_win_dw.cpp
@@ -828,9 +829,15 @@ else ()
     target_sources(Skia PRIVATE
         src/ports/SkFontHost_FreeType.cpp
         src/ports/SkFontHost_FreeType_common.cpp
-        src/ports/SkOSFile_posix.cpp
         src/ports/SkTypeface_proxy.cpp
     )
+    if (WIN32)
+        # UWP keeps Windows file/logging implementations and uses the verified
+        # FreeType/fontconfig font stack instead of desktop DirectWrite/GDI.
+        target_sources(Skia PRIVATE src/ports/SkOSFile_win.cpp src/ports/SkLog_win.cpp)
+    else ()
+        target_sources(Skia PRIVATE src/ports/SkOSFile_posix.cpp)
+    endif ()
     target_link_libraries(Skia PRIVATE Freetype::Freetype)
 
     if (ANDROID)
@@ -846,8 +853,10 @@ else ()
             src/ports/SkFontConfigInterface_direct.cpp
             src/ports/SkFontConfigInterface_direct_factory.cpp
             src/ports/SkFontMgr_fontconfig.cpp
-            src/ports/SkLog_stdio.cpp
         )
+        if (NOT WIN32)
+            target_sources(Skia PRIVATE src/ports/SkLog_stdio.cpp)
+        endif ()
         target_link_libraries(Skia PRIVATE Fontconfig::Fontconfig)
     endif ()
 endif ()
@@ -1082,10 +1091,19 @@ target_compile_definitions(Skia PUBLIC
     SK_ASSUME_WEBGL=0
 )
 
-if (WIN32)
+if (WIN32 AND NOT WK_UWP)
     target_compile_definitions(Skia PRIVATE SK_TYPEFACE_FACTORY_DIRECTWRITE)
 else ()
     target_compile_definitions(Skia PRIVATE SK_TYPEFACE_FACTORY_FREETYPE)
+endif ()
+
+if (WK_UWP)
+    # Match the older Windows Mobile inbox MSVCP140 mutex initialization ABI.
+    target_compile_definitions(Skia PUBLIC _DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR)
+    # The packaged FreeType matches the build headers; do not probe newer
+    # features through the POSIX dlopen/dlfcn fallback on Windows Store.
+    set_source_files_properties(src/ports/SkFontHost_FreeType.cpp PROPERTIES
+        COMPILE_DEFINITIONS SK_FREETYPE_MINIMUM_RUNTIME_VERSION_IS_BUILD_VERSION)
 endif ()
 
 if (CMAKE_CXX_BYTE_ORDER STREQUAL "BIG_ENDIAN")

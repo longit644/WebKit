@@ -5,9 +5,9 @@
 # sparse checkout; recipe in Tools/UWP/ARM-WALLS.md). It is tracked in lib/.
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$clang = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\Llvm\bin\clang-cl.exe"
+$clang = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\Llvm\x64\bin\clang-cl.exe"
 $llvm = "C:\Users\Longi\scoop\apps\llvm\current\bin\clang.exe"
-$lib = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\Llvm\bin\llvm-lib.exe"
+$lib = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\Llvm\x64\bin\llvm-lib.exe"
 $incDir = "C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0"
 $libOut = Join-Path $root "lib\arm-crtstart.lib"
 $objs = @()
@@ -22,6 +22,14 @@ $crrtObj = Join-Path $root "lib\crrt.obj"
 & $clang --target=armv7-unknown-windows-msvc -c (Join-Path $root "toolchain\crrt.cpp") -Fo"$crrtObj" "-DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP" "-I$incDir\um" "-I$incDir\shared" "-I$incDir\ucrt" /MD /GR- /EHs-c-
 if ($LASTEXITCODE -ne 0) { throw "compile failed: crrt" }
 $objs += $crrtObj
+$crtlsObj = Join-Path $root "lib\crtls.obj"
+& $clang --target=armv7-unknown-windows-msvc -c (Join-Path $root "toolchain\crtls.cpp") -Fo"$crtlsObj" "-DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP" "-I$incDir\um" "-I$incDir\shared" "-I$incDir\ucrt" /MD /GR- /EHs-c- /GS-
+if ($LASTEXITCODE -ne 0) { throw "compile failed: crtls" }
+$objs += $crtlsObj
+$crdivObj = Join-Path $root "lib\crdiv.obj"
+& $llvm --target=armv7-unknown-windows-msvc -c (Join-Path $root "toolchain\crdiv.S") -o "$crdivObj"
+if ($LASTEXITCODE -ne 0) { throw "compile failed: crdiv" }
+$objs += $crdivObj
 $wkstlObj = Join-Path $root "lib\wkstl.obj"
 & $clang --target=armv7-unknown-windows-msvc -c (Join-Path $root "toolchain\wkstl.cpp") -Fo"$wkstlObj" "-DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP" "-I$incDir\um" "-I$incDir\shared" "-I$incDir\ucrt" /MD /GR- /EHs-c-
 if ($LASTEXITCODE -ne 0) { throw "compile failed: wkstl" }

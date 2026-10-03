@@ -1,0 +1,48 @@
+Device: Lumia 950 XL (RM-1085)
+OS: Windows 10 Mobile 15254.603 ARM
+Date: 2026-10-01
+Package: WebKitWebView.RuntimeSmoke_1.0.0.10_arm__2932e6rj4m41p
+Source: Windows Device Portal, app LocalState/runtime-smoke.txt
+Owner visual confirmation: Page visible (WebKit on Lumia, text/card/gradient/shapes)
+Process observation: IsRunning=True, PID=7764, WorkingSetSize=34705408 bytes
+Viewport: 411 x 731 logical pixels
+
+open-log: 0x00000000
+host-started: 0x00000000
+core-application-factory: 0x00000000
+view-activated: 0x00000000
+page-viewport-width: 0x0000019b
+page-viewport-height: 0x000002db
+worker-started: 0x00000000
+runtime-smoke-failure-mask: 0x00000000
+javascript-evaluation: 0x00000000
+load-webcore: 0x00000000
+page-initialize-start: 0x00000000
+page-main-thread-ready: 0x00000000
+page-font-native-open: 0x00000000
+page-font-freetype-init: 0x00000000
+page-font-freetype-open: 0x00000000
+page-font-regular-added: 0x00000001
+page-font-bold-added: 0x00000001
+page-font-config-built: 0x00000001
+page-font-config-current: 0x00000001
+page-bundled-fonts-ready: 0x00000000
+page-platform-strategies-ready: 0x00000000
+page-configuration-ready: 0x00000000
+page-created: 0x00000000
+page-frame-ready: 0x00000000
+page-html-parsed: 0x00000000
+page-layout-complete: 0x00000000
+page-paint-complete: 0x00000000
+page-render-result: 0x00000000
+page-d3d11-initialize: 0x00000000
+page-d3d11-present: 0x00000000
+
+Boolean fontconfig steps use 1 for success; other zero results are success.
+The historical "worker-started" label is retained in the log, but this build
+renders and presents the single snapshot on the owning UI/engine thread.
+This verifies a local static HTML/CSS/inline-SVG page with bundled DejaVu
+regular/bold fonts, Cairo BGRA rasterization and a D3D11 CoreWindow swapchain.
+Persistent XAML control, navigation, input, scrolling and animated repaint
+are not exercised. The composition/SwapChainPanel presenter entry point is
+compiled but was not used for this device run.

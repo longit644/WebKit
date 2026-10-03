@@ -56,6 +56,7 @@ typedef void *EGLImage;
 namespace WebCore {
 
 class GraphicsLayer;
+class GLContext;
 class NativeImage;
 class TextureMapper;
 enum class TextureMapperFlags : uint16_t;
@@ -141,6 +142,9 @@ private:
     GLenum textureFormat() const;
     void createTexture();
     void allocateTexture();
+#if PLATFORM(UWP) && USE(SKIA)
+    void releaseSkiaSurface();
+#endif
 #if USE(GBM)
     bool allocateTextureFromMemoryMappedGPUBuffer();
 #endif
@@ -158,6 +162,11 @@ private:
     ClipStack m_clipStack;
     RefPtr<const FilterOperation> m_filterOperation;
     PixelFormat m_pixelFormat { PixelFormat::RGBA8 };
+#if PLATFORM(UWP) && USE(SKIA)
+    sk_sp<SkSurface> m_skiaSurface;
+    sk_sp<GrDirectContext> m_skiaPaintContext;
+    GLContext* m_skiaNativeContext { nullptr };
+#endif
 
 #if USE(GBM)
     std::unique_ptr<MemoryMappedGPUBuffer> m_memoryMappedGPUBuffer;

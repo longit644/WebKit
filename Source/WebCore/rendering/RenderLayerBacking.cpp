@@ -1835,7 +1835,20 @@ void RenderLayerBacking::updateGeometry(const RenderLayer* compositedAncestor)
 
     positionOverflowControlsLayers();
 
-    if (subpixelOffsetFromRendererChanged(oldSubpixelOffsetFromRenderer, m_subpixelOffsetFromRenderer, deviceScaleFactor) && canIssueSetNeedsDisplay())
+#if PLATFORM(UWP)
+    // Fixed/sticky contents on the forced-compositing main frame move by
+    // positioning, not by repainting, on scroll. Document scroll changes
+    // their document-relative subpixel offset at fractional DPI and must not
+    // invalidate cached tiles. Genuine content/size changes still invalidate
+    // through explicit repaint paths. Applies to about:demo and any page.
+    bool viewportPositioned = renderer().isFixedPositioned() || renderer().isStickilyPositioned();
+    bool mainFrameView = compositedAncestor && compositedAncestor->isRenderViewLayer()
+        && renderer().view().frameView().frame().isMainFrame();
+    bool viewportAnchored = viewportPositioned && mainFrameView;
+#else
+    bool viewportAnchored = false;
+#endif
+    if (!viewportAnchored && subpixelOffsetFromRendererChanged(oldSubpixelOffsetFromRenderer, m_subpixelOffsetFromRenderer, deviceScaleFactor) && canIssueSetNeedsDisplay())
         setContentsNeedDisplay();
 
 #if ENABLE(MODEL_ELEMENT)
@@ -4002,7 +4015,7 @@ bool RenderLayerBacking::paintsIntoWindow() const
         return false;
 
     if (m_owningLayer.isRenderViewLayer()) {
-#if PLATFORM(IOS_FAMILY) || USE(COORDINATED_GRAPHICS)
+#if PLATFORM(IOS_FAMILY) || PLATFORM(UWP) || USE(COORDINATED_GRAPHICS)
         if (compositor().inForcedCompositingMode())
             return false;
 #endif

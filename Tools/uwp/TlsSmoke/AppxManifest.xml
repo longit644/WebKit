@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" IgnorableNamespaces="uap">
+  <Identity Name="WebKitWebView.TlsSmoke" Publisher="CN=WebKitWebView" Version="1.0.0.8" ProcessorArchitecture="arm" />
+  <Properties>
+    <DisplayName>WebKit TLS Smoke</DisplayName>
+    <PublisherDisplayName>WebKitWebView</PublisherDisplayName>
+    <Logo>Assets\Logo50.png</Logo>
+  </Properties>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.15063.0" MaxVersionTested="10.0.15254.0" />
+    <PackageDependency Name="Microsoft.VCLibs.140.00" Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US" MinVersion="14.0.0.0" />
+  </Dependencies>
+  <Resources><Resource Language="en-us" /></Resources>
+  <Applications>
+    <Application Id="App" Executable="TlsSmokeHost.exe" EntryPoint="WebKitWebView.TlsSmoke.App">
+      <uap:VisualElements DisplayName="WebKit TLS Smoke" Description="Native TLS stack isolation probe" BackgroundColor="#2060a0" Square150x150Logo="Assets\Logo150.png" Square44x44Logo="Assets\Logo44.png" />
+    </Application>
+  </Applications>
+  <Capabilities><Capability Name="internetClient" /></Capabilities>
+</Package>

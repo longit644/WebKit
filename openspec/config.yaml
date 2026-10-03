@@ -3,14 +3,21 @@ schema: spec-driven
 # Project context (optional)
 # This is shown to AI when creating artifacts.
 context: |
-  WPE WebKit port to UWP ARM32 (Lumia 950 XL, Win10M 15254). Base tag wpewebkit-2.54.0,
-  branch wpe-uwp-arm32/main. Lessons borrowed from Project Apotheosis, no dependency on it.
-  Tech: clang-cl (thumbv7-unknown-windows-msvc) for engine, MSVC for harness, CMake+Ninja,
+  Native WebKit port to UWP ARM32 (Lumia 950 XL, Win10M 15254). Base tag wpewebkit-2.54.0,
+  active branch uwpwebkit/2.54; wpe-uwp-arm32/main is frozen.
+  Tech: x64-host clang-cl (armv7-unknown-windows-msvc), CMake+Ninja,
   vcpkg (icu, cairo, curl...), Strawberry Perl + bison for codegen.
-  Conventions: upstream edits guarded with #if defined(WK_WEBKITVIEW) + WebKitView: comment.
+  Conventions: PORT=Win, WK_UWP build switch, PLATFORM(UWP)/WTF_PLATFORM_UWP guards,
+  lowercase uwp directories, native WebKitWebViewUWP name, upstream source structure.
   ASCII paths only. Exceptions off (_HAS_EXCEPTIONS=0, /EHs-c-). Single engine thread.
-  Software Cairo render first; no JIT/GPU until M3. Milestone tags (wkview-m0/m1/m2/m3)
-  are cut only on real-device proof, owner tests on hardware, agent builds on this PC.
+  MiniBrowser must always use Skia (USE_SKIA=ON, build-arm-uwp-skia/bin); staging rejects Cairo.
+  Version 1.0.0.33 verifies Skia Ganesh GPU tile painting, HTTPS main-HTML loading and owner
+  visual acceptance. Full resource loading and uniformly steady display cadence remain open.
+  Cairo is a diagnostic reference; Cairo 1.18.6 removed GL/GLES drawing.
+  Build engine with ninja -j 8 WebCore; build MiniBrowser with --parallel 8.
+  M7 retains font/clipboard scope; M8 tracks GPU-backed painting and rendering acceptance.
+  Milestone completion requires real-device proof and owner acceptance; spec validation is
+  not implementation completion. Commit, push and tag only when explicitly requested.
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.

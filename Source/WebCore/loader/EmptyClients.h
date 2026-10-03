@@ -111,10 +111,10 @@ class EmptyChromeClient : public ChromeClient {
     std::optional<PointerCharacteristics> pointerCharacteristicsOfPrimaryPointingDevice() const final { return std::nullopt; };
     OptionSet<PointerCharacteristics> pointerCharacteristicsOfAllAvailablePointingDevices() const final { return { }; }
 
-    void invalidateRootView(const IntRect&) final { }
+    void invalidateRootView(const IntRect&) override { }
     void invalidateContentsAndRootView(const IntRect&) override { }
-    void invalidateContentsForSlowScroll(const IntRect&) final { }
-    void scroll(const IntSize&, const IntRect&, const IntRect&) final { }
+    void invalidateContentsForSlowScroll(const IntRect&) override { }
+    void scroll(const IntSize&, const IntRect&, const IntRect&) override { }
 
     IntPoint screenToRootView(const IntPoint& p) const final { return p; }
     IntPoint rootViewToScreen(const IntPoint& p) const final { return p; }
@@ -164,10 +164,10 @@ class EmptyChromeClient : public ChromeClient {
     void scrollContainingScrollViewsToRevealRect(const IntRect&) const final { }
     void scrollMainFrameToRevealRect(const IntRect&) const final { }
 
-    void attachRootGraphicsLayer(LocalFrame&, GraphicsLayer*) final { }
+    void attachRootGraphicsLayer(LocalFrame&, GraphicsLayer*) override { }
     void attachViewOverlayGraphicsLayer(GraphicsLayer*) final { }
     void setNeedsOneShotDrawingSynchronization() final { }
-    void triggerRenderingUpdate() final { }
+    void triggerRenderingUpdate() override { }
 
 #if PLATFORM(WIN)
     void AXStartFrameLoad() final { }

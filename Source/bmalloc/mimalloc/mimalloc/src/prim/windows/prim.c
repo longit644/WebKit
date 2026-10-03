@@ -92,6 +92,11 @@ typedef BOOL (__stdcall* PGetVersionExW)(LPOSVERSIONINFOW lpVersionInformation);
 
 static bool win_enable_large_os_pages(size_t* large_page_size)
 {
+#if defined(WTF_PLATFORM_UWP)
+  // AppContainer cannot grant SeLockMemoryPrivilege. Use ordinary pages.
+  MI_UNUSED(large_page_size);
+  return false;
+#else
   static bool large_initialized = false;
   if (large_initialized) return (_mi_os_large_page_size() > 0);
   large_initialized = true;
@@ -126,6 +131,7 @@ static bool win_enable_large_os_pages(size_t* large_page_size)
     _mi_warning_message("cannot enable large OS page support, error %lu\n", err);
   }
   return (ok!=0);
+#endif
 }
 
 
@@ -784,7 +790,7 @@ static void NTAPI mi_win_main(PVOID module, DWORD reason, LPVOID reserved) {
   extern "C" {
   #endif
 
-  #if defined(_WIN64)
+  #if defined(_WIN64) || defined(_M_ARM)
     #pragma comment(linker, "/INCLUDE:_tls_used")
     #pragma comment(linker, "/INCLUDE:_mi_tls_callback_pre")
     #pragma comment(linker, "/INCLUDE:_mi_tls_callback_post")
@@ -918,4 +924,3 @@ static void NTAPI mi_win_main(PVOID module, DWORD reason, LPVOID reserved) {
     mi_allocator_done();
   }
 #endif
-

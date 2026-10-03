@@ -14,11 +14,18 @@ endif ()
 
 if (WK_UWP)
     # WebKitWebView: FreeType font stack (never GDI on UWP).
-    include(platform/FreeType.cmake)
+    if (USE_CAIRO)
+        include(platform/FreeType.cmake)
+    else ()
+        list(APPEND WebCore_LIBRARIES Fontconfig::Fontconfig Freetype::Freetype)
+    endif ()
     list(APPEND WebCore_SOURCES platform/uwp/ClipboardUWP.cpp)
     list(APPEND WebCore_PRIVATE_FRAMEWORK_HEADERS platform/uwp/ClipboardUWP.h)
     list(APPEND WebCore_PRIVATE_INCLUDE_DIRECTORIES "${WEBCORE_DIR}/platform/uwp")
     list(APPEND WebCore_SOURCES platform/uwp/DragImageUWP.cpp)
+    list(APPEND WebCore_SOURCES platform/uwp/FirstPageUWP.cpp)
+    list(APPEND WebCore_SOURCES platform/uwp/PageUWP.cpp)
+    list(APPEND WebCore_SOURCES platform/uwp/TextureMapperCompositorUWP.cpp)
     list(APPEND WebCore_PRIVATE_FRAMEWORK_HEADERS platform/uwp/DragImageUWP.h)
 endif ()
 
@@ -262,6 +269,8 @@ if (WK_UWP)
     # WebKitWebView: GDI/Uniscribe font files yield to the FreeType stack
     # (platform/FreeType.cmake above defines the same entry points).
     list(REMOVE_ITEM WebCore_SOURCES
+        platform/graphics/win/FontCacheSkiaWin.cpp
+        platform/skia/DragImageSkia.cpp
         platform/graphics/win/FontCacheWin.cpp
         platform/graphics/win/FontCustomPlatformDataWin.cpp
         platform/graphics/win/ComplexTextControllerUniscribe.cpp

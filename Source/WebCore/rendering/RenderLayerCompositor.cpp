@@ -4136,8 +4136,17 @@ bool RenderLayerCompositor::requiresCompositingForPosition(RenderLayerModelObjec
     if (!m_renderView.settings().acceleratedCompositingForFixedPositionEnabled())
         return false;
 
-    if (isSticky)
+    if (isSticky) {
+#if PLATFORM(UWP)
+        // The standalone TextureMapper host updates scroll/layer positions on
+        // the owner thread. Cache viewport sticky content independently so its
+        // movement doesn't repaint it and the document on every scroll frame.
+        if (inForcedCompositingMode() && isMainFrameCompositor() && layer.isStackingContext()
+            && !layer.enclosingOverflowClipLayer(ExcludeSelf))
+            return true;
+#endif
         return isAsyncScrollableStickyLayer(layer);
+    }
 
     if (queryData.layoutUpToDate == LayoutUpToDate::No) {
         queryData.reevaluateAfterLayout = true;

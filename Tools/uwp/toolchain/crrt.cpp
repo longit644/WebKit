@@ -13,14 +13,8 @@
 extern "C" {
 
 // --- 64/32-bit division helpers (MSVC names) -> compiler-rt generics ---
-extern long long __divdi3(long long, long long);
-extern unsigned long long __udivdi3(unsigned long long, unsigned long long);
-extern long __divsi3(long, long);
-extern unsigned __udivsi3(unsigned, unsigned);
-long long __rt_sdiv64(long long a, long long b) { return __divdi3(a, b); }
-unsigned long long __rt_udiv64(unsigned long long a, unsigned long long b) { return __udivdi3(a, b); }
-long __rt_sdiv(long a, long b) { return __divsi3(a, b); }
-unsigned __rt_udiv(unsigned a, unsigned b) { return __udivsi3(a, b); }
+// Division helpers return quotient AND remainder in registers and receive
+// denominator first. See crdiv.S; ordinary C wrappers cannot express that ABI.
 
 // --- /GS buffer security (v0: fixed cookie, abort on mismatch) ---
 uintptr_t __security_cookie = 0xBB40E64EUL;
@@ -30,16 +24,38 @@ void __security_check_cookie(uintptr_t cookie)
         abort();
 }
 
-// --- thread-local / magic-statics support (v0: single-threaded init) ---
-unsigned long _tls_index = 0;
-int _Init_thread_header(int* once)
+// Compiler guard protocol: 0 = uninitialized, -1 = initializing, other values
+// are completed epochs. The compiler reads _Init_thread_epoch as TLS DATA.
+__declspec(thread) int _Init_thread_epoch = (-2147483647 - 1);
+static int g_init_epoch = (-2147483647 - 1);
+static SRWLOCK g_init_lock = SRWLOCK_INIT;
+static CONDITION_VARIABLE g_init_changed = CONDITION_VARIABLE_INIT;
+void _Init_thread_header(int* once)
 {
-    if (*once != -1)
-        return 0; // run the initializer now
-    return 1; // already done, skip
+    AcquireSRWLockExclusive(&g_init_lock);
+    while (*once == -1)
+        SleepConditionVariableSRW(&g_init_changed, &g_init_lock, INFINITE, 0);
+    if (!*once)
+        *once = -1;
+    else
+        _Init_thread_epoch = g_init_epoch;
+    ReleaseSRWLockExclusive(&g_init_lock);
 }
-void _Init_thread_footer(int* once) { *once = -1; }
-void _Init_thread_epoch(int* epoch) { *epoch = 1; }
+void _Init_thread_footer(int* once)
+{
+    AcquireSRWLockExclusive(&g_init_lock);
+    *once = ++g_init_epoch;
+    _Init_thread_epoch = g_init_epoch;
+    ReleaseSRWLockExclusive(&g_init_lock);
+    WakeAllConditionVariable(&g_init_changed);
+}
+void _Init_thread_abort(int* once)
+{
+    AcquireSRWLockExclusive(&g_init_lock);
+    *once = 0;
+    ReleaseSRWLockExclusive(&g_init_lock);
+    WakeAllConditionVariable(&g_init_changed);
+}
 
 // --- atexit registry (runs on DLL PROCESS_DETACH, LIFO) ---
 #define WK_ATEXIT_MAX 32
@@ -164,30 +180,33 @@ extern "C" int access(char const* p, int m) { return _access(p, m); }
 extern "C" int _chmod(char const*, int);
 extern "C" int chmod(char const* p, int m) { return _chmod(p, m); }
 
-// --- __u64tos: vcruntime int->string helper (absent from ARM-store libs;
- // clang-cl emits calls for %p/%llu-style lowering, e.g. expat debug code).
- // EXACT MSVC semantics: radix 2..36, lowercase digits, no prefix.
- extern "C" char* __cdecl __u64tos(unsigned long long value, char* str, int radix)
- {
-     static const char digits[] = "0123456789abcdefghijklmnopqrstuvwxyz";
-     char* p = str;
-     if (radix < 2 || radix > 36) {
-         *p = '\0';
-         return str;
-     }
-     // Generate reversed, then flip in place.
-     do {
-         *p++ = digits[value % (unsigned long long)radix];
-         value /= (unsigned long long)radix;
-     } while (value);
-     *p = '\0';
-     for (char* lo = str; lo < --p; ++lo) {
-         char t = *lo;
-         *lo = *p;
-         *p = t;
-     }
-     return str;
- }
+// UCRT's nonstandard-name declarations mark these aliases dllimport. ARM lld
+// synthesizes local __imp_* slots without preserving the Thumb function bit
+// (LNK4217); the phone then enters an alias in ARM state and faults. Explicit
+// function-address relocations retain the target's Thumb bit.
+decltype(&open) __imp_open = &open;
+decltype(&close) __imp_close = &close;
+decltype(&read) __imp_read = &read;
+decltype(&write) __imp_write = &write;
+decltype(&fdopen) __imp_fdopen = &fdopen;
+decltype(&fileno) __imp_fileno = &fileno;
+decltype(&setmode) __imp_setmode = &setmode;
+decltype(&isatty) __imp_isatty = &isatty;
+decltype(&dup) __imp_dup = &dup;
+decltype(&dup2) __imp_dup2 = &dup2;
+decltype(&stricmp) __imp_stricmp = &stricmp;
+decltype(&strnicmp) __imp_strnicmp = &strnicmp;
+decltype(&unlink) __imp_unlink = &unlink;
+decltype(&rmdir) __imp_rmdir = &rmdir;
+decltype(&strdup) __imp_strdup = &strdup;
+decltype(&access) __imp_access = &access;
+decltype(&chmod) __imp_chmod = &chmod;
+
+// ARM compiler helpers: 's' means single precision, not string.
+extern float __floatundisf(unsigned long long);
+extern unsigned long long __fixunssfdi(float);
+float __u64tos(unsigned long long value) { return __floatundisf(value); }
+unsigned long long __stou64(float value) { return __fixunssfdi(value); }
 
  // --- _mbsrchr: reverse multibyte-char search. ARM ucrt.lib lacks it
 // (only _mbschr). v0: single-byte walk, no lead-byte tables on UWP;
@@ -245,105 +264,9 @@ extern "C" int __stdcall _Cnd_timedwait_for_unchecked(void* cond, void* mtx, uns
     return _Cnd_timedwait(cond, mtx, &xt);
 }
 
-// --- MSVC dynamic-TLS hooks (vcruntime normally provides; absent ARM-store).
-// v0: our thread_locals are all POD (zero-init suffices). Dynamic thread
-// locals (MSVC-STL locale internals referenced by ANGLE entry points) stay
-// zero; those paths never execute in v0 (no WebGL). Guard preset to
-// initialized so the init call is skipped.
-extern "C" unsigned long __tls_guard = 1;
-extern "C" void* __cdecl __dyn_tls_on_demand_init(void*, unsigned long, void*) { return 0; }
-
-// --- TLS directory + mimalloc callback anchors (normally vcruntime).
-// mimalloc's prim.c forces /INCLUDE:__tls_used/__mi_tls_callback_pre/post
-// with x86 cdecl decoration (no-op names on ARM, which has no decoration).
-// The REAL callbacks still wire via .CRT$XLB/XLY section merging; these
-// satisfy the names. __dyn_tls_init is demanded the same way; nothing calls
-// it in our tree (swept all objects), so a TRUE no-op suffices. v0: dynamic
-// TLS initializers don't run (see __tls_guard above).
-struct __wk_tls_directory {
-    unsigned long StartAddressOfRawData;
-    unsigned long EndAddressOfRawData;
-    unsigned long AddressOfIndex;
-    unsigned long AddressOfCallBacks;
-    unsigned long SizeOfZeroFill;
-    unsigned long Characteristics;
-};
-extern "C" __wk_tls_directory __tls_used = { 0, 0, 0, 0, 0, 0 };
-typedef void (__stdcall *__wk_tls_callback)(void*, unsigned long, void*);
-extern "C" __wk_tls_callback __mi_tls_callback_pre[1] = { 0 };
-extern "C" __wk_tls_callback __mi_tls_callback_post[1] = { 0 };
-extern "C" int __cdecl __dyn_tls_init(void*, unsigned long, void*) { return 1; }
-
-// --- __stou64: vcruntime string->u64 helper (sibling of __u64tos above;
-// referenced by MSVC-STL locale number parsing). (nptr, endptr, base),
-// exactly strtoull semantics.
-extern "C" unsigned long long __cdecl __stou64(const char* s, char** end, int base)
-{
-    return strtoull(s, end, base);
-}
-
-// --- .CRT$XDU walk: per-TU dynamic TLS initializers (clang emits one static
-// __tls_init trampoline per TU needing it into .CRT$XDU). No vcruntime here,
-// so _DllMainCRTStartup walks them on attach. Markers bracket the group
-// lexically ($XDTZZ < $XDU < $XDUZZ); entries take (hinst, reason, reserved)
-// NTAPI-style (trampolines forward/ignore regs as needed).
-#pragma section(".CRT$XDTZZ", read)
-__declspec(allocate(".CRT$XDTZZ")) void* __wk_xdu_start[1] = { 0 };
-#pragma section(".CRT$XDUZZ", read)
-__declspec(allocate(".CRT$XDUZZ")) void* __wk_xdu_end[1] = { 0 };
-typedef void (__stdcall *__wk_tls_cb)(void*, unsigned long, void*);
-static void wk_run_xdu(void* hinst, unsigned long reason, void* reserved)
-{
-    for (void** p = &__wk_xdu_start[1]; p < &__wk_xdu_end[0]; ++p) {
-        if (*p)
-            ((__wk_tls_cb)*p)(hinst, reason, reserved);
-    }
-}
-
-// --- _tlregdtor: TLS destructor registry via FLS (App-legal). clang emits
-// calls for thread_locals with non-trivial dtors (WTF ThreadSpecific).
-struct __wk_tlreg { void (__cdecl *fn)(void*); void* obj; };
-struct __wk_tlreg_block { unsigned long count; unsigned long capacity; struct __wk_tlreg entries[1]; };
-static volatile long g_fls_index = -1;
-static void __stdcall wk_fls_dtor(void* data)
-{
-    struct __wk_tlreg_block* b = (struct __wk_tlreg_block*)data;
-    if (!b)
-        return;
-    for (unsigned long i = b->count; i > 0; --i) {
-        if (b->entries[i - 1].fn)
-            b->entries[i - 1].fn(b->entries[i - 1].obj);
-    }
-    HeapFree(GetProcessHeap(), 0, b);
-}
-extern "C" void __cdecl __tlregdtor(void (__cdecl *fn)(void*), void* obj)
-{
-    if (g_fls_index == -1) {
-        unsigned long idx = FlsAlloc(wk_fls_dtor);
-        if (idx == 0xFFFFFFFFUL)
-            return; // no FLS slot: leak the registration rather than crash
-        InterlockedCompareExchange(&g_fls_index, (long)idx, -1);
-        if ((unsigned long)g_fls_index != idx)
-            FlsFree(idx); // lost the race; keep the winner
-    }
-    struct __wk_tlreg_block* b = (struct __wk_tlreg_block*)FlsGetValue((unsigned long)g_fls_index);
-    if (!b || b->count >= b->capacity) {
-        unsigned long newcap = b ? b->capacity * 2 : 8;
-        unsigned long bytes = sizeof(struct __wk_tlreg_block) + (newcap - 1) * sizeof(struct __wk_tlreg);
-        struct __wk_tlreg_block* nb = (struct __wk_tlreg_block*)HeapReAlloc(
-            GetProcessHeap(), 0, b, bytes);
-        if (!nb)
-            return; // v0: leak the dtor registration rather than crash
-        if (!b)
-            nb->count = 0;
-        nb->capacity = newcap;
-        b = nb;
-        FlsSetValue((unsigned long)g_fls_index, b);
-    }
-    b->entries[b->count].fn = fn;
-    b->entries[b->count].obj = obj;
-    ++b->count;
-}
+// TLS directory, dynamic initializers and destructor registration: crtls.cpp.
+extern void __stdcall __dyn_tls_init(void*, unsigned long, void*);
+extern void __stdcall wk_tls_destroy(void*, unsigned long, void*);
 
 // --- system_error message helpers (__msvc_system_error_abi.hpp, extern "C").
 // FormatMessageA is App-legal; LocalFree pairs the allocate-buffer.
@@ -377,10 +300,10 @@ extern "C" unsigned int __stdcall __std_get_string_size_without_trailing_whitesp
 
 // --- DLL entry: .CRT init walk, default DllMain, atexit on detach ---
 typedef void (__cdecl *_PVFV)(void);
-// selectany: real .CRT anchors (linker-synthesized when objects carry .CRT
-// sections) override these empties; with none present the walk is a no-op.
-__declspec(selectany) _PVFV __xc_a[1] = { 0 };
-__declspec(selectany) _PVFV __xc_z[1] = { 0 };
+#pragma section(".CRT$XCA", read)
+#pragma section(".CRT$XCZ", read)
+__declspec(allocate(".CRT$XCA")) _PVFV __xc_a[1] = { 0 };
+__declspec(allocate(".CRT$XCZ")) _PVFV __xc_z[1] = { 0 };
 // NOTE: the default DllMain lives in crdllmain.c (separate object) so that
 // targets defining their own DllMain (e.g. OpenSSL dllmain.c) never collide:
 // archive members load on demand, and a direct object definition wins.
@@ -394,11 +317,13 @@ BOOL __stdcall _DllMainCRTStartup(HINSTANCE hinst, DWORD reason, LPVOID reserved
                 (**p)();
         }
     }
-    if (reason == DLL_PROCESS_ATTACH || reason == DLL_THREAD_ATTACH)
-        wk_run_xdu(hinst, reason, reserved);
+    if (reason == DLL_PROCESS_ATTACH)
+        __dyn_tls_init(hinst, DLL_THREAD_ATTACH, reserved);
     BOOL ok = DllMain(hinst, reason, reserved);
-    if (reason == DLL_PROCESS_DETACH)
+    if (reason == DLL_PROCESS_DETACH) {
+        wk_tls_destroy(hinst, reason, reserved);
         wk_run_atexits();
+    }
     return ok;
 }
 

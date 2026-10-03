@@ -93,6 +93,30 @@ unsigned int __stdcall GetWindowsDirectoryA(
 #define CSIDL_APPDATA 0x001a
 #define CSIDL_LOCAL_APPDATA 0x001c
 
+// --- TlHelp32 module snapshot (tlhelp32.h is desktop-partitioned out under
+// PC_APP, so MODULEENTRY32/TH32CS_SNAPMODULE vanish). OpenSSL's dso_win32.c
+// needs only the struct and the constant: it resolves
+// CreateToolhelp32Snapshot/Module32First/Module32Next dynamically via
+// GetProcAddress, so nothing here adds link dependencies. Layout mirrors the
+// SDK (MAX_PATH is 260); guarded so a real tlhelp32.h still wins.
+#ifndef MODULEENTRY32
+#define TH32CS_SNAPMODULE 0x00000008
+typedef struct tagMODULEENTRY32 {
+    DWORD dwSize;
+    DWORD th32ModuleID;
+    DWORD th32ProcessID;
+    DWORD GlblcntUsage;
+    DWORD ProccntUsage;
+    unsigned char* modBaseAddr;
+    DWORD modBaseSize;
+    HANDLE hModule;
+    char szModule[256];
+    char szExePath[260];
+} MODULEENTRY32;
+typedef MODULEENTRY32* PMODULEENTRY32;
+typedef MODULEENTRY32* LPMODULEENTRY32;
+#endif
+
 // --- file-mapping: CreateFileMapping (desktop) is absent under PC_APP
 // (only ...FromApp, whose 5-arg signature differs). The SDK's own inline
 // wrappers (memoryapi.h, _WIN32_WINNT >= 0x0602) cover modern TUs; this stub

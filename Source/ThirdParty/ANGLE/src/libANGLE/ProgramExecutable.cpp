@@ -2654,6 +2654,27 @@ void ProgramExecutable::setUniformGeneric(UniformLocation location,
 
     const VariableLocation &locationInfo = mUniformLocations[location.value];
     GLsizei clampedCount                 = clampUniformCount(locationInfo, count, UniformSize, v);
+#if defined(WTF_PLATFORM_UWP) && defined(_M_ARM) && defined(__clang__)
+    // Clang's ARM32 MSVC vcall thunk uses r1 for the target address, destroying
+    // the first explicit argument (the uniform location). Direct virtual calls
+    // avoid that thunk and preserve the normal ARM register calling convention.
+#define ANGLE_UWP_UNIFORM_CASE(Type, Size, Method) \
+    if constexpr (std::is_same_v<UniformT, Type> && UniformSize == Size) \
+        mImplementation->Method(location.value, clampedCount, v); \
+    else
+    ANGLE_UWP_UNIFORM_CASE(GLfloat, 1, setUniform1fv)
+    ANGLE_UWP_UNIFORM_CASE(GLfloat, 2, setUniform2fv)
+    ANGLE_UWP_UNIFORM_CASE(GLfloat, 3, setUniform3fv)
+    ANGLE_UWP_UNIFORM_CASE(GLfloat, 4, setUniform4fv)
+    ANGLE_UWP_UNIFORM_CASE(GLint, 2, setUniform2iv)
+    ANGLE_UWP_UNIFORM_CASE(GLint, 3, setUniform3iv)
+    ANGLE_UWP_UNIFORM_CASE(GLint, 4, setUniform4iv)
+    ANGLE_UWP_UNIFORM_CASE(GLuint, 1, setUniform1uiv)
+    ANGLE_UWP_UNIFORM_CASE(GLuint, 2, setUniform2uiv)
+    ANGLE_UWP_UNIFORM_CASE(GLuint, 3, setUniform3uiv)
+    ANGLE_UWP_UNIFORM_CASE(GLuint, 4, setUniform4uiv)
+#undef ANGLE_UWP_UNIFORM_CASE
+#endif
     (mImplementation->*SetUniformFunc)(location.value, clampedCount, v);
 }
 
@@ -2749,6 +2770,22 @@ void ProgramExecutable::setUniformMatrixGeneric(UniformLocation location,
     }
 
     GLsizei clampedCount = clampMatrixUniformCount<MatrixC, MatrixR>(location, count, transpose, v);
+#if defined(WTF_PLATFORM_UWP) && defined(_M_ARM) && defined(__clang__)
+#define ANGLE_UWP_MATRIX_CASE(Cols, Rows, Method) \
+    if constexpr (MatrixC == Cols && MatrixR == Rows) \
+        mImplementation->Method(location.value, clampedCount, transpose, v); \
+    else
+    ANGLE_UWP_MATRIX_CASE(2, 2, setUniformMatrix2fv)
+    ANGLE_UWP_MATRIX_CASE(3, 3, setUniformMatrix3fv)
+    ANGLE_UWP_MATRIX_CASE(4, 4, setUniformMatrix4fv)
+    ANGLE_UWP_MATRIX_CASE(2, 3, setUniformMatrix2x3fv)
+    ANGLE_UWP_MATRIX_CASE(2, 4, setUniformMatrix2x4fv)
+    ANGLE_UWP_MATRIX_CASE(3, 2, setUniformMatrix3x2fv)
+    ANGLE_UWP_MATRIX_CASE(3, 4, setUniformMatrix3x4fv)
+    ANGLE_UWP_MATRIX_CASE(4, 2, setUniformMatrix4x2fv)
+    ANGLE_UWP_MATRIX_CASE(4, 3, setUniformMatrix4x3fv)
+#undef ANGLE_UWP_MATRIX_CASE
+#endif
     (mImplementation->*SetUniformMatrixFunc)(location.value, clampedCount, transpose, v);
 }
 

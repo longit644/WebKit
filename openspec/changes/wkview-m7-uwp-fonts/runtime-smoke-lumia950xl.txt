@@ -1,0 +1,18 @@
+Device: Lumia 950 XL (RM-1085)
+OS: 15254.603.armfre.feature2_rs3svc.200106-1633
+Date: 2026-10-01
+Package: WebKitWebView.RuntimeSmoke_1.0.0.2_arm__2932e6rj4m41p
+Source: Windows Device Portal, app LocalState/runtime-smoke.txt
+
+open-log: 0x00000000
+host-started: 0x00000000
+core-application-factory: 0x00000000
+view-activated: 0x00000000
+worker-started: 0x00000000
+runtime-smoke-failure-mask: 0x00000000
+javascript-evaluation: 0x00000000
+load-webcore: 0x00000000
+
+Scope: isolated CRT arithmetic/global initialization/contended statics/TLS
+construction, isolation and native-thread destruction; JavaScript evaluation
+expected 4950; WebCore DLL loading. No page/font/GPU rendering verification.

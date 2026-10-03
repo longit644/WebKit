@@ -1,0 +1,152 @@
+Device: Lumia 950 XL (RM-1085), Windows 10 Mobile 15254.603 ARM
+Verified package: WebKitWebView.MiniBrowser_1.0.0.4_arm__2932e6rj4m41p
+Source: Device Portal LocalState/minibrowser.log and owner interaction check/photo
+
+Owner confirmed:
+- JavaScript tap counter increments.
+- Numbered sections visibly scroll on swipe.
+- about:second, Go, Back, and Reload work for local pages.
+- Scrolling is not yet smooth and text looks soft.
+
+Selected device log:
+minibrowser-startup: 0x00000000
+minibrowser-application-initialize: 0x00000000
+minibrowser-launched: 0x00000000
+persistent-page-created: 0x00000000
+control-panel-attached: 0x00000000
+minibrowser-control-initialize: 0x00000001
+persistent-html-loaded: 0x00000000
+minibrowser-status: 0x00000000
+control-viewport-width: 0x0000019b
+control-viewport-height: 0x00000297
+control-resize: 0x00000000
+control-pointer-pressed: 0x00000000
+control-scroll-y: 0x0000009b
+control-scroll-y: 0x000000fa
+control-scroll-y: 0x00000033
+control-scroll-y: 0x00000000
+control-pointer-released: 0x00000000
+
+Viewport: 411 x 663 logical pixels.
+0x00000001 from control initialization is S_FALSE (successful timer result).
+Repeated move log entries omitted; selected values show scroll movement both ways.
+
+Scope: native C++ XAML UserControl/Grid/SwapChainPanel wrapper with persistent
+WebCore Page, app-local HTML, DOM click handling, touch scrolling, local shell
+history/reload, and D3D11 composition presentation. This does not verify live
+HTTPS navigation, external subresources, web-content text editing/IME, or
+WinMD/custom-XAML-type registration. PNG capture is implemented but not yet
+verified through file download. DPI-aware/frame-coalesced version 1.0.0.5 is
+built, with deployment verification pending after a portal timeout.
+
+Subsequent device results (session summary; raw logs above are from 1.0.0.4):
+- 1.0.0.5: owner confirmed sharper text; panel scale 3.5, backing pixels
+  1439 x 2321 for a 411 x 663 logical viewport.
+- 1.0.0.6: owner confirmed momentum and elastic edge behavior.
+- 1.0.0.7: installed/launched; CPU paint roughly 13–17 ms, full-frame upload
+  6–8 ms during scrolling. Owner still perceived lag and reported Capture failed.
+
+TextureMapper integration build, 2026-10-02, version 1.0.0.8:
+- ninja -j 8 WebCore: passed, WebCore.dll linked.
+- cmake --build build-arm-minibrowser --parallel 8: passed.
+- Staging: 27 ARM binaries with the refreshed font/painting build-tree overrides.
+- MakeAppx: package validation passed; development signing passed.
+- New bridge: enable/disable/render compositor; Chrome root-layer attachment,
+  ANGLE SwapChainPanel context, backing-store updates, inertia edge transform,
+  Cairo/D3D11 fallback, fixed/sticky demo probes, tile raster/upload counters.
+- Portal /api/os/info at https://192.168.1.52 timed out (WinError 10060).
+- Package prepared at build-arm-minibrowser/MiniBrowserUWP.appx.
+- Portal later became reachable; install accepted (HTTP 202), deployment state
+  completed (HTTP 204), launch accepted (HTTP 200).
+- Crashed before compositor initialization completed. Dump:
+  MiniBrowserUWP.exe.2172.dmp, package 1.0.0.8, exception 0xc0000005 in
+  msvcp140.dll at 0x62f13a93. Stack memory symbolization identifies
+  egl::priv::ScopedGlobalMutexLock -> GlobalMutex::lock -> std::_Mutex_base::lock,
+  reached from EGL_GetPlatformDisplayEXT and TextureMapperCompositorUWP::initialize.
+- No device GPU rendering, fixed/sticky behavior, capture, scrolling improvement,
+  or GPU execution timing verified for 1.0.0.8.
+
+Compatibility rebuild, version 1.0.0.9:
+- UWP ANGLE uses _DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR to ask the old inbox
+  msvcp140 runtime to initialize mutex storage rather than using the current
+  MSVC headers' constexpr representation.
+- ninja -j 8 WebCore: rebuild and final WebCore.dll link passed.
+- Staging, MakeAppx validation, and development signing passed.
+- Install attempt timed out before upload in /api/os/info (WinError 10060).
+- Signed 1.0.0.9 package at build-arm-minibrowser/MiniBrowserUWP.appx.
+- Compatibility fix and compositor behavior await on-device verification.
+
+Device follow-up after unlocking:
+- 1.0.0.9 installed successfully (deployment Success=true, Code=0) and launched.
+- Selected log:
+  gpu-texturemapper-context-ready: 0x00000000
+  ANGLE (Qualcomm, Qualcomm Adreno 430 (0x46363432) Direct3D11 vs_5_0 ps_5_0,
+    D3D11-11.18.1078.53): 0x00000000
+  gpu-root-layer-attached: 0x00000001
+  gpu-compositor-enabled: 0x00000000
+  control-compositor-initialize: 0x00000000
+  control-viewport-width: 0x0000019b
+  control-viewport-height: 0x00000297
+  control-pixel-width: 0x0000059f
+  control-pixel-height: 0x00000911
+  control-scale-x-milli: 0x00000dac
+- First draw crashed: MiniBrowserUWP.exe.6284.dmp, 0xc0000005 at 0x584976ed
+  in libGLESv2.dll (base 0x58320000, RVA 0x1776ed).
+- Symbolization: ProgramExecutableD3D::setUniformMatrixfvInternal<4,4>, reached
+  through GL_UniformMatrix4fv and TextureMapperShaderProgram::setMatrix.
+- ARM vcall thunk at RVA 0xd3954 loads the method target into r1 and branches,
+  overwriting the location argument. At the crash r1=0x584976cb (target address).
+- Independent arm-virtual-call-probe.cpp reproduces the clobber and verifies
+  that a direct virtual call preserves the argument.
+
+1.0.0.10 candidate:
+- ANGLE's ARM-UWP Clang uniform setters use direct virtual dispatch.
+- ninja -j 8 WebCore, staging, MakeAppx validation, and signing passed.
+- Deployment attempt timed out in the initial /api/os/info request before upload.
+- Signed candidate: build-arm-minibrowser/MiniBrowserUWP.appx.
+- First successful composited frame and scrolling metrics remain unverified.
+
+1.0.0.10 device result:
+- Installation Success=true, Code=0; launch accepted.
+- TextureMapper context/root attachment and control-resize succeeded.
+- Scroll, inertia, and edge-return events logged; no fallback logged.
+- Selected warmed samples (CPU-side microseconds, not GPU execution):
+  layer flush 12257 / 10685; composition 1866 / 1568; swap 999 / 1001.
+  Tile raster 6997 / 6248; tile upload 3911 / 3530 (included in layer flush).
+- Owner photo showed duplicated blue sticky-label regions and doubled button
+  text. Rendering correctness failed despite successful frame submission.
+
+1.0.0.11 ghosting-fix candidate:
+- Implemented Chrome scroll and slow-scroll invalidation; repaint the complete
+  scrolled host backing-store region since no host blit is performed.
+- Explicit default framebuffer / unrestricted scissor / color and stencil write
+  mask setup before each full-window clear.
+- ninja -j 8 WebCore passed; staging, MakeAppx, and signing passed.
+- Install Success=true, Code=0; launch HTTP 200.
+- Logs show Adreno 430 ANGLE context, root attachment, compositor enabled,
+  control-resize and control-dpi-change all successful; no fallback logged.
+- Awaiting owner visual confirmation after up/down scrolling and return to top.
+
+1.0.0.11 follow-up:
+- Owner confirmed scrolling is still not smooth and supplied
+  C:\Users\Longi\Downloads\video_2026-10-02_20-33-41.mp4 (9.06 s, 720x1280)
+  plus an end-of-page photo. Video frames inspected via a temporary contact sheet.
+- Edge pull moves composited labels without moving the host-painted document.
+- Logs show about 3.36 million tile raster pixels per regular scroll frame,
+  roughly 25–28 ms layer flush/update, and one host paint call per frame.
+- Root cause: Windows RenderLayerBacking::paintsIntoWindow still returns true
+  for the main RenderView in forced compositing, leaving document rasterization
+  in the host viewport instead of a cached document-relative layer.
+
+1.0.0.12 candidate:
+- Forced UWP RenderView backing now paints into its own composited backing store.
+- Host viewport drawsContent is disabled when usesCompositedScrolling is true.
+- ninja -j 8 WebCore passed; staging, MakeAppx, signing passed.
+- Installation Success=true, Code=0; launch HTTP 200.
+- Selected log:
+  gpu-compositor-enabled: 0x00000000
+  control-compositor-initialize: 0x00000000
+  gpu-document-composited-scrolling: 0x00000001
+  control-resize: 0x00000000
+  control-dpi-change: 0x00000000
+- Awaiting post-change scrolling samples and owner visual/edge confirmation.

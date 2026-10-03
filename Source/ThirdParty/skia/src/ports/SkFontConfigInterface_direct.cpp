@@ -21,7 +21,12 @@
 #include "src/ports/SkFontConfigInterface_direct.h"
 
 #include <fontconfig/fontconfig.h>
+#if defined(SK_BUILD_FOR_WIN)
+#include <io.h>
+#define strcasecmp _stricmp
+#else
 #include <unistd.h>
+#endif
 
 namespace {
 
@@ -512,7 +517,11 @@ SkFontConfigInterfaceDirect::~SkFontConfigInterfaceDirect() {
 }
 
 bool SkFontConfigInterfaceDirect::isAccessible(const char* filename) {
+#if defined(SK_BUILD_FOR_WIN)
+    if (_access(filename, 4) != 0) {
+#else
     if (access(filename, R_OK) != 0) {
+#endif
         return false;
     }
     return true;

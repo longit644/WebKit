@@ -291,7 +291,7 @@ private:
 #endif
 #endif
 
-#if PLATFORM(WIN) && USE(SKIA)
+#if PLATFORM(WIN) && USE(SKIA) && !PLATFORM(UWP)
     struct CreateDWriteFactoryResult {
         COMPtr<IDWriteFactory> factory;
         COMPtr<IDWriteFontCollection> fontCollection;

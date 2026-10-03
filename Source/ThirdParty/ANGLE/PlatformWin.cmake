@@ -7,6 +7,12 @@ list(APPEND ANGLE_DEFINITIONS
     NOMINMAX
 )
 
+if (WK_UWP)
+    # Mobile's inbox msvcp140 predates the constexpr mutex representation in
+    # current MSVC headers. Let that runtime initialize its own lock storage.
+    list(APPEND ANGLE_DEFINITIONS _DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR)
+endif ()
+
 # We're targeting Windows 10 which will have DirectX 11
 list(APPEND ANGLE_SOURCES
     ${d3d11_backend_sources}

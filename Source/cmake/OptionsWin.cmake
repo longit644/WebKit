@@ -60,7 +60,6 @@ if (WK_UWP)
     # WebKitWebView: UWP font stack is FreeType (never GDI).
     find_package(Freetype 2.9.0 REQUIRED)
     find_package(Fontconfig 2.13.0 REQUIRED)
-    SET_AND_EXPOSE_TO_BUILD(USE_FREETYPE ON)
 endif ()
 
 if (NOT TARGET SQLite3::SQLite3) # CMake < 4.3
@@ -125,6 +124,16 @@ SET_AND_EXPOSE_TO_BUILD(ENABLE_WEBDRIVER_KEYBOARD_INTERACTIONS ON)
 SET_AND_EXPOSE_TO_BUILD(ENABLE_WEBDRIVER_MOUSE_INTERACTIONS ON)
 
 WEBKIT_OPTION_END()
+
+if (WK_UWP)
+    # Skia owns its font representation; FreeType remains its dependency, not
+    # the separate WebCore Cairo/FreeType font implementation.
+    if (USE_SKIA)
+        SET_AND_EXPOSE_TO_BUILD(USE_FREETYPE OFF)
+    else ()
+        SET_AND_EXPOSE_TO_BUILD(USE_FREETYPE ON)
+    endif ()
+endif ()
 
 set(USE_ANGLE_EGL ON)
 

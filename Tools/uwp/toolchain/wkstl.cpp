@@ -84,7 +84,7 @@ enum class __std_fs_stats_flags : unsigned long {
     _File_size = 0x08,
     _Link_count = 0x10,
     _Last_write_time = 0x20,
-    _All_data = 0x3F
+    _All_data = 0x3E
 };
 
 struct __std_fs_stats {
@@ -303,7 +303,7 @@ __std_fs_remove_result __stdcall __std_fs_remove(const wchar_t* _Target) noexcep
 
 __std_win_error __stdcall __std_fs_rename(const wchar_t* _Source, const wchar_t* _Target) noexcept
 {
-    if (MoveFileWithProgressW(_Source, _Target, nullptr, nullptr, 0x00000008 /*REPLACE_EXISTING*/ | 0x00000002 /*COPY_ALLOWED*/))
+    if (MoveFileWithProgressW(_Source, _Target, nullptr, nullptr, MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED))
         return __std_win_error::_Success;
     return wk_last_error();
 }
@@ -435,16 +435,9 @@ struct __std_fs_reparse_data_buffer {
 __std_win_error __stdcall __std_fs_open_handle(__std_fs_file_handle* _Handle,
     const wchar_t* _File_name, __std_access_rights _Desired_access, __std_fs_file_flags _Flags) noexcept
 {
-    unsigned long access = 0;
-    unsigned long ar = static_cast<unsigned long>(_Desired_access);
-    if ((ar & 0x00010000UL /*DELETE*/) != 0)
-        access |= 0x00010000UL;
-    if ((ar & 0x0080UL /*READ_ATTRIBUTES*/) != 0)
-        access |= 0x0080UL;
-    if ((ar & 0x0100UL /*WRITE_ATTRIBUTES*/) != 0)
-        access |= 0x0100UL;
-    if ((ar & 0x00120116UL /*GENERIC_WRITE*/) != 0)
-        access |= 0x40000000UL /*GENERIC_WRITE*/;
+    // FILE_GENERIC_WRITE shares bits with narrower rights; a bitwise-any
+    // test accidentally escalates a READ_ATTRIBUTES request to GENERIC_WRITE.
+    unsigned long access = static_cast<unsigned long>(_Desired_access);
     unsigned long flags = 0;
     unsigned long ff = static_cast<unsigned long>(_Flags);
     if ((ff & 0x02000000UL /*BACKUP_SEMANTICS*/) != 0)

@@ -105,4 +105,8 @@ CLAUDE.md
 /*.obj
 /*.lib
 /build-arm-uwp/
+/build-arm-uwp-skia/
+/build-arm-runtime-smoke/
+/build-arm-minibrowser/
+/build-arm-tlssmoke/
 
