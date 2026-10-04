@@ -138,6 +138,66 @@ Options, in order of promise:
 Whichever succeeds, the probe still needs a host that activates it inside a real
 XAML tree on the phone. Only that run answers the original gate.
 
+## Decisive isolation: C++/WinRT is not viable on this toolchain
+
+All C++ errors in the probe were resolved. What remains is a **clang 19 ARM32
+backend crash**, reproduced down to 12 lines with no involvement from our code,
+`UserControl`, or even `winrt::make<>`:
+
+```
+fatal error: error in backend: Cannot select: ch = cleanupret
+fatal error: error in backend: Cannot select: ch = catchret
+```
+
+Minimal repro (compiles for x64; crashes only for ARM32):
+
+```cpp
+template <typename T> struct PT : winrt::implements<T, IInspectable> {
+    static void* operator new(size_t n) { return ::operator new(n); }
+};
+struct P : PT<P> {};
+IInspectable o = winrt::make<P>();   // crashes; so does: P* p = new P(); QI(p)
+```
+
+What was eliminated one variable at a time:
+
+| Variant | Result |
+|---|---|
+| Probe as written | `cleanupret` crash |
+| Same, `-Od` instead of `-O2` | still crashes — not an optimisation bug |
+| Sized `operator delete` removed | still crashes |
+| **No `UserControl` base at all** | still crashes (`catchret`) |
+| **`winrt::make<>` bypassed**, plain `new` + `QueryInterface` | still crashes |
+| `XamlProbeT<T> : UserControl, implements<T, IXamlProbe>` | **frontend clean**, only codegen fails |
+
+So the trigger is `winrt::implements<>` itself combined with exception handling.
+C++/WinRT *requires* exceptions (`winrt/base.h` throws, which is why
+`_HAS_EXCEPTIONS=0` had to be overridden), and clang 19 cannot generate the ARM32
+EH cleanup for such a type.
+
+No alternative compiler is installed: only VS BuildTools clang 19, and
+`C:\Users\Longi\llvm-tools` holds only `lld-link`, `rc.exe`, `flex` and `LIB.EXE`.
+
+### Consequence for the owner's option 1
+
+Option 1 (C++/WinRT) is **not achievable with the current toolchain**. It is not a
+platform limitation on Windows 10 Mobile — the earlier conclusion still stands that
+declarative XAML is probably fine. It is a compiler limitation on ARM32.
+
+Two ways forward, both needing an owner decision:
+
+1. **Install a newer LLVM** and re-run the 12-line repro. If a later clang fixed
+   the ARM32 EH cleanup bug, option 1 becomes viable and the generated projection
+   is already proven to supply the whole inherited interface chain.
+2. **Fall back to WRL with the interim hosting API.** Give up declarative
+   `<web:WebKitWebView />` for now; the control owns a `UserControl` that the host
+   parents, which already works through `xamlElement()`.
+
+Hand-writing the `IUserControl` delegation in WRL is the third option and remains
+impractical: the generated projection shows it is mechanical, but it is dozens of
+methods per interface across `IUserControl`, `IControl1-7`, `IFrameworkElement1-7`,
+`IUIElement1-10` and `IDependencyObject`.
+
 ## Remaining step
 
 Derive the implementation from the generated type and confirm it activates and

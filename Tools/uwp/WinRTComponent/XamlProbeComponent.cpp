@@ -88,22 +88,7 @@ struct XamlProbeT : UserControl, winrt::implements<T, winrt::WebKitProbe::IXamlP
     // accessible one without changing the C++/WinRT allocation policy.
     static void* operator new(size_t size)
     {
-        if (size == 0)
-            size = 1;
-        void* memory = ::operator new(size);
-        return memory;
-    }
-
-    // Matching deallocation for the placement above; sized and unsized forms
-    // are both routed to the global deallocator.
-    static void operator delete(void* memory) noexcept
-    {
-        ::operator delete(memory);
-    }
-
-    static void operator delete(void* memory, size_t) noexcept
-    {
-        ::operator delete(memory);
+        return ::operator new(size);
     }
 };
 
@@ -171,8 +156,8 @@ public:
     {
         if (!instance)
             return E_POINTER;
-        *instance = nullptr;
-        return winrt::make<XamlProbe>().as<IInspectable>().detach(*instance) ? S_OK : E_OUTOFMEMORY;
+        *instance = winrt::make<XamlProbe>().as<IInspectable>().detach();
+        return *instance ? S_OK : E_OUTOFMEMORY;
     }
 };
 
