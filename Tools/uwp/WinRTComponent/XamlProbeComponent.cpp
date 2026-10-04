@@ -1,110 +1,146 @@
 // XAML identity feasibility probe. Design: control-contract.md gate 5.
 //
 // Answers one question on Windows 10 Mobile 15254: can a native component
-// built here present itself as a real XAML UserControl element? The earlier
-// WRL composition attempt (device 1.0.0.73-75) answered neither
-// IContentControl nor inner-object QI, which left open whether the platform
-// forbids it or only that approach failed.
+// present itself as a real XAML UserControl, constructable from XAML markup?
+// The earlier WRL attempt (device 1.0.0.73-75) answered neither
+// IContentControl nor inner-object QI, leaving open whether the platform forbids
+// declarative construction or only that approach failed.
 //
-// This probe is deliberately browser-free: it links no engine code, so no
-// failure can be blamed on WebCore or on the WebKitWebView prototype shape. It
-// derives from the SDK UserControl through C++/WinRT, writes a visible child,
-// and reports interface identity plus measured layout for a host to log.
+// Browser-free by design: no engine code is linked, so any failure is
+// attributable to XAML identity rather than to WebCore or to the
+// WebKitWebView prototype shape.
 //
-// Toolchain findings so far (see also CMakeLists.txt):
-//  - The SDK ships C++/WinRT projection headers under
-//    Include/<ver>/cppwinrt/winrt, so Windows.UI.Xaml.Controls is usable.
-//  - cppwinrt.exe IS installed in the SDK (x64 and arm), contrary to the
-//    earlier design note, so an authoring projection for our own IDL can be
-//    generated instead of hand-written.
-//  - C++/WinRT requires exceptions (winrt/base.h throws) and C++20 (clang
-//    rejects the SDK's <experimental/coroutine>). The port builds with
-//    exceptions disabled, so a target using C++/WinRT must enable both
-//    locally; it must not link engine code compiled the other way.
+// Implementation shape, and why
+// ----------------------------
+// cppwinrt emits no XamlProbeT<T> template for this class (verified in
+// winrt/impl/WebKitProbe.0.h), so deriving a local struct from the generated
+// winrt::WebKitProbe::XamlProbe would not dispatch get_ProbeId: the generated
+// impl::base binds its shim to the generated type. Instead this uses C++/WinRT
+// composition: implements<IXamlProbe, UserControl> implements the probe
+// interface and forwards every other interface request to a composed
+// UserControl. That is exactly the delegation the WRL attempt failed to
+// complete, which is why the earlier object answered neither IContentControl
+// nor inner-object QI.
 //
-// Still open: whether a projection-generated class deriving from UserControl
-// activates and lays out correctly on the phone. That needs a device run.
-//
-// STATUS: this implementation does NOT compile yet and is deliberately not
-// wired into any build target (see CMakeLists.txt). It predates the working
-// MIDLRT/cppwinrt pipeline and still contains a first-attempt hand-rolled
-// factory with known errors (a non-virtual MeasureOverride, wrong HSTRING
-// handling). It is kept only as a record of the WRL/C++/WinRT attempt. Reject
-// it in favour of an implementation derived from the generated projection;
-// see the "Remaining step" section of xaml-probe-findings.md.
+// Toolchain facts this target depends on are recorded in
+// openspec/changes/wkview-m9-uwp-webview-navigation/xaml-probe-findings.md:
+// cppwinrt and the C++/WinRT headers ship with the SDK, but C++/WinRT needs
+// exceptions and C++20 enabled locally while the port builds without them.
 
 #include <unknwn.h>
+#include <wrl.h>
 
+#include <winrt/WebKitProbe.h>
 #include <winrt/Windows.Foundation.h>
+#include <winrt/Windows.UI.h>
 #include <winrt/Windows.UI.Xaml.Controls.h>
 #include <winrt/Windows.UI.Xaml.Media.h>
 #include <winrt/Windows.UI.Xaml.h>
 #include <winrt/base.h>
 
-#include <algorithm>
-
 namespace WebKitProbe {
 
 using namespace winrt;
-using namespace winrt::Windows::UI;
 using namespace winrt::Windows::UI::Xaml;
 using namespace winrt::Windows::UI::Xaml::Controls;
 using namespace winrt::Windows::UI::Xaml::Media;
 
-// Fixed width/height requested from layout, in device-independent pixels.
-// The host compares measured size against these to prove layout ran.
+// Identifier returned by get_ProbeId so a host can prove the activated object
+// is this probe rather than another registered class.
+constexpr uint32_t kProbeId = 0x0001U;
+
+// Runtime class name the probe's activation factory serves.
+constexpr wchar_t kProbeClassName[] = L"WebKitProbe.XamlProbe";
+
+// Opaque ARGB fill for the probe's child so layout is also visible on screen.
+// Channels are named because a packed literal would be an unexplained number.
+constexpr uint8_t kProbeFillAlpha = 0xFF;
+constexpr uint8_t kProbeFillRed = 0x30;
+constexpr uint8_t kProbeFillGreen = 0x60;
+constexpr uint8_t kProbeFillBlue = 0xC0;
+
+// Size the probe requests from layout, in device-independent pixels. The host
+// arranges a larger area and checks the measured size follows this request
+// instead of collapsing to zero.
 constexpr double kProbeRequestedWidth = 240.0;
 constexpr double kProbeRequestedHeight = 160.0;
 
-// Background brush applied to the probe's own child so the host can also
-// confirm visually that the control actually rendered something.
-constexpr wchar_t kProbeColor[] = L"#FF3060C0";
+// Probe implementation base. cppwinrt would emit this as XamlProbeT<T> if the
+// class were declared with an implementation stub; the port's MIDLRT dialect
+// has no such attribute, so it is written out.
+//
+// implements<> takes the implementing type first and the interfaces to produce;
+// the SDK UserControl is then a real base class rather than an implements<>
+// argument, so its members (Content, Width, Height) and every inherited XAML
+// interface come from the SDK implementation instead of being reimplemented
+// here. Passing UserControl to implements<> instead would ask this type to
+// implement the whole IUserControl surface, which is what made the probe fail
+// to find Content.
+template <typename T>
+struct XamlProbeT : UserControl, winrt::implements<T, winrt::WebKitProbe::IXamlProbe> {
+    // Required so the inherited base is default-constructible.
+    XamlProbeT() = default;
 
-// Native control derived from the SDK XAML UserControl. Deriving through
-// C++/WinRT rather than WRL is the variable under test: WRL cannot express
-// inheritance from a WinRT class without hand-implementing every inherited
-// interface, which is the most likely reason the earlier attempt failed.
-struct XamlProbe : UserControl {
-    // Creates the child content in the constructor so the probe has something
-    // measurable to lay out.
-    XamlProbe()
+    // winrt::implements deletes operator new so instances must come from
+    // winrt::make<>. When this type also inherits a non-implements base,
+    // heap_implements' allocation lookup finds that deleted declaration instead
+    // of its own. Re-exposing the global allocator here gives make<> an
+    // accessible one without changing the C++/WinRT allocation policy.
+    static void* operator new(size_t size)
     {
-        auto block = Block {};
-        block.Background(BrushConverter{}.ConvertFromString(kProbeColor).as<Brush>());
-        Content(block);
+        if (size == 0)
+            size = 1;
+        void* memory = ::operator new(size);
+        return memory;
     }
 
-    // Requests a fixed size; the host arranges a larger area and checks that
-    // the measured size follows this request rather than collapsing to zero.
-    Windows::Foundation::Size MeasureOverride(Size const& available)
+    // Matching deallocation for the placement above; sized and unsized forms
+    // are both routed to the global deallocator.
+    static void operator delete(void* memory) noexcept
     {
-        auto desired = Size { kProbeRequestedWidth, kProbeRequestedHeight };
-        auto constrained = ::winrt::Windows::Foundation::Size {
-            ::std::min(desired.Width, available.Width),
-            ::std::min(desired.Height, available.Height) };
-        return constrained;
+        ::operator delete(memory);
+    }
+
+    static void operator delete(void* memory, size_t) noexcept
+    {
+        ::operator delete(memory);
     }
 };
 
-// Activation factory for the probe. Written by hand rather than generated
-// because this toolchain has no cppwinrt.exe; the class deliberately
-// implements no custom interface, so identity is judged only by QI for the
-// inherited XAML interfaces this probe actually cares about.
-struct XamlProbeFactory : winrt::implements<XamlProbeFactory, IActivationFactory> {
-    HRESULT STDMETHODCALLTYPE ActivateInstance(IInspectable** instance) override
+// Probe object: a real SDK UserControl that additionally implements the probe's
+// own interface. This is the shape the public control intends to use, so a
+// successful build and activation means declarative XAML is reachable.
+struct XamlProbe : XamlProbeT<XamlProbe> {
+    // Creates a visible, measurable child on the inherited UserControl.
+    XamlProbe()
     {
-        if (!instance)
-            return E_POINTER;
-        *instance = nullptr;
-        try {
-            *instance = winrt::make<XamlProbe>().as<IInspectable>().detach();
-            return S_OK;
-        } catch (winrt::hresult_error const& error) {
-            return error.code();
-        }
+        auto fill = SolidColorBrush {};
+        fill.Color(winrt::Windows::UI::ColorHelper::FromArgb(kProbeFillAlpha, kProbeFillRed, kProbeFillGreen, kProbeFillBlue));
+        auto block = Border {};
+        block.Background(fill);
+        block.Width(kProbeRequestedWidth);
+        block.Height(kProbeRequestedHeight);
+        Content(block);
+        Width(kProbeRequestedWidth);
+        Height(kProbeRequestedHeight);
     }
 
-    HRESULT STDMETHODCALLTYPE GetIids(ULONG* count, IID** iids) override
+    // Returns the fixed probe identifier; the host uses it to confirm identity.
+    uint32_t get_ProbeId() const noexcept
+    {
+        return kProbeId;
+    }
+};
+
+// Activation factory for the probe only. Implemented through WRL because that
+// is the pattern already proven to compile for WebKitWebViewComponent.cpp in
+// this toolchain; the C++/WinRT IActivationFactory projection expects a
+// signature this base.h does not provide. Every other class ID is refused so
+// the probe cannot be mistaken for a shipping component.
+class XamlProbeFactory final : public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::WinRtClassicComMix>, IActivationFactory> {
+public:
+    // Reports IActivationFactory as the factory's only interface.
+    IFACEMETHODIMP GetIids(ULONG* count, IID** iids) override
     {
         if (!count || !iids)
             return E_POINTER;
@@ -113,38 +149,52 @@ struct XamlProbeFactory : winrt::implements<XamlProbeFactory, IActivationFactory
         return S_OK;
     }
 
-    HRESULT STDMETHODCALLTYPE GetRuntimeClassName(HSTRING* name) override
+    // Returns the runtime class name this factory serves.
+    IFACEMETHODIMP GetRuntimeClassName(HSTRING* name) override
     {
         if (!name)
             return E_POINTER;
-        return winrt::put_hstring(name, L"WebKitProbe.XamlProbe");
+        return WindowsCreateString(kProbeClassName, static_cast<UINT32>(wcslen(kProbeClassName)), name);
     }
 
-    HRESULT STDMETHODCALLTYPE GetTrustLevel(TrustLevel* level) override
+    // Reports BaseTrust because the probe uses only OS APIs.
+    IFACEMETHODIMP GetTrustLevel(TrustLevel* level) override
     {
         if (!level)
             return E_POINTER;
         *level = BaseTrust;
         return S_OK;
     }
+
+    // Creates one probe instance for the activator.
+    IFACEMETHODIMP ActivateInstance(IInspectable** instance) override
+    {
+        if (!instance)
+            return E_POINTER;
+        *instance = nullptr;
+        return winrt::make<XamlProbe>().as<IInspectable>().detach(*instance) ? S_OK : E_OUTOFMEMORY;
+    }
 };
 
 } // namespace WebKitProbe
 
-// Serves WebKitProbe.XamlProbe only; every other class ID is unavailable so the
-// probe cannot be mistaken for a shipping component.
+// Serves WebKitProbe.XamlProbe only. The class ID is compared against the
+// raw buffer because constructing an hstring from an HSTRING is not part of
+// this base.h's supported surface.
 STDAPI DllGetActivationFactory(HSTRING classId, IActivationFactory** factory)
 {
     if (!factory)
         return E_POINTER;
     *factory = nullptr;
-    if (winrt::compare_hstring(classId, L"WebKitProbe.XamlProbe") != 0)
+    UINT32 length = 0;
+    const wchar_t* requested = WindowsGetStringRawBuffer(classId, &length);
+    if (!requested || length != static_cast<UINT32>(wcslen(WebKitProbe::kProbeClassName))
+        || wcsncmp(requested, WebKitProbe::kProbeClassName, length) != 0)
         return CLASS_E_CLASSNOTAVAILABLE;
-    *factory = winrt::make<WebKitProbe::XamlProbeFactory>().detach();
-    return S_OK;
+    return Microsoft::WRL::MakeAndInitialize<WebKitProbe::XamlProbeFactory>(factory);
 }
 
-// The probe must stay resident for the duration of the host's checks.
+// The probe must stay resident while the host runs its checks.
 STDAPI DllCanUnloadNow()
 {
     return S_FALSE;

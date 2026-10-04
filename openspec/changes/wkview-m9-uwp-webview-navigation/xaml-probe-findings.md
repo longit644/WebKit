@@ -94,6 +94,50 @@ Established by fixing real build failures:
   generated copy and add both `probe/` and the SDK `cppwinrt/` as include dirs
   so a single `winrt/base.h` is used everywhere.
 
+## Second attempt: what now fails, and the narrow blocker
+
+Both plausible C++/WinRT shapes were compiled. Findings:
+
+- `implements<T, IXamlProbe>` takes the **implementing type first**, not an
+  interface. Passing `IXamlProbe` there yields "no type named `implements_type`".
+  cppwinrt normally hides this behind a generated `XamlProbeT<T>` template, which
+  this class does not get, so the equivalent template has to be written by hand.
+- Passing `UserControl` as a further `implements<>` argument is **wrong**: it asks
+  the type to *implement* `IUserControl`, so the compiler then demands
+  `Content`, `Width` and the whole surface ("no member named `Content`").
+- Real inheritance works instead — `struct XamlProbeT<T> : UserControl,
+  implements<T, IXamlProbe>` — and the probe constructor then compiles and calls
+  `Content`/`Width`/`Height` successfully. This got much further than WRL.
+- Remaining failure, in both base orders:
+  `winrt/base.h: new impl::heap_implements<D>` → **"call to deleted function
+  `operator new`"**. `implements` deletes `operator new` and `heap_implements` is
+  supposed to supply it, but with an extra non-`implements` base class the lookup
+  finds the deleted declaration.
+
+The activation factory also cannot use the C++/WinRT `IActivationFactory`
+projection with this `base.h` (wrong return types, and `winrt::make_factory` is
+absent). A WRL `RuntimeClass<..., IActivationFactory>` factory compiles fine, and
+`WindowsCreateString` plus raw-buffer comparison work for the class-ID check.
+
+## Most promising next step
+
+The `operator new` problem is an allocation-policy detail, not a platform limit.
+Options, in order of promise:
+
+1. Give the probe its own allocation rather than `make<>`: construct with
+   `Microsoft::WRL::Make<XamlProbe>()` or `new` inside the WRL factory, so
+   C++/WinRT's `heap_implements` path is never instantiated.
+2. Put `implements<T, IXamlProbe>` first and inherit `UserControl` through
+   `impl::base<...>` explicitly, mirroring the generated projection instead of
+   deriving from the projected class directly.
+3. As a control experiment, instantiate the probe with no `UserControl` base at
+   all. If that compiles and activates, the failure is isolated to multiple
+   inheritance; if it fails identically, the blocker is the deleted `operator
+   new` under this toolchain's `/D_HAS_EXCEPTIONS=0` forced include.
+
+Whichever succeeds, the probe still needs a host that activates it inside a real
+XAML tree on the phone. Only that run answers the original gate.
+
 ## Remaining step
 
 Derive the implementation from the generated type and confirm it activates and
