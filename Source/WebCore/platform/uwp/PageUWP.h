@@ -125,6 +125,51 @@ struct WKPageStateUWP {
     unsigned canGoForward;
 };
 
+// How the committed document URL changed without a new document load. Reported
+// so the host distinguishes a real new document from a same-document change
+// instead of inferring it by comparing URL strings.
+enum WKDocumentChangeKindUWP {
+    // No same-document change observed since the last commit.
+    WKDocumentChangeKindNoneUWP = 0,
+
+    // In-page anchor navigation changed only the fragment.
+    WKDocumentChangeKindFragmentUWP = 1,
+
+    // history.pushState() mutated the URL and added a history entry.
+    WKDocumentChangeKindPushStateUWP = 2,
+
+    // history.replaceState() mutated the URL without adding a history entry.
+    WKDocumentChangeKindReplaceStateUWP = 3,
+
+    // History traversal restored an existing same-document entry.
+    WKDocumentChangeKindPopStateUWP = 4
+};
+
+// Typed document facts captured from the real load lifecycle. Hosts read these
+// instead of parsing diagnostic log lines. Field order is ABI; append only.
+struct WKPageDocumentStateUWP {
+    // Committed document title; empty when the document reported none. The
+    // storage is owned by the page and stays valid until the next commit on
+    // the same engine thread, so copy it before returning to other code.
+    const char* title;
+
+    // HTTP status of the committed main-document response. Meaningful only
+    // when hasHttpStatus is nonzero; values follow WebKit's HTTP status
+    // constants. A status of 404 with an HTML body is a completed document,
+    // not a transport failure.
+    unsigned httpStatus;
+
+    // Nonzero once a main-document response supplied a status.
+    unsigned hasHttpStatus;
+
+    // Latest same-document change kind; a WKDocumentChangeKindUWP value.
+    unsigned documentChange;
+
+    // Server redirect hops observed for the active navigation, including the
+    // final hop that delivered the committed document.
+    unsigned redirectHops;
+};
+
 extern "C" {
 #if defined(BUILDING_WebCore)
 #define WK_PAGE_UWP_EXPORT __declspec(dllexport)
@@ -184,6 +229,11 @@ WK_PAGE_UWP_EXPORT unsigned __stdcall WKPageNeedsPaintUWP(void*, unsigned* needs
 
 // Snapshots scroll, content and history state.
 WK_PAGE_UWP_EXPORT unsigned __stdcall WKGetPageStateUWP(void*, WKPageStateUWP*);
+
+// Copies typed title, HTTP status, same-document change kind and redirect
+// count captured from the loader client. On a nonzero result the caller struct
+// is untouched and no field may be read.
+WK_PAGE_UWP_EXPORT unsigned __stdcall WKGetPageDocumentStateUWP(void*, WKPageDocumentStateUWP*);
 
 // Starts the GPU compositor on the given SwapChainPanel.
 WK_PAGE_UWP_EXPORT unsigned __stdcall WKEnableCompositorUWP(void*, void* nativePanel, double scaleX, double scaleY);

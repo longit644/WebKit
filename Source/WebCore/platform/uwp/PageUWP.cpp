@@ -259,6 +259,31 @@ struct PageHostUWP {
     // replaced document are dropped instead of reporting into the new page.
     unsigned loadGeneration { 0 };
 
+    // Committed document title reported by the loader client. Hosts read this
+    // instead of scraping the title out of diagnostic log lines.
+    String documentTitle;
+
+    // UTF-8 copy of documentTitle owned by the page. Held separately so the
+    // borrowed pointer handed across the ABI stays valid after the exporting
+    // call returns; it is refreshed whenever documentTitle changes.
+    CString documentTitleUtf8;
+
+    // HTTP status of the committed main-document response, valid only while
+    // hasDocumentHttpStatus is set. An error status with a displayable body is
+    // a completed document, not a transport failure.
+    unsigned documentHttpStatus { 0 };
+
+    // Whether a main-document response supplied an HTTP status yet.
+    bool hasDocumentHttpStatus { false };
+
+    // How the committed URL last changed without a new document load; a
+    // WKDocumentChangeKindUWP value. Reset at each provisional load.
+    WKDocumentChangeKindUWP documentChange { WKDocumentChangeKindNoneUWP };
+
+    // Server redirect hops reported for the active navigation. Reset at each
+    // provisional load so counts never span navigations.
+    unsigned documentRedirectHops { 0 };
+
     // Deferred diagnostics must also expire when the owning page is destroyed.
     std::shared_ptr<unsigned> probeLifetime { std::make_shared<unsigned>(0) };
 
@@ -943,6 +968,15 @@ private:
     void dispatchDidStartProvisionalLoad() final
     {
         ++m_owner.loadGeneration;
+        // Per-navigation facts must not leak into the next document: a new
+        // provisional load invalidates the previous status, redirect count and
+        // same-document classification.
+        m_owner.hasDocumentHttpStatus = false;
+        m_owner.documentHttpStatus = 0;
+        m_owner.documentChange = WKDocumentChangeKindNoneUWP;
+        m_owner.documentRedirectHops = 0;
+        m_owner.documentTitle = String();
+        m_owner.documentTitleUtf8 = CString();
         report("navigation-started", WKPageLogFalseUWP);
     }
 
@@ -988,6 +1022,54 @@ private:
             auto stage = makeString("link-center-node: "_s, node->nodeName()).utf8();
             m_owner.log(stage.data(), WKPageLogFalseUWP);
         }
+    }
+
+    // Records the main-document HTTP status so hosts can distinguish an error
+    // document that rendered from a transport failure. Uses the response's own
+    // status value; no status is invented when the load never got one.
+    void NODELETE dispatchDidReceiveResponse(DocumentLoader*, ResourceLoaderIdentifier, const ResourceResponse& response) final
+    {
+        m_owner.hasDocumentHttpStatus = true;
+        m_owner.documentHttpStatus = response.httpStatusCode();
+    }
+
+    // Counts server redirect hops for the active navigation so a host can
+    // report that a navigation was redirected without scraping log lines.
+    void NODELETE dispatchDidReceiveServerRedirectForProvisionalLoad() final
+    {
+        ++m_owner.documentRedirectHops;
+    }
+
+    // Captures the committed document title as reported by the loader.
+    void NODELETE dispatchDidReceiveTitle(const StringWithDirection& title) final
+    {
+        m_owner.documentTitle = title.string;
+        m_owner.documentTitleUtf8 = title.string.utf8();
+    }
+
+    // Fragment-only change: same document, new anchor. Replaces inferring this
+    // from URL equality, which also matched same-URL reloads.
+    void NODELETE dispatchDidChangeLocationWithinPage() final
+    {
+        m_owner.documentChange = WKDocumentChangeKindFragmentUWP;
+    }
+
+    // pushState mutated the URL and added a history entry.
+    void NODELETE dispatchDidPushStateWithinPage() final
+    {
+        m_owner.documentChange = WKDocumentChangeKindPushStateUWP;
+    }
+
+    // replaceState mutated the URL without adding a history entry.
+    void NODELETE dispatchDidReplaceStateWithinPage() final
+    {
+        m_owner.documentChange = WKDocumentChangeKindReplaceStateUWP;
+    }
+
+    // History traversal restored an existing same-document entry.
+    void NODELETE dispatchDidPopStateWithinPage() final
+    {
+        m_owner.documentChange = WKDocumentChangeKindPopStateUWP;
     }
 
     // Records provisional failures for the interstitial and the proceed link.
@@ -1588,5 +1670,23 @@ extern "C" __declspec(dllexport) unsigned __stdcall WKGetPageStateUWP(void* hand
     auto contents = frameView.contentsSize();
     auto& backForward = view.page->backForward();
     *state = { view.width, view.height, position.x(), position.y(), contents.width(), contents.height(), backForward.backCount() > 0, backForward.forwardCount() > 0 };
+    return WKPageResultOkUWP;
+}
+
+// Copies the typed document facts captured by the loader client. The returned
+// title pointer borrows page-owned storage that stays valid until the next
+// commit on this engine thread; callers that outlive the call must copy it.
+extern "C" __declspec(dllexport) unsigned __stdcall WKGetPageDocumentStateUWP(void* handle, WKPageDocumentStateUWP* state)
+{
+    if (!handle || !state)
+        return WKPageResultInvalidArgumentUWP;
+    auto& view = *host(handle);
+    if (!view.validThread())
+        return WKPageResultWrongThreadUWP;
+    state->title = view.documentTitleUtf8.data();
+    state->httpStatus = view.documentHttpStatus;
+    state->hasHttpStatus = view.hasDocumentHttpStatus;
+    state->documentChange = view.documentChange;
+    state->redirectHops = view.documentRedirectHops;
     return WKPageResultOkUWP;
 }

@@ -69,7 +69,7 @@ private:
     RetainPtr<CFDictionaryRef> connectionProperties(DocumentLoader*, ResourceLoaderIdentifier) final;
 #endif
 
-    void NODELETE dispatchDidReceiveResponse(DocumentLoader*, ResourceLoaderIdentifier, const ResourceResponse&) final;
+    void NODELETE dispatchDidReceiveResponse(DocumentLoader*, ResourceLoaderIdentifier, const ResourceResponse&) override;
     void NODELETE dispatchDidReceiveContentLength(DocumentLoader*, ResourceLoaderIdentifier, int) final;
     void NODELETE dispatchDidFinishLoading(DocumentLoader*, ResourceLoaderIdentifier) final;
 #if ENABLE(DATA_DETECTION)
@@ -79,16 +79,16 @@ private:
     bool NODELETE dispatchDidLoadResourceFromMemoryCache(DocumentLoader*, const ResourceRequest&, const ResourceResponse&, int) final;
 
     void NODELETE dispatchDidDispatchOnloadEvents() final;
-    void NODELETE dispatchDidReceiveServerRedirectForProvisionalLoad() final;
+    void NODELETE dispatchDidReceiveServerRedirectForProvisionalLoad() override;
     void NODELETE dispatchDidCancelClientRedirect() final;
     void dispatchWillPerformClientRedirect(const URL&, double, WallTime, LockBackForwardList) final;
-    void NODELETE dispatchDidChangeLocationWithinPage() final;
-    void NODELETE dispatchDidPushStateWithinPage() final;
-    void NODELETE dispatchDidReplaceStateWithinPage() final;
-    void NODELETE dispatchDidPopStateWithinPage() final;
+    void NODELETE dispatchDidChangeLocationWithinPage() override;
+    void NODELETE dispatchDidPushStateWithinPage() override;
+    void NODELETE dispatchDidReplaceStateWithinPage() override;
+    void NODELETE dispatchDidPopStateWithinPage() override;
     void NODELETE dispatchWillClose() final;
     void NODELETE dispatchDidStartProvisionalLoad() override;
-    void NODELETE dispatchDidReceiveTitle(const StringWithDirection&) final;
+    void NODELETE dispatchDidReceiveTitle(const StringWithDirection&) override;
     void NODELETE dispatchDidCommitLoad(std::optional<HasInsecureContent>, std::optional<UsedLegacyTLS>, std::optional<WasPrivateRelayed>) override;
     void NODELETE dispatchDidFailProvisionalLoad(const ResourceError&, WillContinueLoading, WillInternallyHandleFailure) override;
     void NODELETE dispatchDidFailLoad(const ResourceError&) override;
