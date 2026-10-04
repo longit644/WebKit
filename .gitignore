@@ -128,3 +128,13 @@ CLAUDE.md
 /Tools/uwp/WinRTComponent/WebKitWebView_p.h
 /Tools/uwp/WinRTComponent/WebKitWebView.winmd
 
+# MIDLRT/cppwinrt outputs for the XAML identity probe. Regenerate with the
+# verified pipeline in openspec/changes/wkview-m9-uwp-webview-navigation/
+# xaml-probe-findings.md; the authored sources are the .idl and the probe.
+/Tools/uwp/WinRTComponent/XamlProbe.h
+/Tools/uwp/WinRTComponent/XamlProbe_i.c
+/Tools/uwp/WinRTComponent/XamlProbe_p.h
+/Tools/uwp/WinRTComponent/XamlProbe_p.c
+/Tools/uwp/WinRTComponent/XamlProbe.winmd
+/XamlProbe_p.c
+

@@ -14,3 +14,11 @@ target_link_libraries(WebKitWebView PRIVATE runtimeobject d3d11 dxgi windowscode
 # Activation entry points: RoActivateInstance resolves the class through these.
 target_link_options(WebKitWebView PRIVATE /EXPORT:DllGetActivationFactory /EXPORT:DllCanUnloadNow)
 set_property(TARGET WebKitWebView APPEND PROPERTY LINK_DEPENDS "${WEBKIT_SOURCE_DIR}/Tools/uwp/lib/arm-crtstart.lib")
+
+# XAML identity feasibility probe (browser-free). Not yet wired into the build.
+# Toolchain facts established by the first attempt: the SDK ships C++/WinRT
+# projection headers and cppwinrt.exe, so a projection-generated class deriving
+# from UserControl is buildable; C++/WinRT additionally needs exceptions and
+# C++20 enabled locally, which the port otherwise builds without. Findings are
+# recorded in XamlProbeComponent.cpp. Add a target here once the generated
+# projection and activation approach are settled.

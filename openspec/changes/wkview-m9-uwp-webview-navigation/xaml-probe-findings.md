@@ -1,0 +1,111 @@
+# XAML probe: toolchain findings and remaining step
+
+Date: 2026-10-04. Owner decision: use C++/WinRT for the control, with
+exceptions and C++20 enabled for that target only.
+
+## Question
+
+Can a native component in this repository present itself as a real XAML
+`UserControl`, constructable from markup? The earlier WRL attempt (device
+1.0.0.73-75) answered neither `IContentControl` nor inner-object QI, leaving
+open whether the platform forbids it or only that approach failed.
+
+## Correction to the existing design record
+
+`design-winrt-component.md` §2 states `cppwinrt.exe` is **"Absent (NuGet-only,
+no network install assumed)"** and concludes the component must be WRL-only.
+That is wrong. It is installed in the SDK:
+
+```
+C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\cppwinrt.exe
+C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\arm\cppwinrt.exe
+```
+
+The SDK also ships the C++/WinRT projection headers the earlier note believed
+missing:
+
+```
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\cppwinrt\winrt\
+    base.h, windows.ui.xaml.controls.h, windows.ui.xaml.h, ...
+```
+
+Consequence: deriving from `UserControl` is buildable, and the reason the WRL
+attempt failed is a tool limitation, not a platform prohibition.
+
+## Working generation pipeline
+
+```powershell
+# 1. IDL -> winmd + C headers (same dialect as WebKitWebView.idl).
+$env:Path = 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64;' + $env:Path
+& 'C:/Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64/midlrt.exe' `
+  /winmd Tools/uwp/WinRTComponent/XamlProbe.winmd `
+  /metadata_dir 'C:\Program Files (x86)\Windows Kits\10\UnionMetadata\10.0.22621.0' `
+  /I 'C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\winrt' `
+  /I 'C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\um' `
+  /I 'C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\shared' `
+  /h Tools/uwp/WinRTComponent/XamlProbe.h `
+  /iid Tools/uwp/WinRTComponent/XamlProbe_i.c `
+  Tools/uwp/WinRTComponent/XamlProbe.idl
+
+# 2. winmd -> C++/WinRT projection. -platform and -metadata_dir are rejected
+# by this cppwinrt; reference Windows.winmd explicitly instead.
+& 'C:/Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64/cppwinrt.exe' `
+  -input Tools/uwp/WinRTComponent/XamlProbe.winmd `
+  -reference 'C:\Program Files (x86)\Windows Kits\10\UnionMetadata\10.0.22621.0\Windows.winmd' `
+  -output build-arm-winrtcomponent/probe -optimize
+```
+
+Both steps verified `EXIT=0`. Generated output includes
+`winrt/WebKitProbe.h` and `winrt/impl/WebKitProbe.2.h`.
+
+## The important result
+
+The generated projection declares `XamlProbe` as deriving from `IXamlProbe`
+plus the full inherited chain:
+
+```
+impl::base<XamlProbe, UserControl, Control, FrameworkElement, UIElement, DependencyObject>
+impl::require<XamlProbe, IUserControl, IControl..IControl7, IFrameworkElement..,
+              IUIElement..IUIElement10, IAnimationObject, IVisualElement,
+              IDependencyObject, IDependencyObject2>
+```
+
+So the projection **delegates every inherited interface automatically**. That is
+precisely the work that was infeasible by hand in WRL, and it is why the earlier
+attempt produced an object that answered neither `IContentControl` nor
+inner-object QI. This is strong evidence the declarative control shape is
+achievable — but it is compile-time evidence only, not a device result.
+
+## Compile requirements for a C++/WinRT target
+
+Established by fixing real build failures:
+
+- `/EHsc` and `_HAS_EXCEPTIONS=1` — `winrt/base.h` throws. The port builds
+  `-D_HAS_EXCEPTIONS=0 /EHs-c-`, so these must be enabled for this target only.
+  It links no engine code, so its exception setting cannot affect WebCore.
+- `cxx_std_20` — clang rejects the SDK's `<experimental/coroutine>` header that
+  C++17 pulls in.
+- `/GR` — RTTI must be re-enabled alongside exceptions.
+- `#include <unknwn.h>` before any `winrt/` header, else `_GUID` is incomplete.
+- Include the generated output as `<winrt/WebKitProbe.h>`; a bare
+  `<windows.ui.xaml.h>` resolves to the wrong C header.
+- Do **not** define `WINRT_LEAN_AND_MEAN`; it strips the XAML projections.
+- Do not mix the generated `probe/winrt/base.h` with the SDK's copy. Delete the
+  generated copy and add both `probe/` and the SDK `cppwinrt/` as include dirs
+  so a single `winrt/base.h` is used everywhere.
+
+## Remaining step
+
+Derive the implementation from the generated type and confirm it activates and
+lays out. Unresolved detail: cppwinrt does not emit an `XamlProbeT<T>` template
+here (neither plain nor `-component`), and the generated `impl::base<XamlProbe>`
+binds the shim to the generated type. Whether deriving a local struct from
+`winrt::WebKitProbe::XamlProbe` and registering `make_factory` on the derived
+type dispatches `get_ProbeId` correctly is the last compile-time unknown. If it
+does not, declare the probe with an explicit implementation stub in the IDL so
+cppwinrt emits the `T` template.
+
+After it builds, the probe still needs a host that activates it inside a real
+XAML tree on the phone and reports interface identity plus measured size. That
+run is the only thing that can answer the original blocker, and it needs a
+person on the device.

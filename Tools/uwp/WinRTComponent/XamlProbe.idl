@@ -1,0 +1,42 @@
+// XAML identity feasibility probe. Design: control-contract.md gate 5.
+// Answers one question on Windows 10 Mobile 15254: can a native component
+// present itself as a real XAML UserControl, constructable from XAML markup?
+// The earlier WRL composition attempt (device 1.0.0.73-75) answered neither
+// IContentControl nor inner-object QI, leaving open whether the platform forbids
+// declarative construction or only that approach failed.
+//
+// Browser-free by design: this probe links no engine code, so any failure is
+// attributable to XAML identity rather than to WebCore or the WebKitWebView
+// prototype shape.
+//
+// Classic MIDLRT dialect, matching Tools/uwp/WinRTComponent/WebKitWebView.idl:
+// C-style enums, explicit get_/put_ methods, explicit event add_/remove_.
+import "inspectable.idl";
+import "windows.ui.xaml.controls.idl";
+
+namespace WebKitProbe
+{
+    // Probe contract. Deliberately minimal: the probe exists to prove runtime
+    // identity and layout, so it exposes only enough surface to confirm that
+    // activation, the default interface and XAML construction all work.
+    [uuid(6d1c8f44-2b90-4a37-8c65-1f9d3b7a5e20), version(1.0)]
+    interface IXamlProbe : IInspectable
+    {
+        // Returns a fixed identifier so a host can confirm the activated object
+        // is this probe and not some other registered class.
+        HRESULT get_ProbeId([out, retval] UINT32* value);
+    };
+
+    // Probe runtime class declared with the inheritance the public control
+    // intends to use. If this activates, exposes its inherited XAML
+    // interfaces, lays out and tears down on the phone, the declarative control
+    // shape is feasible. If not, the control needs an interim hosting API and
+    // that scope decision belongs to the owner.
+    [version(1.0), activatable(1.0), threading(both), marshaling_behavior(agile)]
+    runtimeclass XamlProbe : Windows.UI.Xaml.Controls.UserControl
+    {
+        // Default projection confirming the component's own interface resolves
+        // alongside the inherited XAML ones.
+        [default] interface IXamlProbe;
+    };
+}
