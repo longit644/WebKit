@@ -5,13 +5,13 @@
 #if PLATFORM(UWP)
 
 #include <memory>
-#include <wtf/MainThread.h>
-#include <wtf/NeverDestroyed.h>
-#include <wtf/RunLoop.h>
 #include <windows.applicationmodel.datatransfer.h>
 #include <wrl/client.h>
 #include <wrl/event.h>
 #include <wrl/wrappers/corewrappers.h>
+#include <wtf/MainThread.h>
+#include <wtf/NeverDestroyed.h>
+#include <wtf/RunLoop.h>
 
 namespace WebCore::ClipboardUWP {
 
@@ -21,23 +21,30 @@ using Microsoft::WRL::ComPtr;
 using Microsoft::WRL::Wrappers::HString;
 using Microsoft::WRL::Wrappers::HStringReference;
 
+// UI-thread enqueue function installed by setUIDispatcher; empty until then.
 static Function<bool(Function<void()>&&)>& uiDispatcher()
 {
     static NeverDestroyed<Function<bool(Function<void()>&&)>> dispatcher;
     return dispatcher.get();
 }
 
+// Installs the UI-thread enqueue function; engine thread only.
 void setUIDispatcher(Function<bool(Function<void()>&&)>&& dispatcher)
 {
     ASSERT(isMainThread());
     uiDispatcher() = WTF::move(dispatcher);
 }
 
+// In-flight operation remembering where its completion must run.
 struct PendingClipboardOperation {
+    // Origin run loop receiving the completion.
     Ref<RunLoop> origin;
+
+    // Caller completion invoked on the origin loop.
     CompletionHandler<void(HRESULT, String)> completion;
 };
 
+// Hops the result back to the origin run loop; safe from any thread.
 static void deliver(const std::shared_ptr<PendingClipboardOperation>& pending, HRESULT result, const String& text)
 {
     pending->origin->dispatch([pending, result, text = text.isolatedCopy()]() mutable {
@@ -46,43 +53,51 @@ static void deliver(const std::shared_ptr<PendingClipboardOperation>& pending, H
     });
 }
 
+// Runs the WinRT operation on the UI thread, then delivers on the origin loop.
+// A missing or refusing dispatcher completes immediately with an error.
 static void enqueue(Function<void(CompletionHandler<void(HRESULT, String)>&&)>&& operation, CompletionHandler<void(HRESULT, String)>&& completion)
 {
     ASSERT(isMainThread());
     auto pending = std::make_shared<PendingClipboardOperation>(PendingClipboardOperation { Ref { RunLoop::currentSingleton() }, WTF::move(completion) });
     if (!uiDispatcher()) {
-        deliver(pending, CO_E_NOTINITIALIZED, { });
+        deliver(pending, CO_E_NOTINITIALIZED, {});
         return;
     }
     bool accepted = uiDispatcher()([pending, operation = WTF::move(operation)]() mutable {
         operation(CompletionHandler<void(HRESULT, String)> { [pending](HRESULT result, String text) {
-            deliver(pending, result, text);
-        }, CompletionHandlerCallThread::AnyThread });
+                                                                deliver(pending, result, text);
+                                                            },
+            CompletionHandlerCallThread::AnyThread });
     });
     if (!accepted)
-        deliver(pending, E_ABORT, { });
+        deliver(pending, E_ABORT, {});
 }
 
+// Engine-facing clear routed through the UI thread.
 void clearAsync(CompletionHandler<void(HRESULT)>&& completion)
 {
-    enqueue([](auto&& done) { done(clear(), { }); }, [completion = WTF::move(completion)](HRESULT result, String) mutable { completion(result); });
+    enqueue([](auto&& done) { done(clear(), {}); }, [completion = WTF::move(completion)](HRESULT result, String) mutable { completion(result); });
 }
 
+// Engine-facing write routed through the UI thread; text is copied for the hop.
 void writeTextAsync(const String& text, CompletionHandler<void(HRESULT)>&& completion)
 {
-    enqueue([text = text.isolatedCopy()](auto&& done) { done(writeText(text), { }); }, [completion = WTF::move(completion)](HRESULT result, String) mutable { completion(result); });
+    enqueue([text = text.isolatedCopy()](auto&& done) { done(writeText(text), {}); }, [completion = WTF::move(completion)](HRESULT result, String) mutable { completion(result); });
 }
 
+// Engine-facing read routed through the UI thread.
 void readTextAsync(CompletionHandler<void(HRESULT, String)>&& completion)
 {
     enqueue([](auto&& done) { readText(WTF::move(done)); }, WTF::move(completion));
 }
 
+// Resolves the system clipboard statics; UI apartment only.
 static HRESULT clipboardStatics(ComPtr<DataTransfer::IClipboardStatics>& clipboard)
 {
     return RoGetActivationFactory(HStringReference(RuntimeClass_Windows_ApplicationModel_DataTransfer_Clipboard).Get(), IID_PPV_ARGS(clipboard.GetAddressOf()));
 }
 
+// Empties the system clipboard; UI thread only.
 HRESULT clear()
 {
     ComPtr<DataTransfer::IClipboardStatics> clipboard;
@@ -90,6 +105,7 @@ HRESULT clear()
     return FAILED(result) ? result : clipboard->Clear();
 }
 
+// Publishes text with a copy operation; UI thread only.
 HRESULT writeText(const String& text)
 {
     ComPtr<DataTransfer::IClipboardStatics> clipboard;
@@ -121,33 +137,34 @@ HRESULT writeText(const String& text)
     return clipboard->SetContent(package.Get());
 }
 
+// Reads text asynchronously; empty clipboard completes with S_FALSE. UI thread only.
 void readText(CompletionHandler<void(HRESULT, String)>&& completion)
 {
     ComPtr<DataTransfer::IClipboardStatics> clipboard;
     HRESULT result = clipboardStatics(clipboard);
     if (FAILED(result)) {
-        completion(result, { });
+        completion(result, {});
         return;
     }
 
     ComPtr<DataTransfer::IDataPackageView> content;
     result = clipboard->GetContent(content.GetAddressOf());
     if (FAILED(result)) {
-        completion(result, { });
+        completion(result, {});
         return;
     }
 
     boolean containsText = false;
     result = content->Contains(HStringReference(L"Text").Get(), &containsText);
     if (FAILED(result) || !containsText) {
-        completion(FAILED(result) ? result : S_FALSE, { });
+        completion(FAILED(result) ? result : S_FALSE, {});
         return;
     }
 
     ComPtr<Foundation::IAsyncOperation<HSTRING>> operation;
     result = content->GetTextAsync(operation.GetAddressOf());
     if (FAILED(result)) {
-        completion(result, { });
+        completion(result, {});
         return;
     }
 
@@ -171,12 +188,12 @@ void readText(CompletionHandler<void(HRESULT, String)>&& completion)
             return S_OK;
         });
     if (!callback) {
-        (*pending)(E_OUTOFMEMORY, { });
+        (*pending)(E_OUTOFMEMORY, {});
         return;
     }
     result = operation->put_Completed(callback.Get());
     if (FAILED(result) && *pending)
-        (*pending)(result, { });
+        (*pending)(result, {});
 }
 
 } // namespace WebCore::ClipboardUWP

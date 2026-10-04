@@ -653,6 +653,13 @@ macro(WEBKIT_FRAMEWORK _target)
     _WEBKIT_TARGET(${_target})
     _WEBKIT_TARGET_ANALYZE(${_target})
 
+    if (WK_UWP)
+        # The ARM runtime archive is passed in linker flags, so CMake cannot
+        # infer this dependency. Relink when its ABI adapters are rebuilt.
+        set_property(TARGET ${_target} APPEND PROPERTY LINK_DEPENDS
+            "${CMAKE_SOURCE_DIR}/Tools/uwp/lib/arm-crtstart.lib")
+    endif ()
+
     # Apply PGO compile flags only to library targets (not executables) to avoid duplicate symbol errors
     # Link flags are applied globally via CMAKE_SHARED_LINKER_FLAGS for LTO compatibility
     if (PGO_COMPILE_OPTIONS)

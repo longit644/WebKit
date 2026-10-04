@@ -2,8 +2,8 @@
 // event delivery will be owned by WebKitWebViewUWP's persistent page host.
 #include "config.h"
 #include "Document.h"
-#include "DocumentView.h"
 #include "DocumentLoader.h"
+#include "DocumentView.h"
 #include "DocumentWriter.h"
 #include "EmptyClients.h"
 #include "FrameLoader.h"
@@ -13,18 +13,20 @@
 #include "GraphicsContextSkia.h"
 #include <skia/core/SkSurface.h>
 #endif
+#include "LoaderStrategy.h"
+#include "LoaderStrategyUWP.h"
 #include "LocalFrame.h"
 #include "LocalFrameInlines.h"
 #include "LocalFrameView.h"
-#include "LoaderStrategy.h"
 #include "MediaStrategy.h"
 #include "Page.h"
 #include "PageConfiguration.h"
+#include "PageUWP.h" // shared result codes and validation limits
 #include "PlatformStrategies.h"
 #include "ResourceError.h"
 #include "ResourceRequest.h"
-#include "SubresourceLoader.h"
 #include "Settings.h"
+#include "SubresourceLoader.h"
 #include "WebCoreMainThread.h"
 #include <fontconfig/fontconfig.h>
 #include <ft2build.h>
@@ -34,83 +36,191 @@
 
 namespace WebCore {
 
+// Snapshot-harness result codes; each value names the stage that failed.
+enum FirstPageResultUWP {
+    // Success; the snapshot rendered.
+    FirstPageResultOkUWP = 0,
+
+    // Null directory, pixels or log sink, or oversized snapshot.
+    FirstPageResultInvalidArgumentUWP = 1,
+
+    // Fontconfig configuration could not be created.
+    FirstPageResultNoFontConfigUWP = 2,
+
+    // Bundled fonts failed to install into fontconfig.
+    FirstPageResultFontsFailedUWP = 3,
+
+    // No local frame existed to render.
+    FirstPageResultNoFrameUWP = 4,
+
+    // No document loader was active for the frame.
+    FirstPageResultNoLoaderUWP = 5,
+
+    // Cairo/Skia surface creation failed.
+    FirstPageResultNoSurfaceUWP = 6,
+
+    // Document writing could not begin.
+    FirstPageResultDocumentBeginFailedUWP = 7,
+
+    // Called on a thread other than the engine thread.
+    FirstPageResultWrongThreadUWP = 8
+};
+
+// FreeType face selected from the packaged fonts.
+constexpr FT_Long kRegularFontFaceIndex = 0;
+
 // This snapshot harness has no network requests. Completion callbacks report
 // unsupported requests; browser navigation requires a real loader strategy.
 class FirstPageLoaderStrategy final : public LoaderStrategy {
 public:
+    // Snapshot harness loads nothing; completes with no loader.
     void loadResource(LocalFrame&, CachedResource&, ResourceRequest&&, const ResourceLoaderOptions&, CompletionHandler<void(RefPtr<SubresourceLoader>&&)>&& completion) final { completion(nullptr); }
+
+    // Blocking loads are refused; the harness paints one local snapshot.
     void loadResourceSynchronously(FrameLoader&, ResourceLoaderIdentifier, const ResourceRequest& request, ClientCredentialPolicy, const FetchOptions&, const HTTPHeaderMap&, ResourceError& error, ResourceResponse&, Vector<uint8_t>&) final { error = blockedError(request); }
+
+    // No-op: the snapshot needs no page-load bookkeeping.
     void pageLoadCompleted(Page&) final { }
+
+    // No-op: no browsing contexts outlive the snapshot.
     void browsingContextRemoved(LocalFrame&) final { }
+
+    // No-op: nothing is tracked, so nothing needs removal.
     void remove(ResourceLoader*) final { }
+
+    // No-op: nothing defers in the snapshot harness.
     void setDefersLoading(ResourceLoader&, bool) final { }
+
+    // No-op: redirects never occur without loads.
     void crossOriginRedirectReceived(ResourceLoader*, const URL&) final { }
+
+    // No-op: requests start immediately, nothing stays pending.
     void servePendingRequests(ResourceLoadPriority) final { }
+
+    // No-op: the snapshot runs no pump to suspend.
     void suspendPendingRequests() final { }
+
+    // No-op: the snapshot runs no pump to resume.
     void resumePendingRequests() final { }
-    void startPingLoad(LocalFrame&, ResourceRequest& request, const HTTPHeaderMap&, const FetchOptions&, ContentSecurityPolicyImposition, PingLoadCompletionHandler&& completion) final { if (completion) completion(blockedError(request), { }); }
+
+    // Ping loads are refused; beacons report blocked.
+    void startPingLoad(LocalFrame&, ResourceRequest& request, const HTTPHeaderMap&, const FetchOptions&, ContentSecurityPolicyImposition, PingLoadCompletionHandler&& completion) final
+    {
+        if (completion)
+            completion(blockedError(request), {});
+    }
+
+    // Preconnect completes immediately; ordinary requests still load.
     void preconnectTo(FrameLoader&, ResourceRequest&& request, StoredCredentialsPolicy, ShouldPreconnectAsFirstParty, PreconnectCompletionHandler&& completion) final { completion(blockedError(request)); }
+
+    // No-op: extra metrics capture stays off.
     void setCaptureExtraNetworkLoadMetricsEnabled(bool) final { }
+
+    // Offline by construction; the harness paints bundled content only.
     bool isOnLine() const final { return false; }
+
+    // No-op: online transitions are never delivered.
     void addOnlineStateChangeListener(Function<void(bool)>&&) final { }
+
+    // Everything is trivially finished without a loader.
     void isResourceLoadFinished(CachedResource&, CompletionHandler<void(bool)>&& completion) final { completion(true); }
-    ResourceError cancelledError(const ResourceRequest& request) const final { return error(request.url(), 1); }
-    ResourceError blockedError(const ResourceRequest& request) const final { return error(request.url(), 2); }
-    bool isBlockedError(const ResourceError& value) const final { return value.domain() == "UWPFirstPage"_s && value.errorCode() == 2; }
-    ResourceError blockedByContentBlockerError(const ResourceRequest& request) const final { return error(request.url(), 3); }
-    ResourceError cannotShowURLError(const ResourceRequest& request) const final { return error(request.url(), 4); }
-    ResourceError interruptedForPolicyChangeError(const ResourceRequest& request) const final { return error(request.url(), 5); }
-    ResourceError cannotShowMIMETypeError(const ResourceResponse& response) const final { return error(response.url(), 6); }
-    ResourceError fileDoesNotExistError(const ResourceResponse& response) const final { return error(response.url(), 7); }
-    ResourceError httpsUpgradeRedirectLoopError(const ResourceRequest& request) const final { return error(request.url(), 8); }
-    ResourceError httpNavigationWithHTTPSOnlyError(const ResourceRequest& request) const final { return error(request.url(), 9); }
-    bool isHttpNavigationWithHTTPSOnlyError(const ResourceError& value) const final { return value.domain() == "UWPFirstPage"_s && value.errorCode() == 9; }
-    ResourceError pluginWillHandleLoadError(const ResourceResponse& response) const final { return error(response.url(), 10); }
+
+    // Superseded-load error for the cancelled code.
+    ResourceError cancelledError(const ResourceRequest& request) const final { return error(request.url(), UWPResourceErrorCancelled); }
+
+    // Harness refusal error for the blocked code.
+    ResourceError blockedError(const ResourceRequest& request) const final { return error(request.url(), UWPResourceErrorBlocked); }
+
+    // True for harness-domain blocked errors only.
+    bool isBlockedError(const ResourceError& value) const final { return value.domain() == "UWPFirstPage"_s && value.errorCode() == UWPResourceErrorBlocked; }
+
+    // Content-blocker refusal mapped onto the blocker code.
+    ResourceError blockedByContentBlockerError(const ResourceRequest& request) const final { return error(request.url(), UWPResourceErrorBlockedByContentBlocker); }
+
+    // Unsupported-scheme error for the unsupported-URL code.
+    ResourceError cannotShowURLError(const ResourceRequest& request) const final { return error(request.url(), UWPResourceErrorUnsupportedURL); }
+
+    // Mid-flight policy change mapped onto the policy code.
+    ResourceError interruptedForPolicyChangeError(const ResourceRequest& request) const final { return error(request.url(), UWPResourceErrorInterruptedForPolicyChange); }
+
+    // Undisplayable MIME error for the MIME code.
+    ResourceError cannotShowMIMETypeError(const ResourceResponse& response) const final { return error(response.url(), UWPResourceErrorUnsupportedMIMEType); }
+
+    // Missing local file error for the file code.
+    ResourceError fileDoesNotExistError(const ResourceResponse& response) const final { return error(response.url(), UWPResourceErrorFileDoesNotExist); }
+
+    // HTTPS upgrade loop mapped onto the redirect code.
+    ResourceError httpsUpgradeRedirectLoopError(const ResourceRequest& request) const final { return error(request.url(), UWPResourceErrorRedirectFailed); }
+
+    // HTTPS-only refusal error for the HTTPS-only code.
+    ResourceError httpNavigationWithHTTPSOnlyError(const ResourceRequest& request) const final { return error(request.url(), UWPResourceErrorHTTPSOnly); }
+
+    // True for harness-domain HTTPS-only errors only.
+    bool isHttpNavigationWithHTTPSOnlyError(const ResourceError& value) const final { return value.domain() == "UWPFirstPage"_s && value.errorCode() == UWPResourceErrorHTTPSOnly; }
+
+    // Plugin loads are unsupported on this port.
+    ResourceError pluginWillHandleLoadError(const ResourceResponse& response) const final { return error(response.url(), UWPResourceErrorPluginWillHandleLoad); }
+
 private:
+    // Builds a harness-domain error sharing the adapter's code values.
     static ResourceError error(const URL& url, int code) { return { "UWPFirstPage"_s, code, url, "External resource loading is unavailable in the first-page snapshot harness"_s }; }
 };
 
+// Empty media strategy; the snapshot paints no audio or video.
 class FirstPageMediaStrategy final : public MediaStrategy { };
 
+// Snapshot platform strategies: real UWP loader, no pasteboard or blob registry.
 class FirstPagePlatformStrategies final : public PlatformStrategies {
-    LoaderStrategy* createLoaderStrategy() final { return new FirstPageLoaderStrategy; }
+
+    // Binds the snapshot to the real UWP loader adapter.
+    LoaderStrategy* createLoaderStrategy() final { return new LoaderStrategyUWP; }
+
+    // Copy/paste has no backing store in the snapshot harness.
     PasteboardStrategy* createPasteboardStrategy() final { return nullptr; }
+
+    // Binds the empty media strategy above.
     MediaStrategy* createMediaStrategy() final { return new FirstPageMediaStrategy; }
+
+    // Blob URLs resolve to nothing in the snapshot harness.
     BlobRegistry* createBlobRegistry() final { return nullptr; }
 };
+
 }
 
+// Initializes WebCore's main thread, bundled fonts and UWP platform strategies once.
 extern "C" __declspec(dllexport) unsigned __stdcall WKInitializeEngineUWP(
     const wchar_t* fontDirectory,
-    void (__stdcall *log)(const char*, unsigned long))
+    void(__stdcall* log)(const char*, unsigned long))
 {
     using namespace WebCore;
     if (!fontDirectory)
-        return 1;
+        return FirstPageResultInvalidArgumentUWP;
     static DWORD engineThread;
     static bool initialized;
     if (engineThread && engineThread != GetCurrentThreadId())
-        return 8;
+        return FirstPageResultWrongThreadUWP;
     if (initialized)
-        return 0;
+        return FirstPageResultOkUWP;
     engineThread = GetCurrentThreadId();
-    auto report = [log](const char* stage, unsigned long result = 0) {
+    // Emits a stage with a success value unless an API supplies an error code.
+    auto report = [log](const char* stage, unsigned long result = WKPageLogFalseUWP) {
         if (log)
             log(stage, result);
     };
     report("page-initialize-start");
+    setLoaderStrategyUWPLog(log);
     initializeMainThreadIfNeeded();
     report("page-main-thread-ready");
 
     FcConfig* fonts = FcConfigCreate();
     if (!fonts)
-        return 2;
+        return FirstPageResultNoFontConfigUWP;
     String directory(fontDirectory);
     auto regular = makeString(directory, "/DejaVuSans.ttf"_s).utf8();
     auto bold = makeString(directory, "/DejaVuSans-Bold.ttf"_s).utf8();
     auto nativePath = makeString(directory, "\\DejaVuSans.ttf"_s).wideCharacters();
     HANDLE fontFile = CreateFile2(nativePath.span().data(), GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING, nullptr);
-    report("page-font-native-open", fontFile == INVALID_HANDLE_VALUE ? GetLastError() : 0);
+    report("page-font-native-open", fontFile == INVALID_HANDLE_VALUE ? GetLastError() : WKPageLogFalseUWP);
     if (fontFile != INVALID_HANDLE_VALUE)
         CloseHandle(fontFile);
     FT_Library freeType;
@@ -118,7 +228,7 @@ extern "C" __declspec(dllexport) unsigned __stdcall WKInitializeEngineUWP(
     report("page-font-freetype-init", ftResult);
     if (!ftResult) {
         FT_Face face;
-        ftResult = FT_New_Face(freeType, regular.data(), 0, &face);
+        ftResult = FT_New_Face(freeType, regular.data(), kRegularFontFaceIndex, &face);
         report("page-font-freetype-open", ftResult);
         if (!ftResult)
             FT_Done_Face(face);
@@ -134,7 +244,7 @@ extern "C" __declspec(dllexport) unsigned __stdcall WKInitializeEngineUWP(
     report("page-font-config-current", current);
     if (!regularAdded || !boldAdded || !built || !current) {
         FcConfigDestroy(fonts);
-        return 3;
+        return FirstPageResultFontsFailedUWP;
     }
     FcConfigDestroy(fonts); // FcConfigSetCurrent holds its own reference.
     report("page-bundled-fonts-ready");
@@ -144,20 +254,22 @@ extern "C" __declspec(dllexport) unsigned __stdcall WKInitializeEngineUWP(
         setPlatformStrategies(&strategies);
     report("page-platform-strategies-ready");
     initialized = true;
-    return 0;
+    return FirstPageResultOkUWP;
 }
 
+// Renders one snapshot frame into the caller pixels; result is a FirstPageResultUWP code.
 extern "C" __declspec(dllexport) unsigned __stdcall WKRenderFirstPageUWP(
     const wchar_t* fontDirectory, unsigned char* pixels, unsigned width, unsigned height,
-    void (__stdcall *log)(const char*, unsigned long))
+    void(__stdcall* log)(const char*, unsigned long))
 {
     using namespace WebCore;
-    if (!pixels || !width || !height || width > 2048 || height > 2048)
-        return 1;
+    if (!pixels || !width || !height || width > UWPMaxPageDimension || height > UWPMaxPageDimension)
+        return FirstPageResultInvalidArgumentUWP;
     auto initialization = WKInitializeEngineUWP(fontDirectory, log);
-    if (initialization)
+    if (initialization != FirstPageResultOkUWP)
         return initialization;
-    auto report = [log](const char* stage, unsigned long result = 0) { if (log) log(stage, result); };
+    // Emits a stage with a success value unless an API supplies an error code.
+    auto report = [log](const char* stage, unsigned long result = WKPageLogFalseUWP) { if (log) log(stage, result); };
 
     auto configuration = pageConfigurationWithEmptyClients(std::nullopt, PAL::SessionID::defaultSessionID());
     report("page-configuration-ready");
@@ -166,22 +278,26 @@ extern "C" __declspec(dllexport) unsigned __stdcall WKRenderFirstPageUWP(
     page->settings().setScriptEnabled(false);
     page->settings().setAcceleratedCompositingEnabled(false);
     page->settings().setShouldAllowUserInstalledFonts(true);
-    page->settings().setDefaultFontSize(18);
+    page->settings().setDefaultFontSize(UWPDefaultFontSize);
+    // See the equivalent call in PageUWP.cpp: the WebCore default for
+    // loadsImagesAutomatically is false, which silently suppresses <img> loads.
+    page->settings().setLoadsImagesAutomatically(true);
+    page->settings().setImagesEnabled(true);
     auto* frame = page->localMainFrame();
     if (!frame)
-        return 4;
+        return FirstPageResultNoFrameUWP;
     frame->setView(LocalFrameView::create(*frame, { static_cast<int>(width), static_cast<int>(height) }));
     frame->init();
     frame->view()->setCanHaveScrollbars(false);
     report("page-frame-ready");
     auto* loader = frame->loader().activeDocumentLoader();
     if (!loader)
-        return 5;
+        return FirstPageResultNoLoaderUWP;
     auto& writer = loader->writer();
     writer.setMIMEType("text/html"_s);
-    if (!writer.begin(URL { })) {
-        report("page-document-begin-failed", 7);
-        return 7;
+    if (!writer.begin(URL {})) {
+        report("page-document-begin-failed", FirstPageResultDocumentBeginFailedUWP);
+        return FirstPageResultDocumentBeginFailedUWP;
     }
     writer.insertDataSynchronously(
         "<!doctype html><html><head><meta charset='utf-8'><style>"
@@ -205,14 +321,15 @@ extern "C" __declspec(dllexport) unsigned __stdcall WKRenderFirstPageUWP(
     report("page-layout-complete");
 
 #if USE(CAIRO)
-    auto* surface = cairo_image_surface_create_for_data(pixels, CAIRO_FORMAT_ARGB32, width, height, width * 4);
+    auto* surface = cairo_image_surface_create_for_data(pixels, CAIRO_FORMAT_ARGB32, width, height, width * UWPBytesPerBGRA);
     if (cairo_surface_status(surface) != CAIRO_STATUS_SUCCESS) {
         cairo_surface_destroy(surface);
-        return 6;
+        return FirstPageResultNoSurfaceUWP;
     }
 #elif USE(SKIA)
-    auto surface = SkSurfaces::WrapPixels(SkImageInfo::Make(width, height, kBGRA_8888_SkColorType, kPremul_SkAlphaType), pixels, width * 4);
-    if (!surface) return 6;
+    auto surface = SkSurfaces::WrapPixels(SkImageInfo::Make(width, height, kBGRA_8888_SkColorType, kPremul_SkAlphaType), pixels, width * UWPBytesPerBGRA);
+    if (!surface)
+        return FirstPageResultNoSurfaceUWP;
 #endif
     {
 #if USE(CAIRO)
@@ -227,5 +344,5 @@ extern "C" __declspec(dllexport) unsigned __stdcall WKRenderFirstPageUWP(
     cairo_surface_destroy(surface);
 #endif
     report("page-paint-complete");
-    return 0;
+    return FirstPageResultOkUWP;
 }

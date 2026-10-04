@@ -13,7 +13,11 @@ namespace WebCore::ClipboardUWP {
 // different apartment; the caller must dispatch it to the engine run loop.
 // HRESULTs are preserved so access/thread-affinity failures are observable.
 HRESULT clear();
+
+// Publishes text through the system clipboard on the UI apartment.
 HRESULT writeText(const String&);
+
+// Reads system clipboard text asynchronously without blocking the UI apartment.
 void readText(CompletionHandler<void(HRESULT, String)>&&);
 
 // Install on the engine thread before clipboard operations. The application
@@ -24,7 +28,11 @@ WEBCORE_EXPORT void setUIDispatcher(Function<bool(Function<void()>&&)>&&);
 // Engine-facing operations: enqueue on UI, then deliver completion on the
 // caller's run loop. A missing dispatcher is an error, not an empty clipboard.
 WEBCORE_EXPORT void clearAsync(CompletionHandler<void(HRESULT)>&&);
+
+// Dispatches a write to the UI apartment and returns completion to the caller loop.
 WEBCORE_EXPORT void writeTextAsync(const String&, CompletionHandler<void(HRESULT)>&&);
+
+// Dispatches a read to the UI apartment and returns text to the caller loop.
 WEBCORE_EXPORT void readTextAsync(CompletionHandler<void(HRESULT, String)>&&);
 
 } // namespace WebCore::ClipboardUWP

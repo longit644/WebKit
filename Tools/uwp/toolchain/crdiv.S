@@ -33,7 +33,10 @@
     .seh_endepilogue
     .seh_endproc
     .endm
+    // MSVC signed 64-bit divide ABI backed by compiler-rt divmoddi4.
     DIV64 __rt_sdiv64, __divmoddi4
+
+    // MSVC unsigned 64-bit divide ABI backed by compiler-rt udivmoddi4.
     DIV64 __rt_udiv64, __udivmoddi4
 
     .macro DIV32 name, helper
@@ -61,5 +64,8 @@
     .seh_endepilogue
     .seh_endproc
     .endm
+    // MSVC signed 32-bit divide ABI backed by compiler-rt divmodsi4.
     DIV32 __rt_sdiv, __divmodsi4
+
+    // MSVC unsigned 32-bit divide ABI backed by compiler-rt udivmodsi4.
     DIV32 __rt_udiv, __udivmodsi4

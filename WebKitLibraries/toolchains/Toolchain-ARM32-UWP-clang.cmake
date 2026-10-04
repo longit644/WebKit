@@ -34,6 +34,14 @@ set(CMAKE_CXX_COMPILER "${WK_UWP_CLANG_CL}")
 set(CMAKE_C_COMPILER_TARGET ${WK_UWP_TRIPLE})
 set(CMAKE_CXX_COMPILER_TARGET ${WK_UWP_TRIPLE})
 
+# Resources are host-compiled by the SDK tool. Pin INIT as well as COMPILER:
+# Windows-Clang enables its separate clang preprocessing if INIT still names
+# llvm-rc, even when COMPILER has been changed to SDK rc.exe. That path fed
+# FreeType's version resource preprocessed C/C++ declarations and hung rc.exe.
+set(WK_UWP_RC "C:/Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64/rc.exe")
+set(CMAKE_RC_COMPILER_INIT "${WK_UWP_RC}")
+set(CMAKE_RC_COMPILER "${WK_UWP_RC}" CACHE FILEPATH "ARM UWP host resource compiler")
+
 # AppContainer + no-exceptions (clang armv7 cannot lower cleanupret).
 # _WIN32_WINNT=Win10: exposes the SDK's own App-partition inline wrappers
 # (memoryapi.h CreateFileMappingW/MapViewOfFile need >= Win8; fontconfig pins

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" IgnorableNamespaces="uap">
+  <Identity Name="WebKitWebView.FpuProbe" Publisher="CN=WebKitWebView" Version="1.0.0.11" ProcessorArchitecture="arm" />
+  <Properties>
+    <DisplayName>WebKit FPU Probe</DisplayName>
+    <PublisherDisplayName>WebKitWebView</PublisherDisplayName>
+    <Logo>Assets\Logo50.png</Logo>
+  </Properties>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.15063.0" MaxVersionTested="10.0.15254.0" />
+    <PackageDependency Name="Microsoft.VCLibs.140.00" Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US" MinVersion="14.0.0.0" />
+  </Dependencies>
+  <Resources><Resource Language="en-us" /></Resources>
+  <Applications>
+    <!-- EntryPoint must match a real WinRT class or the loader kills the process
+           before startup code runs. WKFpuProbeStartup (CMakeLists /ENTRY) hands
+           off to CoreApplication::Run with FpuViewSource, so this is the class
+           that genuinely implements the view. -->
+    <Application Id="App" Executable="FpuProbeHost.exe" EntryPoint="WebKitFpuProbe.ViewSource">
+      <uap:VisualElements DisplayName="WebKit FPU Probe" Description="ARM32 setjmp/longjmp FPU-state isolation probe" BackgroundColor="#2060a0" Square150x150Logo="Assets\Logo150.png" Square44x44Logo="Assets\Logo44.png" />
+    </Application>
+  </Applications>
+</Package>

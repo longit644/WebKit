@@ -20,3 +20,6 @@ Core only: `WTF + JSC CLoop + WebCore`. No browser chrome here.
   mirroring `API/gtk/` structure.
 - `Tools/MiniBrowser/uwp/` — test shell skeleton (mirrors `win/`).
 - Patches generated via `git diff upstream...HEAD -- Source/`.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the ownership boundary between the
+browser framework, MiniBrowser, device test harnesses and platform tooling.

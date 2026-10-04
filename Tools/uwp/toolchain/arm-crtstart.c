@@ -7,18 +7,36 @@
 //        llvm-lib /OUT:arm-crtstart.lib arm-crtstart.obj
 #include <windows.h>
 
+// AppContainer startup invokes user entry points with an empty argument vector.
+enum { kNoCommandLineArguments = 0 };
+
+// User entry points linked from the application binary.
+// Narrow console main supplied by the target executable.
 int main(int, char**);
+
+// Wide console main supplied by the target executable.
 int wmain(int, wchar_t**);
+
+// Narrow GUI entry point supplied by the target executable.
 int __stdcall WinMain(HINSTANCE, HINSTANCE, LPSTR, int);
+
+// Wide GUI entry point supplied by the target executable.
 int __stdcall wWinMain(HINSTANCE, HINSTANCE, LPWSTR, int);
 
-void __stdcall mainCRTStartup(void) { ExitProcess((UINT)main(0, 0)); }
-void __stdcall wmainCRTStartup(void) { ExitProcess((UINT)wmain(0, 0)); }
+// CRT startup wrapper for a console-style narrow main.
+void __stdcall mainCRTStartup(void) { ExitProcess((UINT)main(kNoCommandLineArguments, NULL)); }
+
+// CRT startup wrapper for a console-style wide main.
+void __stdcall wmainCRTStartup(void) { ExitProcess((UINT)wmain(kNoCommandLineArguments, NULL)); }
+
+// CRT startup wrapper for a GUI-style narrow WinMain.
 void __stdcall WinMainCRTStartup(void)
 {
-    ExitProcess((UINT)WinMain(GetModuleHandleW(0), 0, GetCommandLineA(), SW_SHOWDEFAULT));
+    ExitProcess((UINT)WinMain(GetModuleHandleW(NULL), NULL, GetCommandLineA(), SW_SHOWDEFAULT));
 }
+
+// CRT startup wrapper for a GUI-style wide wWinMain.
 void __stdcall wWinMainCRTStartup(void)
 {
-    ExitProcess((UINT)wWinMain(GetModuleHandleW(0), 0, GetCommandLineW(), SW_SHOWDEFAULT));
+    ExitProcess((UINT)wWinMain(GetModuleHandleW(NULL), NULL, GetCommandLineW(), SW_SHOWDEFAULT));
 }

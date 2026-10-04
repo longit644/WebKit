@@ -109,4 +109,22 @@ CLAUDE.md
 /build-arm-runtime-smoke/
 /build-arm-minibrowser/
 /build-arm-tlssmoke/
+/build-arm-fpuprobe/
+/build-arm-winrtcomponent/
+
+# Stray MIDLRT outputs at the repo root (authored sources live in
+# Tools/uwp/WinRTComponent/ and Source/WebKit/UIProcess/API/uwp/WinRT/).
+/WebKitWebView.h
+/WebKitWebView_i.c
+/WebKitWebView_p.c
+/WebKitWebView_p.h
+/dlldata.c
+
+# MIDLRT outputs for the WinRT component; regenerate with the recipe in
+# Tools/uwp/WinRTComponent/README.md. Authored sources are the .idl,
+# WebKitWebViewComponent.cpp and WebKitWinRTBase.h.
+/Tools/uwp/WinRTComponent/WebKitWebView.h
+/Tools/uwp/WinRTComponent/WebKitWebView_i.c
+/Tools/uwp/WinRTComponent/WebKitWebView_p.h
+/Tools/uwp/WinRTComponent/WebKitWebView.winmd
 

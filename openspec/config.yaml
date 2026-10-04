@@ -16,6 +16,12 @@ context: |
   Cairo is a diagnostic reference; Cairo 1.18.6 removed GL/GLES drawing.
   Build engine with ninja -j 8 WebCore; build MiniBrowser with --parallel 8.
   M7 retains font/clipboard scope; M8 tracks GPU-backed painting and rendering acceptance.
+  M9 (wkview-m9-uwp-webview-navigation) defines a reusable WinRT/XAML WebKitWebView control
+  and real WebCore navigation/subresources. Applications own UX/UI and explicit policy;
+  the control owns engine/network/page lifecycle. No HTML scraping or resource injection.
+  Public control embedding follows the owner's WebView2 WinUI tutorial reference:
+  Source/layout in XAML and navigation/events/async script API, implemented for UWP
+  as WebKit.WebKitWebView, not Edge/WebView2/Windows App SDK compatibility.
   Milestone completion requires real-device proof and owner acceptance; spec validation is
   not implementation completion. Commit, push and tag only when explicitly requested.
 

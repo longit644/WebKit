@@ -179,7 +179,9 @@ bool FontCache::isSystemFontForbiddenForEditing(const String&)
 
 Ref<Font> FontCache::lastResortFallbackFont(const FontDescription& fontDescription)
 {
-#if PLATFORM(WIN) && !PLATFORM(UWP)
+#if PLATFORM(UWP)
+    const auto defaultFontName = "DejaVu Sans"_s;
+#elif PLATFORM(WIN)
     const auto defaultFontName = "Times New Roman"_s;
 #else
     const auto defaultFontName = "serif"_s;

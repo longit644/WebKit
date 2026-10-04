@@ -10,19 +10,21 @@
 
 namespace WebCore {
 
+// Scaled preview size for hit-testing the drag image.
 IntSize dragImageSize(DragImageRef image)
 {
     if (!image)
-        return { };
+        return {};
     auto size = image->image().size();
     return { static_cast<int>(size.width() * image->scale().width()), static_cast<int>(size.height() * image->scale().height()) };
 }
 
+// No-op: RefPtr owns both preview metadata and the retained NativeImage.
 void deleteDragImage(DragImageRef)
 {
-    // RefPtr owns both preview metadata and the retained NativeImage.
 }
 
+// Returns a preview with the scales multiplied; null on non-finite input.
 DragImageRef scaleDragImage(DragImageRef image, FloatSize scale)
 {
     if (!image)
@@ -33,6 +35,7 @@ DragImageRef scaleDragImage(DragImageRef image, FloatSize scale)
     return DragImageUWP::create(Ref { image->image() }, combined, image->opacity(), image->orientation());
 }
 
+// Fades the preview toward transparent by the given fraction.
 DragImageRef dissolveDragImageToFraction(DragImageRef image, float fraction)
 {
     if (!image || !std::isfinite(fraction))
@@ -40,6 +43,7 @@ DragImageRef dissolveDragImageToFraction(DragImageRef image, float fraction)
     return DragImageUWP::create(Ref { image->image() }, image->scale(), image->opacity() * std::clamp(fraction, 0.0f, 1.0f), image->orientation());
 }
 
+// Wraps a live image at unit scale and full opacity for dragging.
 DragImageRef createDragImageFromImage(Image* image, ImageOrientation orientation, GraphicsClient*, float)
 {
     if (!image)
@@ -50,18 +54,20 @@ DragImageRef createDragImageFromImage(Image* image, ImageOrientation orientation
     return DragImageUWP::create(nativeImage.releaseNonNull(), { 1, 1 }, 1, orientation);
 }
 
+// Shell file icons need a StorageFile/XAML visual supplied by the host.
 DragImageRef createDragImageIconForCachedImageFilename(const String&)
 {
-    // Shell file icons need a StorageFile/XAML visual supplied by the host.
     return nullptr;
 }
 
+// Link-label visuals belong to the XAML host.
 DragImageData createDragImageForLink(Element&, URL&, const String&, float)
 {
-    notImplemented(); // Link-label visuals belong to the XAML host.
+    notImplemented();
     return { nullptr, nullptr };
 }
 
+// Color swatch drags are not implemented on this port.
 DragImageRef createDragImageForColor(const Color&, const FloatRect&, float, Path&)
 {
     notImplemented();

@@ -19,6 +19,7 @@ REVIEW_APIS = {
 
 
 def inspect(path, reader):
+    """Report arch, imports and TLS for one DLL via llvm-readobj without loading it."""
     result = subprocess.run(
         [reader, "--file-headers", "--coff-imports", "--coff-tls-directory", str(path)],
         check=True, capture_output=True, text=True, encoding="utf-8")
@@ -40,6 +41,7 @@ def inspect(path, reader):
 
 
 def main():
+    """Walk the DLL closure from the given roots and report ARMNT/TLS/review status."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("roots", nargs="+", type=Path)
     parser.add_argument("--search", action="append", default=[], type=Path)

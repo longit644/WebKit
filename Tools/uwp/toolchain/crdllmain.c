@@ -2,6 +2,8 @@
 // when the target defines its own, e.g. OpenSSL dllmain.c). Mirrors the MSVC
 // CRT default: nothing but TRUE.
 #include <windows.h>
+
+// Default DLL entry point used only when a linked archive has no DllMain.
 BOOL __stdcall DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
     (void)hinstDLL; (void)fdwReason; (void)lpvReserved;

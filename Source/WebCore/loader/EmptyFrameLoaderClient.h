@@ -40,7 +40,7 @@ private:
     Ref<DocumentLoader> createDocumentLoader(ResourceRequest&&, SubstituteData&&, ResourceRequest&&) override;
     Ref<DocumentLoader> createDocumentLoader(ResourceRequest&&, SubstituteData&&) override;
 
-    bool NODELETE hasWebView() const final;
+    bool NODELETE hasWebView() const override;
 
     void NODELETE makeRepresentation(DocumentLoader*) final;
 
@@ -87,22 +87,22 @@ private:
     void NODELETE dispatchDidReplaceStateWithinPage() final;
     void NODELETE dispatchDidPopStateWithinPage() final;
     void NODELETE dispatchWillClose() final;
-    void NODELETE dispatchDidStartProvisionalLoad() final;
+    void NODELETE dispatchDidStartProvisionalLoad() override;
     void NODELETE dispatchDidReceiveTitle(const StringWithDirection&) final;
-    void NODELETE dispatchDidCommitLoad(std::optional<HasInsecureContent>, std::optional<UsedLegacyTLS>, std::optional<WasPrivateRelayed>) final;
-    void NODELETE dispatchDidFailProvisionalLoad(const ResourceError&, WillContinueLoading, WillInternallyHandleFailure) final;
-    void NODELETE dispatchDidFailLoad(const ResourceError&) final;
+    void NODELETE dispatchDidCommitLoad(std::optional<HasInsecureContent>, std::optional<UsedLegacyTLS>, std::optional<WasPrivateRelayed>) override;
+    void NODELETE dispatchDidFailProvisionalLoad(const ResourceError&, WillContinueLoading, WillInternallyHandleFailure) override;
+    void NODELETE dispatchDidFailLoad(const ResourceError&) override;
     void NODELETE dispatchDidFinishDocumentLoad() final;
-    void NODELETE dispatchDidFinishLoad() final;
+    void NODELETE dispatchDidFinishLoad() override;
     void NODELETE dispatchDidReachLayoutMilestone(OptionSet<LayoutMilestone>) final;
     void NODELETE dispatchDidReachVisuallyNonEmptyState() final;
 
     LocalFrame* NODELETE dispatchCreatePage(const NavigationAction&, NewFrameOpenerPolicy, const String&) final;
     void NODELETE dispatchShow() final;
 
-    void NODELETE dispatchDecidePolicyForResponse(const ResourceResponse&, const ResourceRequest&, const String&, FramePolicyFunction&&) final;
-    void NODELETE dispatchDecidePolicyForNewWindowAction(const NavigationAction&, const ResourceRequest&, FormState*, const String&, std::optional<HitTestResult>&&, FramePolicyFunction&&) final;
-    void NODELETE dispatchDecidePolicyForNavigationAction(const NavigationAction&, const ResourceRequest&, const ResourceResponse& redirectResponse, FormState*, const String&, std::optional<NavigationIdentifier>, std::optional<HitTestResult>&&, bool, NavigationUpgradeToHTTPSBehavior, SandboxFlags, PolicyDecisionMode, FramePolicyFunction&&) final;
+    void NODELETE dispatchDecidePolicyForResponse(const ResourceResponse&, const ResourceRequest&, const String&, FramePolicyFunction&&) override;
+    void NODELETE dispatchDecidePolicyForNewWindowAction(const NavigationAction&, const ResourceRequest&, FormState*, const String&, std::optional<HitTestResult>&&, FramePolicyFunction&&) override;
+    void NODELETE dispatchDecidePolicyForNavigationAction(const NavigationAction&, const ResourceRequest&, const ResourceResponse& redirectResponse, FormState*, const String&, std::optional<NavigationIdentifier>, std::optional<HitTestResult>&&, bool, NavigationUpgradeToHTTPSBehavior, SandboxFlags, PolicyDecisionMode, FramePolicyFunction&&) override;
     void NODELETE updateSandboxFlags(SandboxFlags) final;
     void NODELETE updateOpener(std::optional<FrameIdentifier>) final;
     void setPrinting(bool, FloatSize, FloatSize, float, AdjustViewSize) final;
@@ -126,15 +126,15 @@ private:
     void NODELETE willReplaceMultipartContent() final;
     void NODELETE didReplaceMultipartContent() final;
 
-    void NODELETE committedLoad(DocumentLoader*, const SharedBuffer&) final;
-    void NODELETE finishedLoading(DocumentLoader*) final;
+    void NODELETE committedLoad(DocumentLoader*, const SharedBuffer&) override;
+    void NODELETE finishedLoading(DocumentLoader*) override;
 
     void NODELETE loadStorageAccessQuirksIfNeeded() final;
 
     bool NODELETE shouldFallBack(const ResourceError&) const final;
 
-    bool NODELETE canHandleRequest(const ResourceRequest&) const final;
-    bool NODELETE canShowMIMEType(const String&) const final;
+    bool NODELETE canHandleRequest(const ResourceRequest&) const override;
+    bool NODELETE canShowMIMEType(const String&) const override;
     bool NODELETE canShowMIMETypeAsHTML(const String&) const final;
     bool NODELETE representationExistsForURLScheme(StringView) const final;
     String NODELETE generatedMIMETypeForURLScheme(StringView) const final;
@@ -161,7 +161,7 @@ private:
 
     void NODELETE updateGlobalHistory() final;
     void NODELETE updateGlobalHistoryRedirectLinks() final;
-    ShouldGoToHistoryItem NODELETE shouldGoToHistoryItem(HistoryItem&, IsSameDocumentNavigation) const final;
+    ShouldGoToHistoryItem NODELETE shouldGoToHistoryItem(HistoryItem&, IsSameDocumentNavigation) const override;
     bool NODELETE supportsAsyncShouldGoToHistoryItem() const final;
     void NODELETE shouldGoToHistoryItemAsync(HistoryItem&, CompletionHandler<void(ShouldGoToHistoryItem)>&&) const final;
     void NODELETE dispatchGoToBackForwardItemAtIndex(int steps) final;
@@ -203,7 +203,7 @@ private:
 
     void NODELETE dispatchLoadEventToOwnerElementInAnotherProcess() final;
 
-    RefPtr<HistoryItem> createHistoryItemTree(bool, BackForwardItemIdentifier) const final;
+    RefPtr<HistoryItem> createHistoryItemTree(bool, BackForwardItemIdentifier) const override;
 };
 
 } // namespace WebCore

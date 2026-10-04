@@ -11,8 +11,13 @@ import urllib.parse
 import urllib.request
 import uuid
 
+# Portal round-trip budgets in seconds: handshake versus install/launch.
+PORTAL_HANDSHAKE_TIMEOUT = 30
+PORTAL_DEPLOY_TIMEOUT = 180
+
 
 def main():
+    """Deploy and diagnose through Device Portal: get, post, install or launch."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", required=True)
     parser.add_argument("--insecure", action="store_true", help="Accept this device's self-signed HTTPS certificate")
@@ -32,14 +37,14 @@ def main():
     context = ssl._create_unverified_context() if args.insecure else ssl.create_default_context()
     opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=context), urllib.request.HTTPCookieProcessor(jar))
     base = args.url.rstrip("/")
-    with opener.open(base + "/api/os/info", timeout=30) as response:
+    with opener.open(base + "/api/os/info", timeout=PORTAL_HANDSHAKE_TIMEOUT) as response:
         response.read()
     token = next((cookie.value for cookie in jar if cookie.name == "CSRF-Token"), None)
     headers = {"X-CSRF-Token": urllib.parse.unquote(token)} if token else {}
     if args.pin:
         pair_path = "/api/authorize/pair?" + urllib.parse.urlencode({"pin": args.pin, "persistent": "0"})
         try:
-            with opener.open(urllib.request.Request(base + pair_path, data=b"", headers=headers), timeout=30) as response:
+            with opener.open(urllib.request.Request(base + pair_path, data=b"", headers=headers), timeout=PORTAL_HANDSHAKE_TIMEOUT) as response:
                 response.read()
         except urllib.error.HTTPError as error:
             print(f"Device Portal pairing rejected: HTTP {error.code}")
@@ -62,7 +67,7 @@ def main():
         data = b""
     request = urllib.request.Request(base + path, data=data, headers=headers)
     try:
-        with opener.open(request, timeout=180) as response:
+        with opener.open(request, timeout=PORTAL_DEPLOY_TIMEOUT) as response:
             body = response.read().decode("utf-8", errors="replace")
             print(f"HTTP {response.status}")
             try:

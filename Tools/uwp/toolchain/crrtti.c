@@ -13,11 +13,13 @@
 // Revisit with a real vcruntime if one ever ships for ARM32 Store.
 #include <windows.h>
 
+// Stubs RTTI casts for /GR- binaries: pointer casts fail; reference casts throw bad_cast.
 void* __RTDynamicCast(void* inptr, long vfDelta, void* srcType, void* targetType, int isReference)
 {
     (void)inptr; (void)vfDelta; (void)srcType; (void)targetType; (void)isReference;
-    return 0;
+    return NULL;
 }
+
 // NOTE: ??_7type_info@@6B@ lives in crtvft.S (quoted asm label; C cannot
 // spell it). An earlier /ALTERNATENAME approach was dropped: resolving the
 // alias forced lld to scan msvcurt's managed ti_inst.obj, which it cannot

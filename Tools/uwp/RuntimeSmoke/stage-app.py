@@ -11,16 +11,28 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from importlib import import_module
 audit = import_module("audit-dlls")
 
+# PNG payload values and package logo dimensions used by the generated placeholders.
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+PNG_BIT_DEPTH = 8
+PNG_COLOR_TYPE_RGBA = 6
+PNG_NO_COMPRESSION_FILTER_INTERLACE = (0, 0, 0)
+LOGO_RGBA = (32, 96, 160, 255)
+LOGO_SIZES = (44, 50, 150)
+BLOCKED_TEMPLATE_FILENAME = "blocked.html"
+
 
 def logo(size):
+    """Render a solid placeholder logo PNG of the given pixel size."""
     def chunk(kind, content):
+        """Wrap one PNG chunk with length and CRC."""
         return struct.pack(">I", len(content)) + kind + content + struct.pack(">I", zlib.crc32(kind + content))
-    pixels = (b"\0" + bytes((32, 96, 160, 255)) * size) * size
-    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", size, size, 8, 6, 0, 0, 0))
+    pixels = (b"\0" + bytes(LOGO_RGBA) * size) * size
+    return (PNG_SIGNATURE + chunk(b"IHDR", struct.pack(">IIBBBBB", size, size, PNG_BIT_DEPTH, PNG_COLOR_TYPE_RGBA, *PNG_NO_COMPRESSION_FILTER_INTERLACE))
             + chunk(b"IDAT", zlib.compress(pixels)) + chunk(b"IEND", b""))
 
 
 def main():
+    """Stage the app closure (binary, engine, fonts, manifest) for MakeAppx."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--build", required=True, type=Path)
     parser.add_argument("--engine", required=True, type=Path)
@@ -63,12 +75,16 @@ def main():
                 external.add(dependency["dll"])
     assets = args.stage / "Assets"
     assets.mkdir(exist_ok=True)
-    for size in (44, 50, 150):
+    for size in LOGO_SIZES:
         (assets / f"Logo{size}.png").write_bytes(logo(size))
     shutil.copy2(args.manifest, args.stage / "AppxManifest.xml")
     ca_bundle = args.manifest.parent / "cacert.pem"
     if ca_bundle.is_file():
         shutil.copy2(ca_bundle, args.stage / ca_bundle.name)
+    # MiniBrowser's built-in navigation error page is a packaged, overridable template.
+    blocked_template = args.manifest.parent / BLOCKED_TEMPLATE_FILENAME
+    if blocked_template.is_file():
+        shutil.copy2(blocked_template, args.stage / BLOCKED_TEMPLATE_FILENAME)
     fonts = args.stage / "Fonts"
     fonts.mkdir(exist_ok=True)
     source_fonts = Path(__file__).resolve().parents[2] / "WebKitTestRunner" / "glib" / "fonts"

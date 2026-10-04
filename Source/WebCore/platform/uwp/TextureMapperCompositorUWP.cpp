@@ -19,11 +19,11 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES2/gl2.h>
-#include <windows.foundation.h>
+#include <cstdio>
 #include <windows.foundation.collections.h>
+#include <windows.foundation.h>
 #include <wrl.h>
 #include <wrl/wrappers/corewrappers.h>
-#include <cstdio>
 
 namespace WebCore {
 using namespace Microsoft::WRL;
@@ -31,14 +31,36 @@ using Microsoft::WRL::Wrappers::HStringReference;
 namespace Foundation = ABI::Windows::Foundation;
 namespace Collections = ABI::Windows::Foundation::Collections;
 
+// GPU-cache budget and profile-window settings tuned for the ARM phone target.
+constexpr size_t kSkiaResourceCacheBytes = 64 * 1024 * 1024;
+constexpr unsigned kProfileMinFrames = 8;
+constexpr double kProfileMinSeconds = 1.0;
+constexpr double kMillisecondsPerSecond = 1000.0;
+constexpr double kMicrosecondsPerSecond = 1000000.0;
+constexpr size_t kGpuProfileMessageCapacity = 512;
+
+// Eight-bit stencil mask and the default framebuffer binding required before clear.
+constexpr GLuint kAllStencilBits = 0xff;
+constexpr GLuint kDefaultFramebuffer = 0;
+constexpr GLint kClearStencilValue = 0;
+
+// Snapshot background color (#EDF3FA) used for pixels not painted by a layer.
+constexpr GLfloat kSnapshotBackgroundRed = 0.929f;
+constexpr GLfloat kSnapshotBackgroundGreen = 0.953f;
+constexpr GLfloat kSnapshotBackgroundBlue = 0.980f;
+constexpr GLfloat kOpaqueAlpha = 1.0f;
+
+// Constructs an unattached compositor for the frame and its host log.
 TextureMapperCompositorUWP::TextureMapperCompositorUWP(LocalFrame& frame, WKPageLogUWP log)
-    : m_frame(frame), m_log(log)
+    : m_frame(frame)
+    , m_log(log)
 {
     LARGE_INTEGER frequency;
     QueryPerformanceFrequency(&frequency);
     m_frequency = static_cast<double>(frequency.QuadPart);
 }
 
+// Creates the ANGLE display, GL context, Ganesh context and layer tree on the panel.
 bool TextureMapperCompositorUWP::initialize(void* panel, unsigned width, unsigned height, float scale)
 {
     ComPtr<IInspectable> properties;
@@ -49,13 +71,15 @@ bool TextureMapperCompositorUWP::initialize(void* panel, unsigned width, unsigne
     if (FAILED(result) || FAILED(result = properties.As(&map))
         || FAILED(result = RoGetActivationFactory(HStringReference(RuntimeClass_Windows_Foundation_PropertyValue).Get(), IID_PPV_ARGS(&values)))
         || FAILED(result = values->CreateSingle(scale, &resolution))) {
-        if (m_log) m_log("gpu-window-properties", result);
+        if (m_log)
+            m_log("gpu-window-properties", result);
         return false;
     }
     boolean replaced;
     if (FAILED(result = map->Insert(HStringReference(L"EGLNativeWindowTypeProperty").Get(), static_cast<IInspectable*>(panel), &replaced))
         || FAILED(result = map->Insert(HStringReference(L"EGLRenderResolutionScaleProperty").Get(), resolution.Get(), &replaced))) {
-        if (m_log) m_log("gpu-window-property-insert", result);
+        if (m_log)
+            m_log("gpu-window-property-insert", result);
         return false;
     }
     m_windowProperties = properties.Detach();
@@ -63,23 +87,29 @@ bool TextureMapperCompositorUWP::initialize(void* panel, unsigned width, unsigne
         EGL_PLATFORM_ANGLE_DEBUG_LAYERS_ENABLED_ANGLE, EGL_FALSE, EGL_NONE };
     EGLDisplay display = eglGetPlatformDisplayEXT(EGL_PLATFORM_ANGLE_ANGLE, EGL_DEFAULT_DISPLAY, attributes);
     if (display == EGL_NO_DISPLAY || !(m_display = GLDisplay::create(display))) {
-        if (m_log) m_log("gpu-egl-display-failed", eglGetError());
+        if (m_log)
+            m_log("gpu-egl-display-failed", eglGetError());
         return false;
     }
     m_context = GLContext::create(*m_display, GLContext::Target::Default, nullptr, reinterpret_cast<GLNativeWindowType>(m_windowProperties));
     if (!m_context || !makeCurrent()) {
-        if (m_log) m_log("gpu-egl-context-failed", eglGetError());
+        if (m_log)
+            m_log("gpu-egl-context-failed", eglGetError());
         return false;
     }
 #if USE(SKIA)
     m_skiaContext = GrDirectContexts::MakeGL(GrGLInterfaces::MakeEGL());
     if (!m_skiaContext) {
-        if (m_log) m_log("gpu-skia-ganesh-context-failed", eglGetError());
+        if (m_log)
+            m_log("gpu-skia-ganesh-context-failed", eglGetError());
         return false;
     }
-    m_skiaContext->setResourceCacheLimit(64 * 1024 * 1024);
+
+    // Ganesh resource budget for the phone GPU; tiles above this spill to CPU raster.
+    m_skiaContext->setResourceCacheLimit(kSkiaResourceCacheBytes);
     currentSkiaGPUContextUWP() = m_skiaContext.get();
-    if (m_log) m_log("gpu-paint-backend-skia-ganesh", 1);
+    if (m_log)
+        m_log("gpu-paint-backend-skia-ganesh", WKPageLogTrueUWP);
 #endif
     m_mapper = TextureMapper::create();
     m_viewport = GraphicsLayer::create(nullptr, *this);
@@ -92,41 +122,52 @@ bool TextureMapperCompositorUWP::initialize(void* panel, unsigned width, unsigne
     m_viewport->addChild(*m_offset);
     resize(width, height, scale);
     if (m_log) {
-        m_log("gpu-texturemapper-context-ready", 0);
-        if (auto* renderer = glGetString(GL_RENDERER)) m_log(reinterpret_cast<const char*>(renderer), 0);
+        m_log("gpu-texturemapper-context-ready", WKPageLogFalseUWP);
+        if (auto* renderer = glGetString(GL_RENDERER))
+            m_log(reinterpret_cast<const char*>(renderer), WKPageLogFalseUWP);
     }
     return true;
 }
 
+// Makes the EGL context current and republishes its matching Ganesh context.
 bool TextureMapperCompositorUWP::makeCurrent()
 {
-    if (!m_context || !m_context->makeContextCurrent()) return false;
+    if (!m_context || !m_context->makeContextCurrent())
+        return false;
 #if USE(SKIA)
     currentSkiaGPUContextUWP() = m_skiaContext.get();
 #endif
     return true;
 }
 
+// Requests another frame for dirty layers or running animations.
 bool TextureMapperCompositorUWP::needsFrame() const
 {
     return m_flushRequired || (m_viewport && downcast<GraphicsLayerTextureMapper>(*m_viewport).layer().descendantsOrSelfHaveRunningAnimations());
 }
 
+// Installs the page root under the offset layer used for edge overscroll.
 void TextureMapperCompositorUWP::setRootLayer(GraphicsLayer* layer)
 {
     m_root = layer;
     if (m_offset) {
         m_offset->removeAllChildren();
-        if (m_root) m_offset->addChild(*m_root);
+        if (m_root)
+            m_offset->addChild(*m_root);
     }
     m_flushRequired = true;
-    if (m_log) m_log("gpu-root-layer-attached", layer ? 1 : 0);
+    if (m_log)
+        m_log("gpu-root-layer-attached", layer ? WKPageLogTrueUWP : WKPageLogFalseUWP);
 }
 
+// Rebuilds viewport geometry and scale-dependent layers for the new extent.
 void TextureMapperCompositorUWP::resize(unsigned width, unsigned height, float scale)
 {
-    m_width = width; m_height = height; m_scale = scale;
-    if (!m_viewport) return;
+    m_width = width;
+    m_height = height;
+    m_scale = scale;
+    if (!m_viewport)
+        return;
     m_viewport->setSize({ static_cast<float>(width), static_cast<float>(height) });
     m_offset->setSize(m_viewport->size());
     TransformationMatrix transform;
@@ -136,43 +177,53 @@ void TextureMapperCompositorUWP::resize(unsigned width, unsigned height, float s
     m_flushRequired = true;
 }
 
+// Marks the given document region dirty in TextureMapper.
 void TextureMapperCompositorUWP::invalidate(const IntRect& rect)
 {
-    if (m_viewport) m_viewport->setNeedsDisplayInRect(rect);
+    if (m_viewport)
+        m_viewport->setNeedsDisplayInRect(rect);
     m_flushRequired = true;
 }
 
+// Marks the compositor dirty when WebCore schedules a layer flush.
 void TextureMapperCompositorUWP::notifyFlushRequired(const GraphicsLayer*) { m_flushRequired = true; }
 
+// Counts host paint callbacks and preserves WebCore's normal layer painting.
 void TextureMapperCompositorUWP::paintContents(const GraphicsLayer&, GraphicsContext& context, const FloatRect& clip, OptionSet<GraphicsLayerPaintBehavior>)
 {
     ++m_paintCalls;
     context.save();
     context.clip(clip);
-    if (auto* view = m_frame.view()) view->paint(context, enclosingIntRect(clip));
+    if (auto* view = m_frame.view())
+        view->paint(context, enclosingIntRect(clip));
     context.restore();
 }
 
+// Flushes dirty layers, applies overscroll and swaps; false means recover via software.
 bool TextureMapperCompositorUWP::render(double overscrollY)
 {
-    if (!m_root || !makeCurrent()) return false;
+    if (!m_root || !makeCurrent())
+        return false;
     auto clock = [this] { LARGE_INTEGER counter; QueryPerformanceCounter(&counter); return static_cast<double>(counter.QuadPart) / m_frequency; };
     double start = clock();
-    if (!m_frames) m_sampleStart = start;
+    if (!m_frames)
+        m_sampleStart = start;
     m_offset->setPosition({ 0, static_cast<float>(overscrollY) });
     auto* view = m_frame.view();
-    if (!view || !view->flushCompositingStateIncludingSubframes()) return false;
+    if (!view || !view->flushCompositingStateIncludingSubframes())
+        return false;
     // Forced UWP compositing paints the RenderView into its own cached backing
     // store. Do not also rasterize a full viewport copy in the host layer.
     bool paintsIntoHost = !static_cast<const ScrollableArea&>(*view).usesCompositedScrolling();
     if (m_viewport->drawsContent() != paintsIntoHost) {
         m_viewport->setDrawsContent(paintsIntoHost);
-        if (m_log) m_log("gpu-document-composited-scrolling", paintsIntoHost ? 0 : 1);
+        if (m_log)
+            m_log("gpu-document-composited-scrolling", paintsIntoHost ? WKPageLogFalseUWP : WKPageLogTrueUWP);
     }
     m_viewport->flushCompositingStateForThisLayerOnly();
     m_offset->flushCompositingStateForThisLayerOnly();
     auto& root = downcast<GraphicsLayerTextureMapper>(*m_viewport);
-    textureMapperFrameStatsUWP() = { };
+    textureMapperFrameStatsUWP() = {};
     root.updateBackingStoreIncludingSubLayers(*m_mapper);
 #if USE(SKIA)
     if (textureMapperFrameStatsUWP().gpuPaintCalls) {
@@ -199,18 +250,20 @@ bool TextureMapperCompositorUWP::render(double overscrollY)
     if (!eglQuerySurface(m_display->eglDisplay(), surface, EGL_WIDTH, &pixelWidth)
         || !eglQuerySurface(m_display->eglDisplay(), surface, EGL_HEIGHT, &pixelHeight)
         || pixelWidth <= 0 || pixelHeight <= 0) {
-        if (m_log) m_log("gpu-surface-query-failed", eglGetError());
+        if (m_log)
+            m_log("gpu-surface-query-failed", eglGetError());
         return false;
     }
+
     // Clear the entire window surface regardless of state left by tile updates
     // or the previous TextureMapper stencil/clip pass.
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, kDefaultFramebuffer);
     glDisable(GL_SCISSOR_TEST);
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-    glStencilMask(0xff);
-    glClearStencil(0);
+    glStencilMask(kAllStencilBits);
+    glClearStencil(kClearStencilValue);
     glViewport(0, 0, pixelWidth, pixelHeight);
-    glClearColor(0.929f, 0.953f, 0.980f, 1);
+    glClearColor(kSnapshotBackgroundRed, kSnapshotBackgroundGreen, kSnapshotBackgroundBlue, kOpaqueAlpha);
     glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     m_mapper->beginPainting();
     root.layer().applyAnimationsRecursively(MonotonicTime::now());
@@ -218,31 +271,37 @@ bool TextureMapperCompositorUWP::render(double overscrollY)
     m_mapper->endPainting();
     double composited = clock();
     if (!eglSwapBuffers(m_display->eglDisplay(), surface)) {
-        if (m_log) m_log("gpu-swap-failed", eglGetError());
+        if (m_log)
+            m_log("gpu-swap-failed", eglGetError());
         return false;
     }
     double swapped = clock();
     GLenum error = glGetError();
-    if (error != GL_NO_ERROR) { if (m_log) m_log("gpu-gl-error", error); return false; }
+    if (error != GL_NO_ERROR) {
+        if (m_log)
+            m_log("gpu-gl-error", error);
+        return false;
+    }
     m_flushRequired = false;
     ++m_frames;
-    m_flushMS += (flushed - start) * 1000;
-    m_compositeMS += (composited - flushed) * 1000;
-    m_swapMS += (swapped - composited) * 1000;
-    if (m_frames >= 8 && swapped - m_sampleStart >= 1) {
+    m_flushMS += (flushed - start) * kMillisecondsPerSecond;
+    m_compositeMS += (composited - flushed) * kMillisecondsPerSecond;
+    m_swapMS += (swapped - composited) * kMillisecondsPerSecond;
+    // Report once the warmed sample has enough frames and spans a second.
+    if (m_frames >= kProfileMinFrames && swapped - m_sampleStart >= kProfileMinSeconds) {
         if (m_log) {
             // One host write per batch instead of opening/closing the log file
             // for every counter on the render thread.
-            char summary[512];
+            char summary[kGpuProfileMessageCapacity];
             sprintf_s(summary, "gpu-frame-profile n=%u flush-us=%.0f composite-us=%.0f swap-us=%.0f host=%u paint=%llu gpu-paint=%llu cpu-paint=%llu pixels=%llu paint-us=%.0f upload-us=%.0f submits=%llu submit-us=%.0f",
-                m_frames, m_flushMS * 1000 / m_frames, m_compositeMS * 1000 / m_frames, m_swapMS * 1000 / m_frames,
+                m_frames, m_flushMS * kMicrosecondsPerSecond / m_frames, m_compositeMS * kMicrosecondsPerSecond / m_frames, m_swapMS * kMicrosecondsPerSecond / m_frames,
                 m_paintCalls, m_tileStats.rasterCalls, m_tileStats.gpuPaintCalls, m_tileStats.rasterCalls - m_tileStats.gpuPaintCalls,
-                m_tileStats.rasterPixels / m_frames, m_tileStats.rasterSeconds * 1000000 / m_frames, m_tileStats.uploadSeconds * 1000000 / m_frames,
-                m_tileStats.gpuSubmitCalls, m_tileStats.gpuSubmitSeconds * 1000000 / m_frames);
-            m_log(summary, 0);
+                m_tileStats.rasterPixels / m_frames, m_tileStats.rasterSeconds * kMicrosecondsPerSecond / m_frames, m_tileStats.uploadSeconds * kMicrosecondsPerSecond / m_frames,
+                m_tileStats.gpuSubmitCalls, m_tileStats.gpuSubmitSeconds * kMicrosecondsPerSecond / m_frames);
+            m_log(summary, WKPageLogFalseUWP);
         }
         m_frames = m_paintCalls = 0;
-        m_tileStats = { };
+        m_tileStats = {};
         m_flushMS = m_compositeMS = m_swapMS = 0;
     }
     return true;
@@ -251,15 +310,21 @@ bool TextureMapperCompositorUWP::render(double overscrollY)
 TextureMapperCompositorUWP::~TextureMapperCompositorUWP()
 {
     makeCurrent();
-    m_root = nullptr; m_offset = nullptr; m_viewport = nullptr;
+    m_root = nullptr;
+    m_offset = nullptr;
+    m_viewport = nullptr;
     m_mapper.reset();
 #if USE(SKIA)
-    if (currentSkiaGPUContextUWP() == m_skiaContext.get()) currentSkiaGPUContextUWP() = nullptr;
-    if (m_skiaContext) m_skiaContext->releaseResourcesAndAbandonContext();
+    if (currentSkiaGPUContextUWP() == m_skiaContext.get())
+        currentSkiaGPUContextUWP() = nullptr;
+    if (m_skiaContext)
+        m_skiaContext->releaseResourcesAndAbandonContext();
     m_skiaContext.reset();
 #endif
-    if (m_context) m_context->unmakeContextCurrent();
+    if (m_context)
+        m_context->unmakeContextCurrent();
     m_context.reset();
-    if (m_windowProperties) m_windowProperties->Release();
+    if (m_windowProperties)
+        m_windowProperties->Release();
 }
 }
