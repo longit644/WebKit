@@ -18,6 +18,7 @@ types and build settings. The primary developer design is
 - design.md: architectural decisions, alternatives, risks and migration gates.
 - [artifact/public-api.md](artifact/public-api.md): types, opaque tokens, Source/HTML/notification transitions, caller async actions and trust/font configuration.
 - [artifact/native-abi.md](artifact/native-abi.md): exact versioned C schema, pack4 ARM32 offsets, function table and resource/context/shutdown ownership.
+- [artifact/baseline.md](artifact/baseline.md): measured G0 baseline, rollback package identity and the two blocking toolchain gaps.
 - [artifact/migration-map.md](artifact/migration-map.md): source/symbol destinations and M9 transfer ledger.
 - [artifact/build-and-packaging.md](artifact/build-and-packaging.md): compiler domains, metadata and runtime gates.
 - [artifact/acceptance-matrix.md](artifact/acceptance-matrix.md): host/device evidence, review resolutions and reference event traces.
