@@ -1,7 +1,7 @@
 # XAML probe: toolchain findings and remaining step
 
-Date: 2026-10-04. Owner decision: use C++/WinRT for the control, with
-exceptions and C++20 enabled for that target only.
+Date: 2026-10-04, revised after ARM MSVC validation. Owner decision: use C++/CX
+for the ARM32 control with the MSVC `/ZW` authoring path.
 
 ## Question
 
@@ -17,15 +17,15 @@ no network install assumed)"** and concludes the component must be WRL-only.
 That is wrong. It is installed in the SDK:
 
 ```
-C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\cppwinrt.exe
-C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\arm\cppwinrt.exe
+C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\cppwinrt.exe
+C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\arm64\cppwinrt.exe
 ```
 
 The SDK also ships the C++/WinRT projection headers the earlier note believed
 missing:
 
 ```
-C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\cppwinrt\winrt\
+C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\cppwinrt\winrt\
     base.h, windows.ui.xaml.controls.h, windows.ui.xaml.h, ...
 ```
 
@@ -37,22 +37,22 @@ attempt failed is a tool limitation, not a platform prohibition.
 ```powershell
 # 1. IDL -> winmd + C headers (same dialect as WebKitWebView.idl).
 $env:Path = 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64;' + $env:Path
-& 'C:/Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64/midlrt.exe' `
-  /winmd Tools/uwp/WinRTComponent/XamlProbe.winmd `
-  /metadata_dir 'C:\Program Files (x86)\Windows Kits\10\UnionMetadata\10.0.22621.0' `
-  /I 'C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\winrt' `
-  /I 'C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\um' `
-  /I 'C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\shared' `
-  /h Tools/uwp/WinRTComponent/XamlProbe.h `
-  /iid Tools/uwp/WinRTComponent/XamlProbe_i.c `
+& 'C:/Program Files (x86)/Windows Kits/10/bin/10.0.26100.0/x64/midlrt.exe' `
+  /winmd build-arm-winrtcomponent/probe-component/XamlProbe.winmd `
+  /metadata_dir 'C:\Program Files (x86)\Windows Kits\10\UnionMetadata\10.0.26100.0' `
+  /I 'C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\winrt' `
+  /I 'C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\um' `
+  /I 'C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\shared' `
+  /h build-arm-winrtcomponent/probe-component/XamlProbe.h `
+  /iid build-arm-winrtcomponent/probe-component/XamlProbe_i.c `
   Tools/uwp/WinRTComponent/XamlProbe.idl
 
 # 2. winmd -> C++/WinRT projection. -platform and -metadata_dir are rejected
 # by this cppwinrt; reference Windows.winmd explicitly instead.
-& 'C:/Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64/cppwinrt.exe' `
-  -input Tools/uwp/WinRTComponent/XamlProbe.winmd `
-  -reference 'C:\Program Files (x86)\Windows Kits\10\UnionMetadata\10.0.22621.0\Windows.winmd' `
-  -output build-arm-winrtcomponent/probe -optimize
+& 'C:/Program Files (x86)/Windows Kits/10/bin/10.0.26100.0/x64/cppwinrt.exe' `
+  -input build-arm-winrtcomponent/probe-component/XamlProbe.winmd `
+  -reference 'C:\Program Files (x86)\Windows Kits\10\UnionMetadata\10.0.26100.0\Windows.winmd' `
+  -output build-arm-winrtcomponent/probe-component/gen -component -optimize -overwrite
 ```
 
 Both steps verified `EXIT=0`. Generated output includes
@@ -138,78 +138,48 @@ Options, in order of promise:
 Whichever succeeds, the probe still needs a host that activates it inside a real
 XAML tree on the phone. Only that run answers the original gate.
 
-## Decisive isolation: C++/WinRT is not viable on this toolchain
+## Decisive ARM32 result
 
-All C++ errors in the probe were resolved. What remains is a **clang 19 ARM32
-backend crash**, reproduced down to 12 lines with no involvement from our code,
-`UserControl`, or even `winrt::make<>`:
-
-```
-fatal error: error in backend: Cannot select: ch = cleanupret
-fatal error: error in backend: Cannot select: ch = catchret
-```
-
-Minimal repro (compiles for x64; crashes only for ARM32):
+The newer compiler installation exposed a stronger blocker than the earlier
+clang code-generation failure. With MSVC 19.44 ARM32, the SDK C++/WinRT base
+header reaches this explicit branch:
 
 ```cpp
-template <typename T> struct PT : winrt::implements<T, IInspectable> {
-    static void* operator new(size_t n) { return ::operator new(n); }
-};
-struct P : PT<P> {};
-IInspectable o = winrt::make<P>();   // crashes; so does: P* p = new P(); QI(p)
+#if defined _M_IX86 || defined _M_X64
+// supported
+#elif defined _M_ARM64
+// supported
+#else
+#error Unsupported architecture
+#endif
 ```
 
-What was eliminated one variable at a time:
+Therefore C++/WinRT cannot author this ARM32 component, regardless of whether
+the compiler is clang or MSVC. The generated `-component` projection remains
+valid evidence for x64 and ARM64, but it is not an ARM32 solution.
 
-| Variant | Result |
-|---|---|
-| Probe as written | `cleanupret` crash |
-| Same, `-Od` instead of `-O2` | still crashes — not an optimisation bug |
-| Sized `operator delete` removed | still crashes |
-| **No `UserControl` base at all** | still crashes (`catchret`) |
-| **`winrt::make<>` bypassed**, plain `new` + `QueryInterface` | still crashes |
-| `XamlProbeT<T> : UserControl, implements<T, IXamlProbe>` | **frontend clean**, only codegen fails |
+## C++/CX result and decision
 
-So the trigger is `winrt::implements<>` itself combined with exception handling.
-C++/WinRT *requires* exceptions (`winrt/base.h` throws, which is why
-`_HAS_EXCEPTIONS=0` had to be overridden), and clang 19 cannot generate the ARM32
-EH cleanup for such a type.
+The installed MSVC ARM32 compiler accepts a minimal real `UserControl` with
+`/ZW`, and the probe implementation compiles with the same path:
 
-No alternative compiler is installed: only VS BuildTools clang 19, and
-`C:\Users\Longi\llvm-tools` holds only `lld-link`, `rc.exe`, `flex` and `LIB.EXE`.
+```text
+MSVC 19.44.35229 for ARM
+/ZW /EHsc /std:c++17
+```
 
-### Consequence for the owner's option 1
+The C++/CX implementation uses a public `ref class XamlProbe : UserControl`
+and retains a small WRL `IActivationFactory` shell only for DLL activation. It
+does not manually delegate the inherited XAML interfaces. C++/CX is therefore
+the selected authoring model for the ARM32 probe and eventual control.
 
-Option 1 (C++/WinRT) is **not achievable with the current toolchain**. It is not a
-platform limitation on Windows 10 Mobile — the earlier conclusion still stands that
-declarative XAML is probably fine. It is a compiler limitation on ARM32.
-
-Two ways forward, both needing an owner decision:
-
-1. **Install a newer LLVM** and re-run the 12-line repro. If a later clang fixed
-   the ARM32 EH cleanup bug, option 1 becomes viable and the generated projection
-   is already proven to supply the whole inherited interface chain.
-2. **Fall back to WRL with the interim hosting API.** Give up declarative
-   `<web:WebKitWebView />` for now; the control owns a `UserControl` that the host
-   parents, which already works through `xamlElement()`.
-
-Hand-writing the `IUserControl` delegation in WRL is the third option and remains
-impractical: the generated projection shows it is mechanical, but it is dozens of
-methods per interface across `IUserControl`, `IControl1-7`, `IFrameworkElement1-7`,
-`IUIElement1-10` and `IDependencyObject`.
+The currently selected Windows 11 SDK 10.0.26100.0 has no `um\arm` libraries.
+The Windows 10 SDK 10.0.19041.0 must also be installed so the DLL can link
+`runtimeobject.lib`, `ole32.lib`, `uuid.lib`, and the ARM CRT startup objects.
 
 ## Remaining step
 
-Derive the implementation from the generated type and confirm it activates and
-lays out. Unresolved detail: cppwinrt does not emit an `XamlProbeT<T>` template
-here (neither plain nor `-component`), and the generated `impl::base<XamlProbe>`
-binds the shim to the generated type. Whether deriving a local struct from
-`winrt::WebKitProbe::XamlProbe` and registering `make_factory` on the derived
-type dispatches `get_ProbeId` correctly is the last compile-time unknown. If it
-does not, declare the probe with an explicit implementation stub in the IDL so
-cppwinrt emits the `T` template.
-
-After it builds, the probe still needs a host that activates it inside a real
-XAML tree on the phone and reports interface identity plus measured size. That
-run is the only thing that can answer the original blocker, and it needs a
-person on the device.
+Install the Windows 10 SDK 10.0.19041.0, link the browser-free C++/CX probe,
+and run it inside a real XAML tree on the phone. The device run must report
+activation, default-interface identity, inherited XAML QI, measured size, and
+teardown. That run is the only final answer to the original platform gate.
