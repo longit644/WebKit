@@ -2,7 +2,13 @@
 
 ## Status
 
-Proposal, design, three capability specifications and implementation tasks are prepared. Implementation has not been completed or accepted; unchecked tasks are the authoritative progress list.
+**Superseded by [M10](../wkview-m10-uwp-cppcx-restructure/README.md).** Stop adding
+implementation work to this plan. Preserve its tasks, implementation and device
+records as history; it is not completed or archived as accepted. M10's
+`artifact/migration-map.md` transfers outstanding requirements and identifies reusable evidence.
+
+The remaining text describes the historical M9 plan, not current architectural
+authority. M10's contracts/tasks and Tools/uwp/DESIGN.md govern new implementation.
 
 Baseline: commit `5e0f025405`, MiniBrowser v1.0.0.33, Skia Ganesh and verified HTTPS/main-HTML loading on Lumia 950 XL. Wikipedia/GitHub currently render only the HTML available through the shell shortcut. Their external resources and normal navigation are the work covered here.
 
@@ -35,4 +41,6 @@ openspec validate wkview-m9-uwp-webview-navigation --strict
 openspec instructions apply --change wkview-m9-uwp-webview-navigation
 ```
 
-Start with tasks 1.1-1.4. Test controlled fixtures before live sites; retain the accepted Skia/TLS baseline throughout. Successful OpenSpec validation means the planning artifacts are valid, not that the control or loader has been implemented.
+For new work, use M10's tasks and artifact/implementation-handoff.md. The commands above
+inspect historical M9 artifacts only. Spec validation does not mean implementation
+or device acceptance; retain the accepted Skia/TLS evidence with its package identity.

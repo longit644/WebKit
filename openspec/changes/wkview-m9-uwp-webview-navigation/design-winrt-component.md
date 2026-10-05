@@ -1,7 +1,8 @@
 # Design: native WinRT `WebKit.WebKitWebView` component + C# MVVM shell
 
 Status: prototype/history; **not the normative implementation contract**.
-`control-contract.md` is authoritative for
+[M10](../wkview-m10-uwp-cppcx-restructure/README.md) governs new C++/CX work.
+`control-contract.md` was the M9 authority for
 v1 API, event semantics, source placement, TLS consent and lifecycle. This
 document records the earlier Phase-A approach; its log-parsed event routing,
 single-instance limit, certificate URL interception and assumed XAML base are

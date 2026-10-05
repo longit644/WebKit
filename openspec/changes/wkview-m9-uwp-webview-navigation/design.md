@@ -1,6 +1,10 @@
 # Design - M9 UWP WebKitWebView
 
-> **Contract authority:** `control-contract.md` now defines the implementable
+> **Superseded:** [M10 design](../wkview-m10-uwp-cppcx-restructure/design.md) and
+> Tools/uwp/DESIGN.md govern new work. The following authority statement and
+> architecture describe historical M9 decisions, not current instructions.
+>
+> **Historical contract authority:** `control-contract.md` defines the M9
 > v1 control API, event/lifetime rules and source placement. This document is
 > the high-level engine/platform architecture; older statements that conflict
 > with that v1 contract are design history pending cleanup.

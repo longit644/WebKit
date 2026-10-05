@@ -1,5 +1,9 @@
 # Tasks - M9 UWP WebKitWebView
 
+> **Superseded:** use [M10 tasks](../wkview-m10-uwp-cppcx-restructure/tasks.md).
+> These checkboxes preserve historical progress. Outstanding requirements are
+> transferred in M10 artifact/migration-map.md; do not mark them completed by supersession.
+
 Unchecked tasks retain outstanding acceptance conditions; partial implementation and device evidence are noted below. Complete specification artifacts do not establish implemented browser behavior. Run device checks where host compilation cannot prove behavior.
 
 ## 1. Contracts and deterministic fixtures

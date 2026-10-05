@@ -1,6 +1,9 @@
 # Public API - WebView2-inspired WebKitWebView
 
-> **Contract authority:** `control-contract.md` is the current v1 decision and
+> **Superseded:** [M10 public API](../wkview-m10-uwp-cppcx-restructure/artifact/public-api.md)
+> governs new work. This sketch and the following statement are historical.
+>
+> **Historical contract authority:** `control-contract.md` is the M9 v1 decision and
 > supersedes conflicting API/version/event/lifecycle statements in this design
 > sketch. Members marked deferred here are not v1 requirements until the
 > follow-up is adopted.

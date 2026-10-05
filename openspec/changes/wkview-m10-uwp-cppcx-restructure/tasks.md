@@ -1,0 +1,119 @@
+# Tasks - M10 UWP C++/CX restructuring
+
+All implementation tasks start unchecked. Planning-file existence is not task
+completion. Each checkbox includes its acceptance proof; record full command
+results and device identity where applicable. Subdivide a task if it exceeds a
+working session, keeping its requirements and gate prerequisites intact.
+
+Supporting-document basenames in this checklist resolve under `artifact/`;
+`design.md`, `proposal.md`, `tasks.md` and `specs/` remain at the change root.
+
+## 1. Baseline and migration accounting (G0)
+
+- [ ] 1.1 Record worktree/branch/build/package baseline, including prior uncommitted probe work; verify every existing change is preserved and a matching known-good Skia package is identified.
+- [ ] 1.2 Expand migration-map.md for exact framework API/engine symbols, enums, constants and exports; verify all include/project/export consumers and retained upstream names are accounted for.
+- [ ] 1.3 Expand the map for app/diagnostic/test/tooling files, targets and CLI entry points, including UWP-conditioned WTF/PAL/network sources; verify no authored UWP area is omitted.
+- [ ] 1.4 Record M9 outstanding requirement/evidence transfer and M7/M8 regression dependencies; verify no incomplete historical requirement is labeled completed or silently removed.
+
+## 2. Complete C++/CX feasibility and build discovery (G1)
+
+- [ ] 2.1 Implement installation discovery/overrides for MSVC ARM32, complete Windows SDK, CX references and runtime libraries; verify missing/ARM64-only dependencies fail with precise diagnostics and document selected versions.
+- [ ] 2.2 Create the browser-free CX component/project in the planned source/build homes; verify ARM compilation and full DLL linking with validated runtime startup, without placeholder EH/refcount implementations.
+- [ ] 2.3 Generate/inspect WinMD and activation metadata; verify public class/base/default interface/IIDs and generated consumer references agree and historical MIDL metadata is not staged.
+- [ ] 2.4 Add controlled constructor-failure/refcount tests; verify activation returns a valid HRESULT and lifetime ownership is correct across success/failure paths.
+- [ ] 2.5 Build a compiled-XAML probe host with generated type provider, visible child and bindable property; verify ARM project/package output and required runtime import closure.
+- [ ] 2.6 Deploy the probe and prove activation, inherited XAML QI, compiled markup, binding, measured layout, remove/reinsert and destruction on the phone; record package/logs/screenshots and leave G1 pending on any gap.
+- [ ] 2.7 Document exact repeatable native/CX tool commands and configurations in build-and-packaging.md and tooling README; verify the documented commands reproduce the G1 package without developer-home paths.
+
+## 3. Neutral ABI and module lifetime (G2)
+
+- [ ] 3.0 Freeze the exact native-abi.md V1 declarations, pack4 layouts, table signatures/results/capabilities, negotiation and CPU/GPU/platform ownership; verify all ARM sizeof/offsetof on both compilers and review schema conformance before producers/consumers are implemented.
+- [ ] 3.1 Add WKUWP shared headers with complete fixed-width layouts, sizes/versions, string spans and ownership; verify ARM sizeof/offsetof and C/C++ header compilation with both compiler domains.
+- [ ] 3.2 Add WKUWPGetEngineAPI and capabilities/build identity; verify unsupported version/table-size/capability requests fail before page creation with untouched invalid outputs.
+- [ ] 3.3 Implement EngineModuleUWP process pinning and runtime ownership; verify compatible API resolution, no FreeLibrary while process lives, per-page cleanup returns to baseline on close/recreate and incompatible engine identity is rejected.
+- [ ] 3.4 Implement retained per-page callback/platform-service context and detach acknowledgment; verify borrowed payload copying, snapshot-buffer retry, release-after-unwind, exactly-once canceled platform completion and non-throwing ABI behavior with a test service provider.
+- [ ] 3.5 Add bridge tests for two interleaved pages, wrong-thread calls and Close during policy dispatch; verify no global routed instance or stale access and document callback/close ordering.
+- [ ] 3.6 Implement legacy export forwarders with explicit maps; verify existing native smoke consumers retain numeric/layout semantics and new consumers use the negotiated table.
+
+## 4. Engine UWP restructuring and structured lifecycle
+
+- [ ] 4.1 Extract reusable EngineUWP startup/service logic from PageUWP/FirstPageUWP; verify one initialization/service pump and affected named-target ARM build, retaining smoke-only content until its host replacement passes.
+- [ ] 4.2 Extract PageHostUWP, frame-loader/chrome/history clients and storage provider into their planned files; verify preserved page creation/history/rendering baseline before behavioral changes.
+- [ ] 4.3 Implement NavigationControllerUWP IDs/generations and typed source/title/history/HTTP signals; verify same-URL reload, redirects and fragment/push/replace/traversal are attributed by real engine signals.
+- [ ] 4.4 Implement exactly-once terminal outcomes for policy veto, Stop, replacement, provisional and committed failures; verify delayed fixtures and reentrant policy cannot deliver a later success for canceled IDs.
+- [ ] 4.5 Implement substitute-data transient host HTML with ContentKind/Starting/terminal lifecycle; verify about:blank opaque origin, veto/reload and unchanged history entries/cursor, explicit warning-token preservation versus generic HTML invalidation.
+- [ ] 4.6 Extract ResourceLoadUWP without changing normal curl security/response delivery; verify CSS/script/image/font/MIME/encoding fixtures and affected engine build.
+- [ ] 4.7 Implement independent session/cookie state; verify two controls cannot observe each other's cookies or teardown effects and document supported ephemeral storage.
+- [ ] 4.8 Implement CertificateExceptionStoreUWP opaque page/session/failure tokens; verify two controls both failing at ID 1 reject cross-issued tokens, warning preservation/invalidation transitions, atomic consumption and host-port/session isolation without URL consent.
+- [ ] 4.9 Implement all configured ranges and queue/redirect/transient-buffer/deadline policies; verify 8/32-MiB/16-MiB/30-second defaults, decoded-byte limits, pre-allocation overflow, queue/redirect timing and suspend-versus-unload clocks with distinguishable failures.
+- [ ] 4.10 Add/update engine adapter docs and meaningful lifecycle/security tests; verify native builds with eight jobs for affected named targets and no CX dependency in engine headers.
+- [ ] 4.11 Replace mutable singleton trust with immutable session/request CA-file-only snapshots and disable cross-session TLS/connection reuse; verify concurrent different-bundle outcomes and process-global font path/content conflicts before page creation, including backend CA enforcement on Windows.
+
+## 5. Public C++/CX component (G3)
+
+- [ ] 5.1 Add WebKitWebView.h/.cpp directly in API/uwp and public navigation/options/events/opaque-token files; verify nonconstructible token metadata, ContentKind, filenames/UWP suffix and contract revision.
+- [ ] 5.2 Implement immutable copied options/package-default paths with validation; verify missing CA/fonts and invalid limits produce explicit errors before page use.
+- [ ] 5.3 Implement Source DP and read-only INotifyPropertyChanged state; verify every null-state table row, invalid-assignment rollback, reentrant snapshot/deferred setter, pending/committed/restored URI and no recursive navigation.
+- [ ] 5.4 Implement distinct per-caller IAsyncAction observations over shared initialization; verify independent completion handlers/Cancel/IAsyncInfo.Close, readiness-before-navigation, latest Source, frozen options, retry and control Close canceling all pending actions.
+- [ ] 5.5 Connect copied typed event args/token objects to structured callbacks; verify domain/code/status/content fields, late Cancel rejection, handler-error mapping and trace-based state-before-event ordering.
+- [ ] 5.6 Implement GoBack/GoForward/Reload/Stop/NavigateToString/certificate retry through the controller; verify unavailable history no-op, HTML isolation and new-ID retry semantics.
+- [ ] 5.7 Implement idempotent Close and weak subscriptions; verify Close in PropertyChanged/Starting/Completed finishes owed terminals exactly once before revocation, two-instance late callbacks and RO_E_CLOSED/RPC_E_WRONG_THREAD behavior.
+- [ ] 5.8 Document public usage/errors/deferred APIs and add contract tests; verify compiled XAML references new metadata and no public event derives from diagnostic strings.
+- [ ] 5.9 Implement notification transactions/FIFO deferred command revalidation; verify reference traces for PropertyChanged navigating/closing, Starting replacement/cancel/throw, Completed reentrancy and generation changes without missing owed terminal events.
+
+## 6. Rendering, input and scheduling (G4)
+
+- [ ] 6.1 Extract SwapChainPresenterUWP and FrameMetricsUWP with native DirectX ownership; verify CPU host-owned versus GPU engine-owned exclusive swap-chain attachment, QI/AddRef/release/mode transitions, metrics units and Skia baseline.
+- [ ] 6.2 Extract FrameSchedulerUWP and shared owner-thread service pump; verify idle/unloaded page resources progress without render polling and two controls do not double service work.
+- [ ] 6.3 Implement size/DPI/lost-device recovery with one rendering-child owner; verify device resize/scale/pinned-layer behavior and no duplicate swap-chain attachment.
+- [ ] 6.4 Extract InputAdapterUWP/ScrollControllerUWP; verify press/move/release/wheel/capture-cancel, kinetic/edge scroll, keyboard/focus and interleaved two-control input.
+- [ ] 6.5 Implement Loaded/Unloaded and app suspend/resume subscription handling; verify temporary reparenting preserves page state and restores exactly one token set without conflating Close.
+- [ ] 6.6 Document presentation/service/input ownership and add focused regressions; verify no network-completion inference and record partial presentation evidence, leaving combined G4 pending until all section 7 services pass.
+
+## 7. C++/CX OS services and engine forwarding
+
+- [ ] 7.1 Add DispatcherUWP/ClipboardServiceUWP with neutral platform-service callbacks; verify engine headers have no CX/WinRT app object ownership.
+- [ ] 7.2 Route clipboard read/write completion through retained owner-thread tokens; verify copy/cut/paste behavior, cross-thread rejection and delayed completion after Close.
+- [ ] 7.3 Review every UWP-conditioned WTF/PAL/platform OS interaction from the manifest; verify each projection is migrated to CX service or explicitly retained as required native ABI with rationale and affected build proof.
+- [ ] 7.4 Update platform-service docs and M7 regression references; verify public/component capability reporting matches available OS services rather than claiming unsupported ones.
+- [ ] 7.5 Implement RuntimeOwnerUWP cleanup-ticket/failed-enqueue/quiescence protocol and host shutdown hooks; verify accepted completion cancellation acknowledgment, last release with dispatcher loss, global-hook revocation, process pinning and ordinary close/recreate counts; complete G4 only after tasks 6.1-6.6 and 7.1-7.5 pass.
+
+## 8. MiniBrowser and diagnostic application migration
+
+- [ ] 8.1 Add CX App/MainPage XAML/code-behind with component project reference; verify no private framework .cpp is compiled directly into MiniBrowser and compiled markup constructs the control.
+- [ ] 8.2 Implement BrowserViewModel toolbar/address/title/history/loading binding; verify engine event changes drive UI and back/forward/reload use public methods.
+- [ ] 8.3 Implement BrowserPolicy and assets/blocked.html/demo migration; verify escaping/override order, separate remote token versus HostHtml IDs, explicit warning-token overload and successful consent after warning commit without generic-navigation preservation.
+- [ ] 8.4 Remove MiniBrowser downloader/shadow history/completion polling after replacement checks; verify no curl-to-loadHTML worker, URL vector or log-derived completion remains in ordinary app paths.
+- [ ] 8.5 Migrate RuntimeSmoke application host to CX under diagnostics/ and move smoke-only first-page payload; verify the unchanged native payload results and update source/script/project references.
+- [ ] 8.6 Migrate FpuProbe application host to CX, retaining native FPU/ARM payload; verify prior expected arithmetic/ABI results and documented launch commands.
+- [ ] 8.7 Migrate TlsSmoke application host to CX, retaining native transport probe; verify fail-closed TLS results and independent warning policy.
+- [ ] 8.8 Document sample embedding/configuration/lifecycle and diagnostic commands; verify normal MiniBrowser startup runs no test navigation and suspension/Close respects shared engine lifetime.
+
+## 9. Replacement device tests and fixture extraction (G5)
+
+- [ ] 9.1 Move fixture host/content into host/fixtures with CLI forwarding where needed; verify existing host fixture tests and every documented launch/import path.
+- [ ] 9.2 Add run/scenario/assertion reporting and aggregation protocol; verify malformed/missing/timed-out reports and a single failed assertion fail the run, without credential/cookie values in logs.
+- [ ] 9.3 Correct CSP nonexecution oracle, HTML main-response budget route and CSS/image visual assertions; verify intentional failure variants are detected rather than accepting static text/server output.
+- [ ] 9.4 Implement NavigationTestsUWP CX device host using only the public control; verify typed URI/history/terminal sequences and two-instance/Close/reentrant/wrong-thread cases.
+- [ ] 9.5 Implement fixture-side scroll/history/fetch/XHR/cookie/security reports and renderer-private internal font checks; verify assertions demonstrate actual browser outcomes and preserve origin/report isolation.
+- [ ] 9.6 Expand every M9 fixture phase/marker into the replacement ledger; run old/new suites on matching fixtures and verify covered/internal/approved-gap status for all rows.
+- [ ] 9.7 Remove fixture fields/DOM probes/phase timers/uwp-suite=1 trigger and ordinary shell test sequences only after 9.6; verify production-source scans and public runner still reproduce required outcomes.
+- [ ] 9.8 Document the runner protocol, fixture setup and evidence layout; verify host tests plus phone aggregate results and mark G5 complete only with exact package/run identity.
+
+## 10. Rename cleanup and reproducible packaging
+
+- [ ] 10.1 Finish each manifest rename/move and update includes/projects/exports/scripts/docs; verify no unaccounted legacy symbol or stale consumer path in migrated areas.
+- [ ] 10.2 Retire replaced WRL public component/async/prototype metadata files after consumer/gate proof; verify no incompatible IID reuse, conflicting WinMD or manually edited generated file remains.
+- [ ] 10.3 Add orchestration for native engine, CX component/apps and build identity manifests; verify documented clean-build commands with explicit discovery/overrides and eight-job native named targets.
+- [ ] 10.4 Add staging/recursive import/metadata/asset audits; verify negative ARM64, incompatible ABI, missing asset and non-Skia candidates are rejected before package creation.
+- [ ] 10.5 Update CX-aware source documentation/format audits and tooling entrypoint wrappers; verify authored source checks, generated-file exclusions and old supported commands work as documented.
+- [ ] 10.6 Update current architecture/config/style references to implemented M10 placement and compiler scopes; verify docs match actual shipped outputs without rewriting historical M9 device records.
+
+## 11. Integration, device acceptance and handoff (G6)
+
+- [ ] 11.1 Build/stage a matching engine/component/app/runner package with complete ARM import closure; verify identity/version/WinMD/CA/fonts/Skia and preserve rollback package.
+- [ ] 11.2 Run controlled phone navigation/resource/security/lifecycle matrix with fresh logs/screenshots; verify all required assertions pass and no compile-only evidence is counted as device behavior.
+- [ ] 11.3 Run resize/DPI/input/scroll/clipboard/suspend/resume/two-instance regressions against recorded M7/M8/M9 baselines; verify regressions are classified and resolved or explicitly owner-approved.
+- [ ] 11.4 Exercise Wikipedia Main_Page and https://github.com/longit644/WebKit with exact interactions and owner observations; verify failed/unsupported functionality is recorded without universal compatibility claims.
+- [ ] 11.5 Reconcile every capability scenario/task/manifest row with evidence and validate M10 strictly; verify owner acceptance before milestone completion and leave deferred/blocked criteria explicit.
+- [ ] 11.6 Produce final implementing-model handoff with commands, package IDs, remaining gaps and rollback instructions; verify no commit/push/tag/archive occurs without an explicit request.

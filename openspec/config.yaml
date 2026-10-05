@@ -5,22 +5,28 @@ schema: spec-driven
 context: |
   Native WebKit port to UWP ARM32 (Lumia 950 XL, Win10M 15254). Base tag wpewebkit-2.54.0,
   active branch uwpwebkit/2.54; wpe-uwp-arm32/main is frozen.
-  Tech: x64-host clang-cl (armv7-unknown-windows-msvc), CMake+Ninja,
+  Native engine: x64-host clang-cl (armv7-unknown-windows-msvc), CMake+Ninja;
+  M10 UWP components/apps/OS projections: MSVC ARM32 C++/CX (/ZW), MSBuild and compiled XAML.
   vcpkg (icu, cairo, curl...), Strawberry Perl + bison for codegen.
   Conventions: PORT=Win, WK_UWP build switch, PLATFORM(UWP)/WTF_PLATFORM_UWP guards,
-  lowercase uwp directories, native WebKitWebViewUWP name, upstream source structure.
-  ASCII paths only. Exceptions off (_HAS_EXCEPTIONS=0, /EHs-c-). Single engine thread.
+  lowercase uwp directories, uppercase UWP in type/file names, upstream source structure.
+  Public type WebKit.WebKitWebView lives directly in Source/WebKit/UIProcess/API/uwp/.
+  ASCII paths only. Native engine exceptions off (_HAS_EXCEPTIONS=0, /EHs-c-);
+  CX enables its required exceptions/runtime only in that build domain. Single engine thread.
   MiniBrowser must always use Skia (USE_SKIA=ON, build-arm-uwp-skia/bin); staging rejects Cairo.
   Version 1.0.0.33 verifies Skia Ganesh GPU tile painting, HTTPS main-HTML loading and owner
   visual acceptance. Full resource loading and uniformly steady display cadence remain open.
   Cairo is a diagnostic reference; Cairo 1.18.6 removed GL/GLES drawing.
   Build engine with ninja -j 8 WebCore; build MiniBrowser with --parallel 8.
   M7 retains font/clipboard scope; M8 tracks GPU-backed painting and rendering acceptance.
-  M9 (wkview-m9-uwp-webview-navigation) defines a reusable WinRT/XAML WebKitWebView control
-  and real WebCore navigation/subresources. Applications own UX/UI and explicit policy;
+  M9 is superseded history, not a completed/archived milestone. M10
+  (wkview-m10-uwp-cppcx-restructure) defines the C++/CX UWP restructuring;
+  Tools/uwp/DESIGN.md and its OpenSpec contracts/tasks guide the implementing model.
+  Preserve historical evidence and uncommitted work; complete linked/runtime/metadata/XAML
+  phone feasibility before broad migration. Applications own UX/UI and explicit policy;
   the control owns engine/network/page lifecycle. No HTML scraping or resource injection.
   Public control embedding follows the owner's WebView2 WinUI tutorial reference:
-  Source/layout in XAML and navigation/events/async script API, implemented for UWP
+  Source/layout in XAML and navigation/events/async initialization; host script API deferred,
   as WebKit.WebKitWebView, not Edge/WebView2/Windows App SDK compatibility.
   Milestone completion requires real-device proof and owner acceptance; spec validation is
   not implementation completion. Commit, push and tag only when explicitly requested.

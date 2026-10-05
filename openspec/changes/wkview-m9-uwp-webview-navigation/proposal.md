@@ -1,5 +1,9 @@
 # Proposal - M9 reusable UWP WebKitWebView and normal navigation
 
+> **Superseded:** [M10](../wkview-m10-uwp-cppcx-restructure/README.md) is the active
+> C++/CX restructuring plan. This proposal and its evidence remain historical;
+> supersession does not establish completion or authorize deleting existing work.
+
 ## Why
 
 MiniBrowser v1.0.0.33 verifies Skia rendering and HTTPS on Lumia, but remote pages are downloaded by the application and inserted as HTML with an empty document URL. Wikipedia and GitHub consequently render without their external resources; applications cannot yet declare a reusable `<web:WebKitWebView />` control and delegate web-engine behavior to it.

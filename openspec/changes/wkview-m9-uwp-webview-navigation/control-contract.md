@@ -1,5 +1,9 @@
 # UWP WebKitWebView — authoritative control contract
 
+> **Historical authority only:** [M10 public-api.md](../wkview-m10-uwp-cppcx-restructure/artifact/public-api.md)
+> and its capability specs supersede this M9 contract. M10 uses C++/CX,
+> root API/uwp control placement and an explicitly revised metadata contract.
+
 Status: design decision for the next implementation phase; not yet implemented.
 This document supersedes conflicting API/placement/event/lifecycle statements in
 `public-api.md` and `design-winrt-component.md`. The architecture boundary is

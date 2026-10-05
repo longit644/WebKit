@@ -1,5 +1,11 @@
 # UWP architecture boundaries
 
+**M10 authority:** [DESIGN.md](DESIGN.md) specifies the complete C++/CX design,
+UWP naming, target source tree and build/lifecycle contracts. Its
+[OpenSpec change](../../openspec/changes/wkview-m10-uwp-cppcx-restructure/README.md)
+supersedes M9's unfinished architecture. This note summarizes ownership and
+retains useful current cleanup observations; target design is not implementation.
+
 This note defines ownership before the XAML `WebKitWebView` control is completed.
 The framework provides reusable browser behavior; applications provide chrome and
 product policy; test harnesses own fixtures, sequencing and assertions.
@@ -16,8 +22,9 @@ and generic navigation/policy notifications here. Framework APIs describe
 browser operations and outcomes without knowing a fixture server, test URL,
 expected page text, test phase, or test result protocol.
 
-`Source/WebKit/UIProcess/API/uwp/WinRT/` is the intended authored home for the
-reusable WinRT/XAML adapter, alongside the native view it projects. It owns the
+`Source/WebKit/UIProcess/API/uwp/WebKitWebView.h/.cpp` is the authored home for the
+reusable C++/CX WinRT/XAML control, with native/input/rendering/platform services
+in sibling subdirectories. It owns the
 public navigation contract, the control visual and its contained rendering
 surface, and typed browser event projection. It must not own MiniBrowser
 address-bar/status-bar UI, blocked-page product copy, test URLs, fixture
@@ -55,12 +62,13 @@ neither browser features nor MiniBrowser application behavior.
 
 ## Decisions required before implementing the XAML control
 
-The layer boundary above is approved in principle, but it is not yet a complete
-control contract. Resolve these design gates first:
+The full target contract is specified by M10; its implementation gates remain
+pending. Apply the dependency order in M10 tasks, particularly complete CX
+DLL/runtime/metadata/compiled-XAML phone feasibility before broad migration:
 
-1. **One authoritative API specification.** `openspec/changes/wkview-m9-uwp-webview-navigation/control-contract.md`
-   now defines v1 and deferred capabilities, and supersedes conflicting public
-   API/IDL prose. Reconcile the remaining M9 specs to it before implementation.
+1. **One authoritative API specification.** M10 `public-api.md` defines the
+   current target and deferred capabilities. CX declarations generate component
+   metadata; M9 contracts/IDL remain historical references, not competing authority.
 2. **Typed native bridge.** Do not derive the public contract by parsing log
    strings. Specify context-bearing callbacks/state with stable navigation IDs,
    policy cancellation, exactly-once terminal outcomes, committed-load
@@ -125,7 +133,8 @@ browser capabilities. Keep renderer-private font/platform-data checks as
 internal WebKit tests rather than moving those assertions into an app.
 
 The assertion-by-assertion replacement and safe removal sequence are recorded in
-`openspec/changes/wkview-m9-uwp-webview-navigation/fixture-extraction-plan.md`.
+the historical M9 `fixture-extraction-plan.md` and M10 `migration-map.md` /
+`acceptance-matrix.md`. New runner evidence is required before extraction.
 
 Before accepting fixture coverage, correct known test/document mismatches: the
 CSP fixture must report whether the inline script executed; the large-response
@@ -155,12 +164,8 @@ through the same public surface, with tests and fixtures owned by
 
 ## Implementation order
 
-1. Reconcile the normative API/design documents and choose framework source
-   placement.
-2. Specify and implement the typed native bridge, lifetime rules and explicit
-   application-consent flow.
-3. Map every fixture assertion to a replacement, create the device runner and
-   result protocol, then remove fixture-only WebCore/MiniBrowser startup logic.
-4. Prove minimal XAML identity, composition, layout and teardown on device.
-5. Connect browser behavior to the control and migrate MiniBrowser to host it.
-6. Add another application shell only after the control contract is stable.
+Follow M10 `tasks.md`: baseline and exhaustive naming map; complete C++/CX
+feasibility; neutral ABI and engine extraction; public control/rendering/input/
+platform services; MiniBrowser and diagnostics; verified fixture replacement;
+packaging/cleanup and final device acceptance. Do not remove old coverage or
+reuse historical device logs as new-package proof.
