@@ -74,6 +74,65 @@ Generated headers/cpp/object/PDB/WinMD/XAML glue remain under build outputs.
 Public authored headers have stable source names. Stage matching engine+component+
 app and explicit font/CA/HTML assets. No app worker downloads remote HTML.
 
+### Where CX declarations end and MIDL begins, as measured
+
+The rule above says CX declarations generate the WinMD. That is not literally
+what the toolchain does, and the difference matters because getting it wrong
+produces a component that links and never activates. All of the following was
+measured on this toolchain, not inferred:
+
+- `/ZW` alone does **not** generate the activation entry point. A component
+  compiled with `/ZW` and nothing else has no `DllGetActivationFactory` symbol and
+  no `/EXPORT` directive, and the resulting DLL exports nothing.
+- Activation therefore comes from two sources that are both load-bearing: the
+  hand-written WRL `IActivationFactory` in the component source, and the explicit
+  `/export:DllGetActivationFactory` link flag. Removing either yields a DLL that
+  builds cleanly but cannot be activated.
+- The MIDL descriptor is the metadata source, declaring the runtime class, its
+  default interface, its base and its threading model. It is not optional
+  decoration and not superseded by CX declarations.
+- The CX compilation must **not** consume the IDL-generated WinMD. Compiling
+  against the generated header fails with `C2011` redefinition and `C3094`,
+  because the header's `runtimeclass` collides with the CX `ref class` of the same
+  name. The two describe one contract from two directions and must be combined by
+  the build, never by feeding one to the other.
+- The interface UUID must be declared identically in both places. The CX
+  `public interface class` UUID and the IDL `uuid` are currently the same value;
+  a mismatch would produce a contract that appears to build but exposes the wrong
+  IID.
+
+`Tools/uwp/build/build-arm32-cx-probe.ps1` encodes this arrangement and verifies
+the result: it compiles with `/ZW`, generates the WinMD, links against the Store
+runtime flavor, and then checks the produced binary is COFF-ARM, carries
+`IMAGE_DLL_CHARACTERISTICS_APPCONTAINER`, and exports
+`DllGetActivationFactory`. A component that fails only the activation check still
+links with exit code 0, so the script asserts on the binary rather than trusting
+the link.
+
+### Tool invocation constraints worth preserving
+
+Each of these was a failure before it was a rule:
+
+- `/AI` names the **directory** holding an assembly. Passing the `platform.winmd`
+  file itself reports `C1107: could not find assembly 'platform.winmd'`, which
+  reads as a missing reference when the reference is present.
+- `midlrt` needs a host `cl.exe` on `PATH` for its preprocessor (`MIDL1005`), and
+  resolves the IDL's imports only from `Include/<version>/winrt`.
+- `midlrt /metadata_dir` must point at `UnionMetadata`. The `References/` tree
+  holds split per-contract winmds with no union `Windows.winmd` (`MIDL4034`).
+- `midlrt /winrt` writes output relative to the current directory and rejects an
+  absolute `/out` path (`MIDL2212`), so the build must run in the output
+  directory rather than naming a destination.
+- These SDK tools write banners to stderr. Under a fail-fast script that becomes
+  a `NativeCommandError` on a healthy run, so the tool's exit code must decide
+  success.
+- The ARM32 component links the **Store** flavor of the MSVC runtime
+  (`lib/arm/store`), not the desktop flavor. The desktop `libvcruntime` defines
+  `__vcrt_initialize` but also references desktop-only EH and PAL symbols
+  (`RtlUnwindEx`, `__GSHandlerCheck`, `_fltused`) that an AppContainer cannot
+  resolve. `msvcurt.lib` is absent from every installed ARM toolset and is not
+  required.
+
 ## Packaging gates
 
 Staging checks ABI/build ID, component metadata revision, ARM machine on every
