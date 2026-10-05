@@ -1,7 +1,7 @@
 /*
  * WKUWPModuleTestProvider.cpp - configurable test double for the V1 engine
- * provider, used only by the task 3.3 EngineModuleUWP harness and the task 3.4
- * callback-ownership harness.
+ * provider, used only by the task 3.3 EngineModuleUWP harness, the task 3.4
+ * callback-ownership harness and the task 3.5 bridge-ordering harness.
  *
  * This file is test tooling under Tools/uwp/build. It is never shipped, never
  * linked into the engine, the component or an app, and it proves nothing about
@@ -93,6 +93,17 @@ uint32_t g_stateCalls = 0;
 // Simulated dispatch state: nonzero while a dispatch is logically active.
 uint32_t g_dispatching = 0;
 
+// Owner-thread enforcement: zero disables it; nonzero means only the thread
+// recorded when enforcement was enabled may call the working slots.
+uint32_t g_enforceThread = 0;
+DWORD g_ownerThreadId = 0;
+
+// True when the calling thread may use the engine slots under enforcement.
+bool onOwnerThread()
+{
+    return !g_enforceThread || GetCurrentThreadId() == g_ownerThreadId;
+}
+
 // Event sequence handed out to dispatches; strictly increasing per process.
 uint64_t g_sequence = 0;
 
@@ -166,6 +177,10 @@ void releaseAttachmentOnce(uint32_t index)
 WKUWPResult __stdcall testCreatePage(const WKUWPPageOptions*, WKUWPPageHandle* page)
 {
     ++g_createCalls;
+    // Thread affinity is the outermost precondition: an off-owner-thread call
+    // is rejected before any argument is read, exactly as the real engine must.
+    if (!onOwnerThread())
+        return WKUWPResultWrongThread;
     if (g_createResult != WKUWPResultOk)
         return g_createResult;
     if (!page)
@@ -176,9 +191,20 @@ WKUWPResult __stdcall testCreatePage(const WKUWPPageOptions*, WKUWPPageHandle* p
 }
 
 // Counting closePage slot; the harness decides the reported result.
-WKUWPResult __stdcall testClosePage(WKUWPPageHandle)
+WKUWPResult __stdcall testClosePage(WKUWPPageHandle page)
 {
     ++g_closeCalls;
+    if (!onOwnerThread())
+        return WKUWPResultWrongThread;
+    // Closing follows the same deferred safe release as detaching: an active
+    // attachment goes inactive at once, and its acknowledgment runs now unless
+    // a dispatch is logically active, in which case FireRelease runs it after.
+    uint32_t index = findAttachment(page);
+    if (index != kTestMaxAttachments && g_attachments[index].active) {
+        g_attachments[index].active = false;
+        if (!g_dispatching)
+            releaseAttachmentOnce(index);
+    }
     return g_closeResult;
 }
 
@@ -186,6 +212,8 @@ WKUWPResult __stdcall testClosePage(WKUWPPageHandle)
 WKUWPResult __stdcall testBeginShutdown()
 {
     ++g_beginShutdownCalls;
+    if (!onOwnerThread())
+        return WKUWPResultWrongThread;
     return g_shutdownResult;
 }
 
@@ -193,6 +221,8 @@ WKUWPResult __stdcall testBeginShutdown()
 WKUWPResult __stdcall testPollShutdown()
 {
     ++g_pollShutdownCalls;
+    if (!onOwnerThread())
+        return WKUWPResultWrongThread;
     return g_pollResult;
 }
 
@@ -223,6 +253,8 @@ WKUWPResult __stdcall testUnsupportedHandleOnly(WKUWPPageHandle)
 // Simulated setCallbacks slot; copies the table and retains once on install.
 WKUWPResult __stdcall testSetCallbacks(WKUWPPageHandle page, const WKUWPPageCallbacks* callbacks)
 {
+    if (!onOwnerThread())
+        return WKUWPResultWrongThread;
     if (page == 0 || !callbacks)
         return WKUWPResultInvalidArgument;
     if (!pageKnown(page))
@@ -261,6 +293,8 @@ WKUWPResult __stdcall testSetCallbacks(WKUWPPageHandle page, const WKUWPPageCall
 // Simulated detachCallbacks slot; deactivates now, releases now or later.
 WKUWPResult __stdcall testDetachCallbacks(WKUWPPageHandle page)
 {
+    if (!onOwnerThread())
+        return WKUWPResultWrongThread;
     if (page == 0)
         return WKUWPResultInvalidArgument;
     uint32_t index = findAttachment(page);
@@ -288,6 +322,8 @@ WKUWPResult __stdcall testGetState(WKUWPPageHandle page, WKUWPPageState* state, 
     uint32_t capacityBytes, uint32_t* requiredBytes)
 {
     ++g_stateCalls;
+    if (!onOwnerThread())
+        return WKUWPResultWrongThread;
     if (g_stateMode == 0)
         return WKUWPResultUnsupported;
     if (page == 0 || !pageKnown(page))
@@ -486,6 +522,7 @@ __declspec(dllexport) void __stdcall WKUWPTestProviderReset()
     g_stateMode = 0;
     g_stateCalls = 0;
     g_dispatching = 0;
+    g_enforceThread = 0;
     g_sequence = 0;
     g_createdCount = 0;
     // Attachments are dropped without releasing: the harness owns every context
@@ -593,7 +630,23 @@ __declspec(dllexport) void __stdcall WKUWPTestProviderSetDispatching(uint32_t di
     g_dispatching = dispatching;
 }
 
-// Runs the release a Pending detach deferred; exactly once per detachment.
+// Enables owner-thread enforcement, recording the calling thread as the owner.
+//
+// While enabled, every working slot rejects other threads with WrongThread
+// before reading any argument, simulating the real engine's owner-thread rule.
+// Disabling returns the double to single-threaded service. Dispatch helpers
+// and FireRelease are the engine's own side of a dispatch and stay unchecked.
+__declspec(dllexport) void __stdcall WKUWPTestProviderSetEnforceThread(uint32_t enforce)
+{
+    g_enforceThread = enforce;
+    if (enforce)
+        g_ownerThreadId = GetCurrentThreadId();
+}
+
+// Runs a release deferred by an active dispatch, exactly once per detachment.
+//
+// Covers both detach-pending and close-pending releases: closing follows the
+// same deferred safe release, so a close during dispatch also waits here.
 __declspec(dllexport) WKUWPResult __stdcall WKUWPTestProviderFireRelease(WKUWPPageHandle page)
 {
     uint32_t index = findAttachment(page);

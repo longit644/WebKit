@@ -109,6 +109,25 @@ public:
     // Answer the detach hook observed; meaningful only when detachFired.
     WKUWPResult lastDetachResult() const;
 
+    // Reentrant policy hook invoked from inside the starting entry point.
+    //
+    // Lets a test drive a close (or any reentrant call) during policy dispatch
+    // and observe the answer, without the context knowing what a module object
+    // is. The hook runs after the payload copy and before the verdict is
+    // applied, so the verdict still governs the answer. Null by default, in
+    // which case policy delivery only records.
+    typedef WKUWPResult(__stdcall* PolicyHookFunction)(
+        void* hookContext, WKUWPPageHandle page, const WKUWPPageEvent* event);
+
+    // Arms the reentrant policy hook invoked from inside the starting entry.
+    void setPolicyHook(PolicyHookFunction hook, void* hookContext);
+
+    // Whether the policy hook fired during the last policy dispatch.
+    bool policyFired() const;
+
+    // Answer the policy hook observed; meaningful only when policyFired.
+    WKUWPResult lastPolicyResult() const;
+
     // Arms the destruction hook invoked from the destructor.
     void setDestroyedHook(DestroyedHookFunction hook, void* hookContext);
 
@@ -181,6 +200,12 @@ private:
     void* m_detachHookContext;
     bool m_detachFired;
     WKUWPResult m_lastDetachResult;
+
+    // Reentrant policy hook state, armed by tests that act during dispatch.
+    PolicyHookFunction m_policyHook;
+    void* m_policyHookContext;
+    bool m_policyFired;
+    WKUWPResult m_lastPolicyResult;
 
     // Destruction hook state, proving storage survived until acknowledgment.
     DestroyedHookFunction m_destroyedHook;

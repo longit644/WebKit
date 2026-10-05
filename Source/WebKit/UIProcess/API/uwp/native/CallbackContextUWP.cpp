@@ -29,6 +29,10 @@ PageCallbackContextUWP::PageCallbackContextUWP()
     , m_detachHookContext(nullptr)
     , m_detachFired(false)
     , m_lastDetachResult(WKUWPResultOk)
+    , m_policyHook(nullptr)
+    , m_policyHookContext(nullptr)
+    , m_policyFired(false)
+    , m_lastPolicyResult(WKUWPResultOk)
     , m_destroyedHook(nullptr)
     , m_destroyedHookContext(nullptr)
     , m_lastUri(nullptr)
@@ -113,6 +117,26 @@ bool PageCallbackContextUWP::detachFired() const
 WKUWPResult PageCallbackContextUWP::lastDetachResult() const
 {
     return m_lastDetachResult;
+}
+
+// See CallbackContextUWP.h: armed by tests that act during policy dispatch.
+void PageCallbackContextUWP::setPolicyHook(PolicyHookFunction hook, void* hookContext)
+{
+    m_policyHook = hook;
+    m_policyHookContext = hookContext;
+    m_policyFired = false;
+}
+
+// See CallbackContextUWP.h for the hook observation meanings.
+bool PageCallbackContextUWP::policyFired() const
+{
+    return m_policyFired;
+}
+
+// See CallbackContextUWP.h for the hook observation meanings.
+WKUWPResult PageCallbackContextUWP::lastPolicyResult() const
+{
+    return m_lastPolicyResult;
 }
 
 // See CallbackContextUWP.h: proves storage survived until acknowledgment.
@@ -250,6 +274,15 @@ WKUWPResult __stdcall PageCallbackContextUWP::startingThunk(
         || !self->copySpan(event->title, &self->m_lastTitle, &self->m_lastTitleLength))
         return WKUWPResultInvalidArgument;
     self->recordDelivery(*event);
+    // An armed hook acts reentrantly from inside this dispatch, before the
+    // verdict is applied; whatever it observes is recorded, and the verdict
+    // still governs the answer. This is how a close during policy dispatch is
+    // driven without the context knowing what a module object is.
+    if (self->m_policyHook) {
+        self->m_policyFired = true;
+        self->m_lastPolicyResult = self->m_policyHook(self->m_policyHookContext, event->pageId, event);
+    }
+
     // A configured handler failure travels as its result so the engine can map
     // it; nothing here throws it across the boundary.
     if (self->m_failResultSet)
