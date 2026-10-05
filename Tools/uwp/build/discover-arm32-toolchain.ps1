@@ -68,7 +68,16 @@ $script:RequiredArmSdkLibraries = @('ole32.lib', 'runtimeobject.lib', 'uuid.lib'
 
 # C++/CX support requires its runtime import library in both link flavors we use.
 $script:RequiredCxRuntimeLibraries = @('vccorlib.lib')
+
+# The ARM32 C++/CX component links against the Store flavor of the MSVC runtime,
+# not the desktop flavor. The Store flavor is AppContainer-safe and is what
+# satisfies the /ZW objects' references to __vcrt_initialize and the vector
+# destructor EH helper; the desktop flavor drags in desktop-only EH and PAL
+# symbols such as RtlUnwindEx and _fltused that an AppContainer cannot link.
 $script:RequiredCxUwpRuntimeLibraries = @('msvcrt.lib', 'msvcprt.lib', 'vcruntime.lib', 'vccorlib.lib')
+
+# Library directory holding the Store flavor of the ARM32 MSVC runtime.
+$script:ArmStoreRuntimeDirectory = 'store'
 
 # Repository-owned runtime support that the native ARM32 link recipe depends on.
 $script:RepositoryRuntimeLibraries = @('arm-crtstart.lib')
@@ -77,8 +86,10 @@ $script:RepositoryRuntimeLibraries = @('arm-crtstart.lib')
 $script:RequiredNativeUwpRuntimeLibraries = @('vcruntime.lib', 'msvcprt.lib')
 
 # Combined ARM32 Store import library. Newer MSVC releases dropped it for ARM,
-# and the C++/CX runtime cannot link without an equivalent, so its presence is
-# what decides whether a toolset can build a /ZW component.
+# but it is not required: an earlier investigation found that the individual
+# Store flavor libraries satisfy every symbol a /ZW ARM32 component needs. This
+# name is retained only so discovery can report whether it is present, because its
+# absence is expected on current toolsets and is no longer a blocker by itself.
 $script:StoreCrtLibrary = 'msvcurt.lib'
 
 # vswhere executable shipped with the Visual Studio Installer.
@@ -207,11 +218,13 @@ function Select-MsvcToolset {
     .SYNOPSIS
     Chooses which installed ARM toolset to measure and build against.
     .DESCRIPTION
-    An explicit -MsvcVersion wins. Otherwise the newest ARM toolset that still
-    ships the ARM32 Store import library is preferred, because that library
-    supplies the startup, exception-helper and cookie symbols the C++/CX runtime
-    needs. When no toolset ships it, the newest ARM toolset is still selected so
-    the remaining gap is reported precisely instead of hidden.
+    An explicit -MsvcVersion wins. Otherwise the newest ARM toolset is selected.
+
+    Selection is by newest version rather than by Store CRT availability, because
+    the combined msvcurt.lib is no longer shipped for ARM by current toolsets and
+    is not required: the individual Store flavor libraries link a /ZW AppContainer
+    component. Preferring a toolset on that basis would have kept reporting a
+    blocker for a library the build never links.
     #>
     param([Parameter(Mandatory = $true)][object[]]$ArmToolsets)
 
@@ -232,16 +245,9 @@ function Select-MsvcToolset {
         return $null
     }
 
-    $withStoreCrt = $ArmToolsets | Where-Object { $_.HasStoreCrt -and $_.HasCxRuntimeLibrary } | Select-Object -First 1
-    if ($withStoreCrt) {
-        Add-Finding -Area 'MSVC ARM32' -Requirement 'toolset selection' -Status $script:Ok `
-            -Detail "Selected $($withStoreCrt.Name): newest ARM toolset shipping $($script:StoreCrtLibrary)"
-        return $withStoreCrt
-    }
-
     $newest = $ArmToolsets | Select-Object -First 1
-    Add-Finding -Area 'MSVC ARM32' -Requirement 'toolset selection' -Status $script:Blocker `
-        -Detail "Selected $($newest.Name) as the newest ARM toolset, but no installed toolset ships $($script:StoreCrtLibrary), which the C++/CX runtime needs"
+    Add-Finding -Area 'MSVC ARM32' -Requirement 'toolset selection' -Status $script:Ok `
+        -Detail "Selected $($newest.Name), the newest of: $(($ArmToolsets | ForEach-Object { $_.Name }) -join ', ')"
     return $newest
 }
 
@@ -312,9 +318,16 @@ function Measure-CxRuntimeAndMetadata {
     .DESCRIPTION
     These files ship with MSVC rather than the Windows SDK, so they are checked
     against the selected toolset. Their absence blocks every /ZW target even when
-    an ARM32 SDK is present. The combined Store import library is also reported,
-    because a toolset without it cannot satisfy the C++/CX runtime's startup and
-    exception-helper references.
+    an ARM32 SDK is present.
+
+    The deciding directory is the Store flavor of the ARM32 runtime. A /ZW
+    component must link that flavor rather than the desktop one: the Store
+    libraries supply __vcrt_initialize, the vector destructor EH helper and the
+    Store CRT startup, while the desktop libvcruntime drags in desktop-only EH
+    and PAL symbols such as RtlUnwindEx, __GSHandlerCheck and _fltused that an
+    AppContainer cannot resolve. The combined msvcurt.lib is reported for
+    information only, because its absence is expected on current toolsets and is
+    not itself a blocker.
     #>
     param([Parameter(Mandatory = $true)][object]$Toolset)
 
@@ -332,24 +345,25 @@ function Measure-CxRuntimeAndMetadata {
         Add-Finding -Area 'C++/CX runtime' -Requirement "ARM $library" -Status $status -Detail $path
     }
 
-    foreach ($library in $script:RequiredCxUwpRuntimeLibraries) {
-        $path = Join-Path $libRoot "$($script:ArmCompilerFolder)\uwp\$library"
-        $status = if (Test-ExistingPath $path) { $script:Ok } else { $script:Blocker }
-        Add-Finding -Area 'C++/CX runtime' -Requirement "ARM UWP $library" -Status $status -Detail $path
+    # Store flavor first, then the uwp flavor. Both carry the C++/CX runtime; the
+    # Store flavor is the one proven to link an AppContainer /ZW component.
+    $runtimeFlavors = @($script:ArmStoreRuntimeDirectory, 'uwp')
+    foreach ($flavor in $runtimeFlavors) {
+        foreach ($library in $script:RequiredCxUwpRuntimeLibraries) {
+            $path = Join-Path $libRoot "$($script:ArmCompilerFolder)\$flavor\$library"
+            $status = if (Test-ExistingPath $path) { $script:Ok } else { $script:Blocker }
+            Add-Finding -Area 'C++/CX runtime' -Requirement "ARM $flavor $library" -Status $status -Detail $path
+        }
     }
 
-    # The combined Store import library is what a /ZW link needs beyond
-    # vccorlib: it carries the CRT startup, exception-helper and cookie symbols
-    # that newer MSVC releases stopped shipping for ARM.
+    # Reported for information only. Recent MSVC releases dropped the combined
+    # Store import library for ARM, and the individual Store flavor libraries are
+    # sufficient to link a /ZW component, so its absence is not a blocker.
     $storeCrt = Join-Path $libRoot "$($script:ArmCompilerFolder)\$($script:StoreCrtLibrary)"
-    if (Test-ExistingPath $storeCrt) {
-        Add-Finding -Area 'C++/CX runtime' -Requirement "ARM $script:StoreCrtLibrary" `
-            -Status $script:Ok -Detail $storeCrt
-    }
-    else {
-        Add-Finding -Area 'C++/CX runtime' -Requirement "ARM $script:StoreCrtLibrary" `
-            -Status $script:Blocker -Detail "Not shipped by toolset $($Toolset.Name); the C++/CX runtime cannot link without it: $storeCrt"
-    }
+    Add-Finding -Area 'C++/CX runtime' -Requirement "ARM $script:StoreCrtLibrary (informational)" `
+        -Status $(if (Test-ExistingPath $storeCrt) { $script:Ok } else { $script:Warning }) `
+        -Detail $(if (Test-ExistingPath $storeCrt) { $storeCrt }
+        else { "Not shipped by toolset $($Toolset.Name); not required, the Store flavor libraries link a /ZW component" })
 
     # platform.winmd is the C++/CX metadata reference; without it /ZW has no
     # projection types even though the compiler itself runs.
