@@ -23,7 +23,7 @@ family rows into exact symbols/files and record consumers before changing them.
 | Wrapper advanceFrame/render tokens | rendering/FrameSchedulerUWP | Owner thread/service pump; idle network and two-view frame tests |
 | Wrapper pointer/XAML subscriptions | input/InputAdapterUWP | Pointer capture, tap/drag/wheel, keyboard/focus; device interaction |
 | Wrapper applyScroll/resetMotion/inertia fields | input/ScrollControllerUWP | Native gesture algorithm; edge/scroll regression |
-| PageUWP.h / WK* exports/result/state | Shared/uwp/WKUWP*.h; legacy export forwards temporarily | WebCore exports, smoke probes, wrapper; dual-compiler layout/import checks |
+| PageUWP.h / WK* exports/result/state | Shared/uwp/WKUWP*.h with `Source/WebCore/platform/uwp/LegacyExportMapUWP.h` as the explicit per-export map; callable forwards await tasks 4.x | WebCore exports, smoke probes, wrapper; dual-compiler layout/import checks |
 | PageUWP.cpp/PageHostUWP | PageHostUWP.h/.cpp with no fixtures | Frame/loader/compositor owners; creation/teardown tests |
 | PageFrameLoaderUWP / PageChromeUWP | FrameLoaderClientUWP / ChromeClientUWP, separate files | Callback and override consumers; state/terminal tests |
 | BackForwardClientUWP / StorageSessionProviderUWP | Separate existing-named .h/.cpp | History/session behavior and per-control isolation |

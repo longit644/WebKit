@@ -48,6 +48,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File Tools\uwp\build\test-wku
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File Tools\uwp\build\test-wkuwp-engine-module.ps1 -OutDir "$env:TEMP\opencode\m10-module-check"
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File Tools\uwp\build\test-wkuwp-callback-ownership.ps1 -OutDir "$env:TEMP\opencode\m10-callbacks-check"
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File Tools\uwp\build\test-wkuwp-bridge-ordering.ps1 -OutDir "$env:TEMP\opencode\m10-bridge-check"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File Tools\uwp\build\check-wkuwp-legacy-surface.ps1 -OutDir "$env:TEMP\opencode\m10-legacy-check"
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File Tools\uwp\build\build-arm32-cx-compiled-probe.ps1 -OutDir "$env:TEMP\opencode\m10-cx-package" -SignThumbprint <development-certificate-thumbprint>
 ```
 

@@ -100,7 +100,14 @@ Supporting-document basenames in this checklist resolve under `artifact/`;
   - ARM32 proof: clean `/W4 /WX` compiles of all three sources with both boundary compilers, and an ARM32 module reporting `IMAGE_FILE_MACHINE_ARMNT`/`APPCONTAINER` with the unmangled export. Behaviour runs from x64 copies on this host; no ARM32 execution and no device claim.
   - Regression: the 3.3, 3.4, negotiation and dual-language ABI gates still pass; no frozen header was touched. One harness use-after-release was corrected during authoring.
   - Not claimed: no tree regeneration or full rebuild (standing owner decision), no consumer target wiring (section 5), working dispatch/thread/close behaviour belongs to the test double only, and no device evidence.
-- [ ] 3.6 Implement legacy export forwarders with explicit maps; verify existing native smoke consumers retain numeric/layout semantics and new consumers use the negotiated table.
+- [x] 3.6 Implement legacy export forwarders with explicit maps; verify existing native smoke consumers retain numeric/layout semantics and new consumers use the negotiated table.
+  - Explicit map `Source/WebCore/platform/uwp/LegacyExportMapUWP.h`: all 24 legacy exports with consumer status (21 wrapper-bound, 1 smoke-only, 2 declared-unbound), exact signature typedefs, V1 destinations with owning tasks, and compile-time proofs that legacy result codes are numerically identical to V1, validation limits match V1 bounds, and both state structures keep their ARM32 layouts. Check TU `Tools/uwp/build/wkuwp-legacy-surface-check.c` freezes all 23 declared signatures by assignment; driver `Tools/uwp/build/check-wkuwp-legacy-surface.ps1`. `artifact/legacy-export-map.md` holds the full record.
+  - "Forwarder" is scoped honestly: result-code forwarding is the proven identity map (plus the already-matching HRESULT mapping); per-export callable forwards need engine state from tasks 4.x, so entries name destinations instead of inventing argument mappings.
+  - Smoke semantics retained: the map compiles clean as C++ with both ARM32 compilers at `/W4 /WX`, the preserved `WebCore.dll` exports all 24 names unmangled (read-only inspection, tree untouched), and the smoke surface is byte-identical to HEAD.
+  - New consumers use only the negotiated table: every `GetProcAddress` literal in `native/` is `WKUWPGetEngineAPI`, test files add only harness exports and the two component activation exports resolved by design, and no legacy identifier appears in the new consumer sources.
+  - Map findings recorded: `WKScrollPageUWP` has no direct slot (input plus state); `WKGetPageDocumentStateUWP` maps to nothing callable until 4.3; `WKRenderFirstPageUWP` stays undeclared with reviewed-matching spellings; first-page result codes mirror the legacy family including gaps 2-3.
+  - Regression: no shared source modified, so the 3.2-3.5 gates are unaffected by construction; audit clean, `clang-format` applied to the header, `openspec validate --strict` valid, `git diff --check` clean.
+  - Not claimed: callable per-export forwards, a rebuilt engine, or device behaviour of any export.
 
 ## 4. Engine UWP restructuring and structured lifecycle
 
