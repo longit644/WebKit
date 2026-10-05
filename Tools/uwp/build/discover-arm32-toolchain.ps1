@@ -25,6 +25,11 @@ never hides which paths were used.
 .PARAMETER VsPath
 Optional Visual Studio installation root to inspect instead of auto-detection.
 
+.PARAMETER MsvcVersion
+Optional MSVC toolset directory name (for example 14.42.35207) to require. Needed
+when several ARM toolsets are installed, because only some releases ship the
+ARM32 Store import library the C++/CX runtime requires.
+
 .PARAMETER SdkVersion
 Optional Windows SDK version (for example 10.0.19041.0) to require. When given,
 other installed versions are still listed but never selected silently.
@@ -45,6 +50,7 @@ powershell -ExecutionPolicy Bypass -File Tools/uwp/build/discover-arm32-toolchai
 [CmdletBinding()]
 param(
     [string]$VsPath,
+    [string]$MsvcVersion,
     [string]$SdkVersion,
     [switch]$Json,
     [switch]$Quiet
@@ -66,6 +72,14 @@ $script:RequiredCxUwpRuntimeLibraries = @('msvcrt.lib', 'msvcprt.lib', 'vcruntim
 
 # Repository-owned runtime support that the native ARM32 link recipe depends on.
 $script:RepositoryRuntimeLibraries = @('arm-crtstart.lib')
+
+# Native ARM32 runtime support the toolchain links after the msvcurt removal.
+$script:RequiredNativeUwpRuntimeLibraries = @('vcruntime.lib', 'msvcprt.lib')
+
+# Combined ARM32 Store import library. Newer MSVC releases dropped it for ARM,
+# and the C++/CX runtime cannot link without an equivalent, so its presence is
+# what decides whether a toolset can build a /ZW component.
+$script:StoreCrtLibrary = 'msvcurt.lib'
 
 # vswhere executable shipped with the Visual Studio Installer.
 $script:VsWhereRelativePath = 'Microsoft Visual Studio\Installer\vswhere.exe'
@@ -153,15 +167,26 @@ function Get-VisualStudioInstallations {
     $instances = @()
     foreach ($instance in ($raw | ConvertFrom-Json)) {
         $toolsetRoot = Join-Path $instance.installationPath 'VC\Tools\MSVC'
-        $armCl = $null
-        $toolset = $null
+
+        # Every installed toolset exposing an ARM32 compiler is recorded, not just
+        # the newest one: the C++/CX runtime requirement can differ per toolset,
+        # because only some MSVC releases ship the ARM32 Store import library.
+        $armToolsets = @()
         if (Test-ExistingPath $toolsetRoot) {
             foreach ($candidateToolset in (Get-ChildItem -LiteralPath $toolsetRoot -Directory | Sort-Object Name -Descending)) {
                 $candidateCl = Join-Path $candidateToolset.FullName "bin\$($script:HostCompilerFolder)\$($script:ArmCompilerFolder)\cl.exe"
-                if (Test-ExistingPath $candidateCl) {
-                    $toolset = $candidateToolset
-                    $armCl = $candidateCl
-                    break
+                if (-not (Test-ExistingPath $candidateCl)) {
+                    continue
+                }
+
+                $storeCrt = Join-Path $candidateToolset.FullName "lib\$($script:ArmCompilerFolder)\$($script:StoreCrtLibrary)"
+                $cxRuntime = Join-Path $candidateToolset.FullName "lib\$($script:ArmCompilerFolder)\uwp\vccorlib.lib"
+                $armToolsets += [pscustomobject]@{
+                    Name                = $candidateToolset.Name
+                    Root                = $candidateToolset.FullName
+                    ArmCompiler         = $candidateCl
+                    HasStoreCrt         = (Test-ExistingPath $storeCrt)
+                    HasCxRuntimeLibrary = (Test-ExistingPath $cxRuntime)
                 }
             }
         }
@@ -170,13 +195,54 @@ function Get-VisualStudioInstallations {
             InstallationPath    = $instance.installationPath
             DisplayName         = $instance.displayName
             InstallationVersion = if ($instance.PSObject.Properties['installationVersion']) { $instance.installationVersion } else { 'unknown' }
-            Toolset             = if ($toolset) { $toolset.Name } else { $null }
-            ArmCompiler         = $armCl
-            MsvcRoot            = if ($toolset) { $toolset.FullName } else { $null }
+            ArmToolsets         = $armToolsets
         }
     }
 
     return $instances
+}
+
+function Select-MsvcToolset {
+    <#
+    .SYNOPSIS
+    Chooses which installed ARM toolset to measure and build against.
+    .DESCRIPTION
+    An explicit -MsvcVersion wins. Otherwise the newest ARM toolset that still
+    ships the ARM32 Store import library is preferred, because that library
+    supplies the startup, exception-helper and cookie symbols the C++/CX runtime
+    needs. When no toolset ships it, the newest ARM toolset is still selected so
+    the remaining gap is reported precisely instead of hidden.
+    #>
+    param([Parameter(Mandatory = $true)][object[]]$ArmToolsets)
+
+    if (-not $ArmToolsets) {
+        return $null
+    }
+
+    if ($MsvcVersion) {
+        $requested = $ArmToolsets | Where-Object { $_.Name -eq $MsvcVersion } | Select-Object -First 1
+        if ($requested) {
+            Add-Finding -Area 'MSVC ARM32' -Requirement 'explicit toolset override honored' `
+                -Status $script:Ok -Detail "Using requested toolset $($requested.Name)"
+            return $requested
+        }
+
+        Add-Finding -Area 'MSVC ARM32' -Requirement 'explicit toolset override honored' `
+            -Status $script:Blocker -Detail "$MsvcVersion has no ARM32 compiler; available: $(($ArmToolsets | ForEach-Object { $_.Name }) -join ', ')"
+        return $null
+    }
+
+    $withStoreCrt = $ArmToolsets | Where-Object { $_.HasStoreCrt -and $_.HasCxRuntimeLibrary } | Select-Object -First 1
+    if ($withStoreCrt) {
+        Add-Finding -Area 'MSVC ARM32' -Requirement 'toolset selection' -Status $script:Ok `
+            -Detail "Selected $($withStoreCrt.Name): newest ARM toolset shipping $($script:StoreCrtLibrary)"
+        return $withStoreCrt
+    }
+
+    $newest = $ArmToolsets | Select-Object -First 1
+    Add-Finding -Area 'MSVC ARM32' -Requirement 'toolset selection' -Status $script:Blocker `
+        -Detail "Selected $($newest.Name) as the newest ARM toolset, but no installed toolset ships $($script:StoreCrtLibrary), which the C++/CX runtime needs"
+    return $newest
 }
 
 function Select-VisualStudioInstallation {
@@ -199,7 +265,7 @@ function Select-VisualStudioInstallation {
         return $null
     }
 
-    $withArm = $Instances | Where-Object { $_.ArmCompiler } | Select-Object -First 1
+    $withArm = $Instances | Where-Object { $_.ArmToolsets.Count -gt 0 } | Select-Object -First 1
     if ($withArm) {
         return $withArm
     }
@@ -210,24 +276,27 @@ function Select-VisualStudioInstallation {
 function Measure-ArmCompiler {
     <#
     .SYNOPSIS
-    Verifies the ARM32 compiler and captures its reported version banner.
+    Verifies the selected ARM32 compiler and captures its version banner.
     #>
-    param([Parameter(Mandatory = $true)][object]$Installation)
+    param(
+        [Parameter(Mandatory = $true)][object]$Installation,
+        [Parameter(Mandatory = $true)][object]$Toolset
+    )
 
-    if (-not $Installation.ArmCompiler) {
+    if (-not $Toolset) {
         Add-Finding -Area 'MSVC ARM32' -Requirement 'Hostx64 ARM cl.exe' `
             -Status $script:Blocker -Detail "No ARM compiler under $($Installation.InstallationPath)\VC\Tools\MSVC"
         return
     }
 
     Add-Finding -Area 'MSVC ARM32' -Requirement 'Hostx64 ARM cl.exe' `
-        -Status $script:Ok -Detail $Installation.ArmCompiler
+        -Status $script:Ok -Detail "$($Toolset.ArmCompiler) (toolset $($Toolset.Name))"
 
     # cl.exe writes its banner to stderr, which PowerShell would otherwise
     # surface as a terminating error; relax the preference only for this call.
     $previousPreference = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
-    $banner = & $Installation.ArmCompiler /Bv 2>&1 | Select-Object -First 1
+    $banner = & $Toolset.ArmCompiler /Bv 2>&1 | Select-Object -First 1
     $ErrorActionPreference = $previousPreference
 
     if ($banner) {
@@ -243,17 +312,19 @@ function Measure-CxRuntimeAndMetadata {
     .DESCRIPTION
     These files ship with MSVC rather than the Windows SDK, so they are checked
     against the selected toolset. Their absence blocks every /ZW target even when
-    an ARM32 SDK is present.
+    an ARM32 SDK is present. The combined Store import library is also reported,
+    because a toolset without it cannot satisfy the C++/CX runtime's startup and
+    exception-helper references.
     #>
-    param([Parameter(Mandatory = $true)][object]$Installation)
+    param([Parameter(Mandatory = $true)][object]$Toolset)
 
-    if (-not $Installation.MsvcRoot) {
+    if (-not $Toolset) {
         Add-Finding -Area 'C++/CX runtime' -Requirement 'MSVC toolset resolved' `
             -Status $script:Blocker -Detail 'No MSVC toolset directory to inspect'
         return
     }
 
-    $libRoot = Join-Path $Installation.MsvcRoot 'lib'
+    $libRoot = Join-Path $Toolset.Root 'lib'
 
     foreach ($library in $script:RequiredCxRuntimeLibraries) {
         $path = Join-Path $libRoot "$($script:ArmCompilerFolder)\$library"
@@ -267,11 +338,24 @@ function Measure-CxRuntimeAndMetadata {
         Add-Finding -Area 'C++/CX runtime' -Requirement "ARM UWP $library" -Status $status -Detail $path
     }
 
+    # The combined Store import library is what a /ZW link needs beyond
+    # vccorlib: it carries the CRT startup, exception-helper and cookie symbols
+    # that newer MSVC releases stopped shipping for ARM.
+    $storeCrt = Join-Path $libRoot "$($script:ArmCompilerFolder)\$($script:StoreCrtLibrary)"
+    if (Test-ExistingPath $storeCrt) {
+        Add-Finding -Area 'C++/CX runtime' -Requirement "ARM $script:StoreCrtLibrary" `
+            -Status $script:Ok -Detail $storeCrt
+    }
+    else {
+        Add-Finding -Area 'C++/CX runtime' -Requirement "ARM $script:StoreCrtLibrary" `
+            -Status $script:Blocker -Detail "Not shipped by toolset $($Toolset.Name); the C++/CX runtime cannot link without it: $storeCrt"
+    }
+
     # platform.winmd is the C++/CX metadata reference; without it /ZW has no
     # projection types even though the compiler itself runs.
     $referenceCandidates = @(
         (Join-Path $libRoot "x86\store\references\platform.winmd"),
-        (Join-Path (Split-Path -Parent $Installation.InstallationPath) 'Common7\IDE\VC\vcpackages\platform.winmd')
+        (Join-Path (Split-Path -Parent $Toolset.Root) 'Common7\IDE\VC\vcpackages\platform.winmd')
     )
     $platformWinmd = $referenceCandidates | Where-Object { Test-ExistingPath $_ } | Select-Object -First 1
     if ($platformWinmd) {
@@ -395,8 +479,13 @@ function Measure-NativeEngineToolchain {
     linking even though the tree still builds incrementally, so this is measured
     before any M10 work assumes a working baseline.
     #>
-    param([Parameter(Mandatory = $true)][object]$Installation)
+    param([Parameter(Mandatory = $true)][object]$Toolset)
 
+    # The native ARM32 link surface. Newer MSVC releases no longer ship the
+    # combined Store import library for ARM, so the toolchain links the SDK UCRT
+    # plus the UWP flavor of the MSVC runtime support libraries instead. Checking
+    # the replacement set catches a stale toolchain reference and an SDK that
+    # lacks ARM32 libraries at the same time.
     $repositoryLib = Join-Path (Split-Path -Parent $PSScriptRoot) 'lib'
     foreach ($library in $script:RepositoryRuntimeLibraries) {
         $path = Join-Path $repositoryLib $library
@@ -404,14 +493,33 @@ function Measure-NativeEngineToolchain {
         Add-Finding -Area 'Native engine' -Requirement "repository $library" -Status $status -Detail $path
     }
 
-    if (-not $Installation.MsvcRoot) {
+    if (-not $Toolset) {
         return
     }
 
-    # The ARM32 Store CRT import library the toolchain file links directly.
-    $storeCrt = Join-Path $Installation.MsvcRoot "lib\$($script:ArmCompilerFolder)\msvcurt.lib"
-    $status = if (Test-ExistingPath $storeCrt) { $script:Ok } else { $script:Blocker }
-    Add-Finding -Area 'Native engine' -Requirement 'ARM msvcurt.lib named by toolchain' -Status $status -Detail $storeCrt
+    $clangBuiltins = Join-Path $repositoryLib 'clang_rt.builtins-arm.lib'
+    $status = if (Test-ExistingPath $clangBuiltins) { $script:Ok } else { $script:Blocker }
+    Add-Finding -Area 'Native engine' -Requirement 'repository clang_rt.builtins-arm.lib' -Status $status -Detail $clangBuiltins
+
+    # The UWP flavor of the MSVC runtime support libraries the toolchain links
+    # instead of the retired Store import library.
+    foreach ($library in $script:RequiredNativeUwpRuntimeLibraries) {
+        $path = Join-Path $Toolset.Root "lib\$($script:ArmCompilerFolder)\uwp\$library"
+        $status = if (Test-ExistingPath $path) { $script:Ok } else { $script:Blocker }
+        Add-Finding -Area 'Native engine' -Requirement "ARM UWP $library" -Status $status -Detail $path
+    }
+
+    # The Store import library is reported by the C++/CX measurement; here we only
+    # confirm the native recipe does not still reference it.
+    $storeCrt = Join-Path $Toolset.Root "lib\$($script:ArmCompilerFolder)\$($script:StoreCrtLibrary)"
+    if (Test-ExistingPath $storeCrt) {
+        Add-Finding -Area 'Native engine' -Requirement 'Store import library availability' `
+            -Status $script:Ok -Detail "Toolset $($Toolset.Name) ships $script:StoreCrtLibrary; the native recipe links the SDK UCRT plus ARM UWP vcruntime/msvcprt and needs no Store CRT"
+    }
+    else {
+        Add-Finding -Area 'Native engine' -Requirement 'Store import library availability' `
+            -Status $script:Ok -Detail "Toolset $($Toolset.Name) does not ship $script:StoreCrtLibrary; the corrected native link set was verified by direct link"
+    }
 }
 
 function Write-HumanReport {
@@ -448,16 +556,26 @@ function Write-HumanReport {
 $installations = Get-VisualStudioInstallations
 if ($installations.Count -gt 0) {
     Add-Finding -Area 'Visual Studio' -Requirement 'detected installations' -Status $script:Ok `
-        -Detail (($installations | ForEach-Object { "$($_.DisplayName) [$($_.InstallationVersion)] toolset=$($_.Toolset) arm=$([bool]$_.ArmCompiler)" }) -join '; ')
+        -Detail (($installations | ForEach-Object {
+                $toolsets = if ($_.ArmToolsets.Count) { ($_.ArmToolsets | ForEach-Object { "$($_.Name)[storecrt=$($_.HasStoreCrt)]" }) -join ',' } else { 'none' }
+                "$($_.DisplayName) [$($_.InstallationVersion)] armToolsets=$toolsets"
+            }) -join '; ')
 }
 
-$selected = if ($installations.Count -gt 0) { Select-VisualStudioInstallation -Instances $installations } else { $null }
+$installation = if ($installations.Count -gt 0) { Select-VisualStudioInstallation -Instances $installations } else { $null }
+$toolset = if ($installation) { Select-MsvcToolset -ArmToolsets $installation.ArmToolsets } else { $null }
 
-if ($selected) {
-    Measure-ArmCompiler -Installation $selected
-    Measure-CxRuntimeAndMetadata -Installation $selected
-    Measure-MSBuildArmSupport -Installation $selected
-    Measure-NativeEngineToolchain -Installation $selected
+if ($installation) {
+    if ($toolset) {
+        Measure-ArmCompiler -Installation $installation -Toolset $toolset
+        Measure-CxRuntimeAndMetadata -Toolset $toolset
+        Measure-MSBuildArmSupport -Installation $installation
+        Measure-NativeEngineToolchain -Toolset $toolset
+    }
+    else {
+        Add-Finding -Area 'Visual Studio' -Requirement 'usable ARM toolset' -Status $script:Blocker `
+            -Detail "No ARM32 toolset selected in $($installation.InstallationPath); check the -MsvcVersion override"
+    }
 }
 else {
     Add-Finding -Area 'Visual Studio' -Requirement 'usable installation' -Status $script:Blocker `
@@ -470,9 +588,12 @@ if ($Json) {
     $blockerCount = @($script:Findings | Where-Object { $_.Status -eq $script:Blocker }).Count
     [pscustomobject]@{
         GeneratedBy        = 'Tools/uwp/build/discover-arm32-toolchain.ps1'
-        RepositoryRoot     = (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
+        # This script lives in Tools/uwp/build, so the repository root is three levels up.
+        RepositoryRoot     = (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)))
         VsPathOverride     = $VsPath
+        MsvcVersionOverride = $MsvcVersion
         SdkVersionOverride = $SdkVersion
+        SelectedToolset    = if ($toolset) { $toolset.Name } else { $null }
         Blockers           = $blockerCount
         Findings           = $script:Findings
     } | ConvertTo-Json -Depth 4

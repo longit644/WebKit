@@ -1,13 +1,15 @@
-# WebKitView ARM32-UWP clang toolchain (v0.3 — link recipe proven 2026-09-30)
+# WebKitView ARM32-UWP clang toolchain (v0.4 — SDK repinned 2026-10-05)
 #
 # Target: armv7-unknown-windows-msvc, AppContainer (phone 15254 API surface,
-# link surface from Win11 SDK 22621 ARM libs which still ship ARM32).
+# link surface from Windows 10 SDK 10.0.19041.0 ARM libs). 19041 is pinned
+# because it is the newest SDK that still ships um/arm and ucrt/arm; every
+# Windows 11 SDK dropped 32-bit ARM, so a newer SDK cannot link this target.
 # NOTE: armv7 spelling (not thumbv7): identical codegen (verified COFF-ARM/
 # ARMNT, byte-identical objects), but meson maps 'arm' in the target to
 # /MACHINE:arm for llvm-lib ('thumbv7' falls through to /MACHINE:thumbv7,
 # which llvm-lib rejects).
-# Usage: -DCMAKE_TOOLCHAIN_FILE=<this file> with Tools/UWP/arm32-uwp-env.ps1
-# sourced first. See Tools/UWP/ARM-WALLS.md for status.
+# Usage: -DCMAKE_TOOLCHAIN_FILE=<this file> with Tools/uwp/arm32-uwp-env.ps1
+# sourced first. See Tools/uwp/ARM-WALLS.md for status.
 
 set(CMAKE_SYSTEM_NAME Windows)
 set(CMAKE_SYSTEM_VERSION 10.0)
@@ -38,7 +40,7 @@ set(CMAKE_CXX_COMPILER_TARGET ${WK_UWP_TRIPLE})
 # Windows-Clang enables its separate clang preprocessing if INIT still names
 # llvm-rc, even when COMPILER has been changed to SDK rc.exe. That path fed
 # FreeType's version resource preprocessed C/C++ declarations and hung rc.exe.
-set(WK_UWP_RC "C:/Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64/rc.exe")
+set(WK_UWP_RC "C:/PROGRA~2/WI3CF2~1/10/bin/100190~1.0/x64/rc.exe")
 set(CMAKE_RC_COMPILER_INIT "${WK_UWP_RC}")
 set(CMAKE_RC_COMPILER "${WK_UWP_RC}" CACHE FILEPATH "ARM UWP host resource compiler")
 
@@ -58,7 +60,7 @@ add_compile_options(/EHs-c- /GR-)
 # through CMAKE_*_FLAGS_INIT here, or ports silently compile for the host.
 # -B gives clang a space-free linker search dir (vcpkg scrubs PATH, so a bare
 # -fuse-ld=lld would not resolve there).
-set(WK_UWP_C_FLAGS "--target=${WK_UWP_TRIPLE} -BC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/Llvm/bin -fuse-ld=lld /MD -DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP -D_WIN32_WINNT=0x0A00 -D_HAS_EXCEPTIONS=0 -Wno-error=incompatible-function-pointer-types -DU_PLATFORM_HAS_WINUWP_API=1 -DSQLITE_OMIT_SEH -D_WINRT_DLL /FIC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include/intrin.h -FIC:/Users/Longi/WORKSP~1/WebKit/Tools/uwp/toolchain/uwp-desktop-apis.h /EHs-c- /GR- -imsvcC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/ucrt -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/um -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/shared -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100226~1.0/winrt")
+set(WK_UWP_C_FLAGS "--target=${WK_UWP_TRIPLE} -BC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/Llvm/bin -fuse-ld=lld /MD -DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP -D_WIN32_WINNT=0x0A00 -D_HAS_EXCEPTIONS=0 -Wno-error=incompatible-function-pointer-types -DU_PLATFORM_HAS_WINUWP_API=1 -DSQLITE_OMIT_SEH -D_WINRT_DLL /FIC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include/intrin.h -FIC:/Users/Longi/WORKSP~1/WebKit/Tools/uwp/toolchain/uwp-desktop-apis.h /EHs-c- /GR- -imsvcC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100190~1.0/ucrt -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100190~1.0/um -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100190~1.0/shared -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100190~1.0/winrt")
 set(CMAKE_C_FLAGS_INIT "${WK_UWP_C_FLAGS}")
 set(CMAKE_CXX_FLAGS_INIT "${WK_UWP_C_FLAGS}")
 
@@ -69,24 +71,28 @@ set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 set(CMAKE_MSVC_RUNTIME_LIBRARY MultiThreadedDLL)
 set(CMAKE_CONFIGURATION_TYPES Release RelWithDebInfo)
 
-# ARM32 UWP link surface (PROVEN: wmain-arm.exe links, COFF-ARM/ARMNT).
+# ARM32 UWP link surface (PROVEN: minimal mainCRTStartup exe links, COFF-ARM/ARMNT
+# thumb, and wmain-arm.exe previously linked).
+# SDK 10.0.19041.0 is the pinned Windows SDK: it is the newest installed SDK that
+# still ships um/arm and ucrt/arm, which every later Windows 11 SDK dropped.
+# MSVC 14.4x no longer ships the combined Store import library msvcurt.lib that
+# this file used to link. Its role is now filled by the three pieces below, which
+# is what an MSBuild UWP ARM project links: the SDK UCRT, plus the UWP flavor of
+# the MSVC C++ runtime support libraries. Verified by direct link before use.
 # NOTE: vcpkg's toolchain ignores triplet VCPKG_LINKER_FLAGS — everything
 # linker-side MUST live in these *_INIT vars (space-free 8.3 paths only;
 # vcpkg re-splits flag strings and drops quoted entries with spaces).
 # lld-link required: link.exe has no armv7 target (selected via -fuse-ld
 # in WK_UWP_C_FLAGS above; -B dir there makes it resolvable under scrubbed
 # PATH). /SUBSYSTEM:WINDOWS (WINDOWSCE is WinCE-era, rejected by lld).
-# No ARM32 vcruntime140_app ships: msvcurt (Store CRT) + own crtstart.
 # Debug unsupported, Release only.
-# Our libs FIRST: first-match-wins keeps lld away from msvcurt's managed
-# ti_inst.obj (unparseable). __RTDynamicCast stub + exact-named type_info
-# vftable documented in toolchain/crrtti.c + crtvft.S. (An /ALTERNATENAME
-# approach was rejected: resolving the alias forced lld to scan ti_inst.)
-# Our crrt aliases (strdup/open/...) embed into EVERY DLL (lld exports all
-# defined globals) and re-clash on multi-DLL links (cairo hit strdup via
-# fontconfig.lib). All copies are semantically identical wrappers, so first-
+# Our libs FIRST: our crrt aliases (strdup/open/...) embed into EVERY DLL (lld
+# exports all defined globals) and re-clash on multi-DLL links (cairo hit strdup
+# via fontconfig.lib). All copies are semantically identical wrappers, so first-
 # wins is safe: /FORCE:MULTIPLE. (Proper fix later: shared wkrt.dll.)
-set(WK_UWP_LINK_FLAGS "/APPCONTAINER /MACHINE:ARM /SUBSYSTEM:CONSOLE /FORCE:MULTIPLE /NODEFAULTLIB:libcmt /NODEFAULTLIB:libcmtd /NODEFAULTLIB:msvcrt /NODEFAULTLIB:msvcrtd /NODEFAULTLIB:msvcprt /NODEFAULTLIB:msvcprtd /NODEFAULTLIB:oldnames /LIBPATH:C:/PROGRA~2/WI3CF2~1/10/Lib/100226~1.0/um/arm /LIBPATH:C:/PROGRA~2/WI3CF2~1/10/Lib/100226~1.0/ucrt/arm /LIBPATH:C:/Users/Longi/WORKSP~1/WebKit/Tools/uwp/lib C:/Users/Longi/WORKSP~1/WebKit/Tools/uwp/lib/CLANG_~1.LIB C:/Users/Longi/WORKSP~1/WebKit/Tools/uwp/lib/ARM-CR~1.LIB C:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/lib/arm/msvcurt.lib C:/PROGRA~2/WI3CF2~1/10/Lib/100226~1.0/um/arm/OneCoreUAP.lib C:/PROGRA~2/WI3CF2~1/10/Lib/100226~1.0/ucrt/arm/ucrt.lib")
+# __RTDynamicCast stub + exact-named type_info vftable documented in
+# toolchain/crrtti.c + crtvft.S.
+set(WK_UWP_LINK_FLAGS "/APPCONTAINER /MACHINE:ARM /SUBSYSTEM:CONSOLE /FORCE:MULTIPLE /NODEFAULTLIB:libcmt /NODEFAULTLIB:libcmtd /NODEFAULTLIB:msvcrt /NODEFAULTLIB:msvcrtd /NODEFAULTLIB:msvcprt /NODEFAULTLIB:msvcprtd /NODEFAULTLIB:oldnames /LIBPATH:C:/PROGRA~2/WI3CF2~1/10/Lib/100190~1.0/um/arm /LIBPATH:C:/PROGRA~2/WI3CF2~1/10/Lib/100190~1.0/ucrt/arm /LIBPATH:C:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/lib/arm/uwp /LIBPATH:C:/Users/Longi/WORKSP~1/WebKit/Tools/uwp/lib C:/Users/Longi/WORKSP~1/WebKit/Tools/uwp/lib/CLANG_~1.LIB C:/Users/Longi/WORKSP~1/WebKit/Tools/uwp/lib/ARM-CR~1.LIB C:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/lib/arm/uwp/vcruntime.lib C:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/lib/arm/uwp/msvcprt.lib C:/PROGRA~2/WI3CF2~1/10/Lib/100190~1.0/ucrt/arm/ucrt.lib C:/PROGRA~2/WI3CF2~1/10/Lib/100190~1.0/um/arm/OneCoreUAP.lib")
 set(CMAKE_EXE_LINKER_FLAGS_INIT "${WK_UWP_LINK_FLAGS}")
 set(CMAKE_SHARED_LINKER_FLAGS_INIT "${WK_UWP_LINK_FLAGS}")
 set(CMAKE_MODULE_LINKER_FLAGS_INIT "${WK_UWP_LINK_FLAGS}")
