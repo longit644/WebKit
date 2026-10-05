@@ -86,7 +86,7 @@ typedef enum {
  * preserves it. An accepted command allocates an ID and may still end in
  * cancellation from policy; argument or pre-admission failures allocate nothing.
  */
-typedef struct {
+typedef struct WKUWPNavigationRequest {
     WKUWPHeader header;
 
     /* WKUWPContentKind this command proposes. */
@@ -109,7 +109,7 @@ typedef struct {
  * delivery copies them. Members that do not apply to the event kind are zero, and
  * a zero certificateToken means no decision is offered.
  */
-typedef struct {
+typedef struct WKUWPPageEvent {
     WKUWPHeader header;
 
     /* Page this event belongs to; never a process-global routed instance. */
@@ -192,7 +192,7 @@ typedef void(__stdcall* WKUWPNotify)(void* context, const WKUWPPageEvent* event)
  * then runs exactly once as the acknowledgment that host storage is free. The
  * host keeps and releases its own setup reference separately.
  */
-typedef struct {
+typedef struct WKUWPPageCallbacks {
     WKUWPHeader header;
 
     /* Opaque consumer context; never interpreted by the engine. */

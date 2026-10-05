@@ -49,7 +49,7 @@ typedef enum {
  * Members unused by the event kind are zero. The engine neither retains the
  * event nor its spans past the call.
  */
-typedef struct {
+typedef struct WKUWPInputEvent {
     WKUWPHeader header;
 
     /* WKUWPInputKind for this event. */

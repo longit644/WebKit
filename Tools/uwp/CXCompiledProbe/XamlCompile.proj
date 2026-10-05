@@ -1,0 +1,36 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Generated output paths and installed tool locations are supplied by the build driver. -->
+  <UsingTask TaskName="Microsoft.Windows.UI.Xaml.Build.Tasks.CompileXaml" AssemblyFile="$(SdkRoot)bin\$(SdkVersion)\XamlCompiler\Microsoft.Windows.UI.Xaml.Build.Tasks.dll" />
+  <ItemGroup>
+    <Page Include="$(SourceRoot)\ProbePage.xaml"><Link>ProbePage.xaml</Link></Page>
+    <ApplicationDefinition Include="$(SourceRoot)\App.xaml"><Link>App.xaml</Link></ApplicationDefinition>
+    <Reference Include="$(SdkRoot)UnionMetadata\$(SdkVersion)\Windows.winmd" />
+    <Reference Include="$(SdkRoot)UnionMetadata\$(SdkVersion)\Facade\Windows.winmd" />
+    <Reference Include="$(FrameworkRef)\*.dll" />
+    <Reference Include="$(OutputRoot)\component\XamlProbeCX.winmd" />
+    <ClInclude Include="$(SourceRoot)\App.h;$(SourceRoot)\ProbePage.h" />
+    <ClInclude Include="$(OutputRoot)\gen\App.g.h;$(OutputRoot)\gen\ProbePage.g.h" />
+  </ItemGroup>
+  <Target Name="Pass1">
+    <MakeDir Directories="$(OutputRoot)\gen" />
+    <CompileXaml Language="C++" LanguageSourceExtension=".cpp" RootNamespace="CXCompileProbe"
+      XamlPages="@(Page)" XamlApplications="@(ApplicationDefinition)" PriIndexName="CXCompileProbe"
+      ProjectName="CXCompiledProbe" IsPass1="True" CompileMode="RealBuildPass1" OutputType="exe"
+      ProjectPath="$(MSBuildProjectFullPath)" OutputPath="$(OutputRoot)\gen\"
+      ReferenceAssemblies="@(Reference)" ReferenceAssemblyPaths="$(FrameworkRef);$(SdkRoot)UnionMetadata\$(SdkVersion)" CIncludeDirectories="$(SourceRoot)" VCInstallDir="$(VsRoot)\VC\"
+      WindowsSdkPath="$(SdkRoot)" SavedStateFile="$(OutputRoot)\gen\save.xml" XAMLFingerprint="false"
+      TargetPlatformMinVersion="10.0.15063.0" EnableTypeInfoReflection="false" EnableXBindDiagnostics="false" />
+  </Target>
+  <Target Name="Pass2">
+    <CompileXaml Language="C++" LanguageSourceExtension=".cpp" RootNamespace="CXCompileProbe"
+      XamlPages="@(Page)" XamlApplications="@(ApplicationDefinition)" PriIndexName="CXCompileProbe"
+      ProjectName="CXCompiledProbe" IsPass1="False" CompileMode="RealBuildPass2" OutputType="exe"
+      ProjectPath="$(MSBuildProjectFullPath)" OutputPath="$(OutputRoot)\gen\"
+      ReferenceAssemblies="@(Reference)" ReferenceAssemblyPaths="$(FrameworkRef);$(SdkRoot)UnionMetadata\$(SdkVersion)" ClIncludeFiles="@(ClInclude)" CIncludeDirectories="$(SourceRoot)"
+      LocalAssembly="$(OutputRoot)\CXCompileProbe.winmd" VCInstallDir="$(VsRoot)\VC\"
+      WindowsSdkPath="$(SdkRoot)" PlatformXmlDir="$(SdkRoot)Platforms\UAP\$(SdkVersion)\"
+      SavedStateFile="$(OutputRoot)\gen\save.xml" XAMLFingerprint="false" DisableXbfGeneration="false"
+      DisableXbfLineInfo="true" TargetPlatformMinVersion="10.0.15063.0"
+      EnableTypeInfoReflection="false" EnableXBindDiagnostics="false" />
+  </Target>
+</Project>

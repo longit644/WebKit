@@ -76,6 +76,15 @@ app and explicit font/CA/HTML assets. No app worker downloads remote HTML.
 
 ### Where CX declarations end and MIDL begins, as measured
 
+**Current compiled-probe recipe:** `build-arm32-cx-compiled-probe.ps1` uses MSVC
+`link.exe /WINMD` to emit CX metadata from the DLL's own ARM `/ZW` object, and
+stages only that matching WinMD. This fixes the legacy assembly-reference issue
+of the independent MIDLRT descriptor and exposes real property metadata to the
+SDK XAML compiler. The older bullets below describe the historical runtime-probe
+recipe; its conclusion that MIDL is mandatory does not apply to the compiled
+probe. `/ZW` compilation alone still does not export the hand-written factory.
+See `Tools/uwp/CXCompiledProbe/README.md` and `compiled-xaml-lumia-v6.txt`.
+
 The rule above says CX declarations generate the WinMD. That is not literally
 what the toolchain does, and the difference matters because getting it wrong
 produces a component that links and never activates. All of the following was
@@ -145,3 +154,113 @@ Native builds use named targets with eight parallel jobs; CX uses validated
 MSBuild project/configuration/platform arguments. Document exact reproducible
 commands after discovery (do not invent untested link flags). Verification is
 per affected slice. Preserve previous package and record rollback mapping.
+
+## Repeatable G1 commands (verified)
+
+Run in Windows PowerShell from the repository root. Use a fresh output directory;
+the compiled-package driver rejects an existing staging folder to avoid stale
+payloads. Substitute the local signing certificate's thumbprint explicitly.
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File Tools\uwp\build\discover-arm32-toolchain.ps1 -SdkVersion 10.0.19041.0 -Json
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File Tools\uwp\build\check-wkuwp-abi-layout.ps1 -OutDir "$env:TEMP\opencode\m10-abi-check"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File Tools\uwp\build\build-arm32-cx-compiled-probe.ps1 -OutDir "$env:TEMP\opencode\m10-cx-package" -SignThumbprint <development-certificate-thumbprint>
+```
+
+Measured configuration: MSVC ARM32 14.44.35207, Windows SDK 10.0.19041.0,
+MSBuild 17.14.60, UWP framework reference 6.2.14 / `uap10.0.15138`, Release
+Store CRT (`/MD /EHsc /ZW`), phone minimum 15063. The ABI check uses native
+clang-cl `armv7-unknown-windows-msvc` and ARM MSVC C11 independently; both produce
+ARMNT objects with all frozen assertions passing. This check was rerun when
+documenting task 2.7; it does not build or execute the browser engine.
+
+The compiled build discovers VS and SDK roots, supports explicit `-VsPath`,
+`-MsvcVersion`, `-SdkRoot`, `-SdkVersion`, `-FrameworkRef` overrides and requires
+`-SignThumbprint` or `-SkipSign`. It neither creates a certificate nor changes
+device trust. `/WINMD` emits the component metadata from the DLL's own object;
+only that metadata is packaged. MSBuild consumes `CXCompiledProbe/XamlCompile.proj`,
+then generated code compiles with `/FU` for that component metadata. Store CRT
+libraries precede repository native startup fallback libraries in the app link.
+
+Outputs in the selected directory:
+
+- `XamlCompiledProbe-arm.appx`, executable, component DLL and matching WinMDs.
+- `gen/` contains SDK-generated headers/code/XBF and saved XAML compiler state.
+- `package/` contains XBF-only resources, manifest registration and PRI.
+- `imports.txt`, `inspect-component/`, `resources-dump.xml` and
+  `build-identity.json` record closure/metadata/resource checks and payload hashes.
+
+Clean build, packaging/signing and v6 Lumia execution are recorded in
+`compiled-xaml-lumia-v6.txt`; the owner supplied the visible PASS photo. The
+working v4 temporary recipe and v27 runtime package remain historical baselines.
+
+### Device commands
+
+Set the actual awake device's Portal address. Accept its self-signed HTTPS
+certificate only when appropriate for the developer device.
+
+```powershell
+$portal = 'https://<device-address>'
+python Tools\uwp\device-portal.py --url $portal --insecure install "$env:TEMP\opencode\m10-cx-package\XamlCompiledProbe-arm.appx"
+python Tools\uwp\device-portal.py --url $portal --insecure get /api/app/packagemanager/state
+python Tools\uwp\device-portal.py --url $portal --insecure launch 'WebKitProbe.XamlCompiledHost_2932e6rj4m41p!App' 'WebKitProbe.XamlCompiledHost_1.0.0.6_arm__2932e6rj4m41p'
+python Tools\uwp\device-portal.py --url $portal --insecure get '/api/filesystem/apps/file?knownfolderid=LocalAppData&packagefullname=WebKitProbe.XamlCompiledHost_1.0.0.6_arm__2932e6rj4m41p&path=%5CLocalState&filename=compiled-xaml-result.txt'
+```
+
+The package publisher is `CN=WebKitWebView`; obtain full package/AUMID values
+from `/api/app/packagemanager/packages` when changing publisher or version.
+An upload HTTP 202 is not deployment success: poll until `Success=true, Code=0`.
+Require the newly built version in the retrieved report, because LocalState
+survives package upgrades. Do not reinstall changed contents with the same
+identity/version; bump the manifest and diagnostic version together.
+
+### Native configure/link command (verified)
+
+The environment now discovers VS/MSVC/SDK paths and derives native support paths
+from the checkout. Explicit overrides: `-VsPath`, `-MsvcVersion`, `-SdkRoot`,
+`-SdkVersion`, `-VcpkgRoot`. A space-free path alias is obtained through the
+Win32 path API and validated rather than assuming a particular machine's alias.
+For volumes without usable aliases, supply space-free installation/checkout paths;
+the script reports the offending path before configuration.
+
+```powershell
+. .\Tools\uwp\arm32-uwp-env.ps1 -SdkVersion 10.0.19041.0
+$nativeBuild = Join-Path $env:TEMP 'opencode\m10-native-check'
+$toolchain = (Resolve-Path WebKitLibraries\toolchains\Toolchain-ARM32-UWP-clang.cmake).Path
+cmake -S Tools/uwp/build/native-toolchain-smoke -B $nativeBuild -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_TOOLCHAIN_FILE=$toolchain"
+cmake --build $nativeBuild --target WKUWPNativeToolchainSmoke --parallel 8
+```
+
+Fresh configure/build passes. Inspection yields COFF-ARM/thumb/ARMNT,
+AppContainer flags, and `KERNEL32.dll!GetCurrentThreadId`. The compile asserts
+ARM32 pointer width and integer layout. This is the native toolchain recipe/link
+verification for G1, not a claim of full WebCore rebuild or phone execution of
+the smoke DLL. `native-toolchain-command-proof.txt` records the checks.
+
+The environment exports `WK_UWP_NATIVE_C_FLAGS`, `WK_UWP_NATIVE_LINK_FLAGS`,
+`WK_UWP_CLANG_CL`, `WK_UWP_RC` and builtins/support paths. The CMake toolchain
+consumes those discovered inputs and requires the environment to be set. Debug
+configuration is rejected instead of silently using release CRT. An SDK 26100
+override rejects the missing `um/arm/OneCoreUAP.lib`. The dual-compiler ABI command
+continues to work and was rerun after this change.
+
+### Native engine rebuild scope
+
+The existing Skia engine is built separately with named targets and eight jobs:
+
+```powershell
+. .\Tools\uwp\arm32-uwp-env.ps1
+cmake --build build-arm-uwp-skia --target WebCore --parallel 8
+```
+
+This command addresses the existing configured native engine tree. Its Skia
+cache retains older SDK flags and was not regenerated or used as proof of this
+task. Dependency-port/vcpkg triplets also retain historical machine-specific
+settings; their migration and the full engine rebuild belong to later native
+build/orchestration and integration tasks. Keep those caches and known-good
+packages as rollback references until replacement engine verification completes.
+
+Task 2.7 is complete for the documented G1 native/CX tool commands: clean native
+configure/link, dual-compiler ABI assertions and clean compiled-CX package
+reproduction are verified. This does not close the later full engine/dependency
+rebuild or native/CX integration gates.

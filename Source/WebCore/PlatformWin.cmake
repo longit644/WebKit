@@ -21,10 +21,15 @@ if (WK_UWP)
     endif ()
     list(APPEND WebCore_SOURCES platform/uwp/ClipboardUWP.cpp)
     list(APPEND WebCore_PRIVATE_FRAMEWORK_HEADERS platform/uwp/ClipboardUWP.h)
-    list(APPEND WebCore_PRIVATE_INCLUDE_DIRECTORIES "${WEBCORE_DIR}/platform/uwp")
+list(APPEND WebCore_PRIVATE_INCLUDE_DIRECTORIES "${WEBCORE_DIR}/platform/uwp")
     list(APPEND WebCore_SOURCES platform/uwp/DragImageUWP.cpp)
     list(APPEND WebCore_SOURCES platform/uwp/FirstPageUWP.cpp)
     list(APPEND WebCore_SOURCES platform/uwp/PageUWP.cpp)
+    # WKUWP V1 discovery export, capability mask and build identity (task 3.2).
+    list(APPEND WebCore_SOURCES platform/uwp/WKUWPEngineAPI.cpp)
+    # The frozen shared ABI headers are included by their own names, matching the
+    # dual-compiler layout check, so only their directory is added here.
+    list(APPEND WebCore_PRIVATE_INCLUDE_DIRECTORIES "${WEBKIT_DIR}/Shared/uwp")
     list(APPEND WebCore_SOURCES platform/uwp/LoaderStrategyUWP.cpp)
     list(APPEND WebCore_SOURCES platform/uwp/TextureMapperCompositorUWP.cpp)
     list(APPEND WebCore_PRIVATE_FRAMEWORK_HEADERS platform/uwp/DragImageUWP.h)

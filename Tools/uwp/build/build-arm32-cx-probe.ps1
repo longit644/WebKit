@@ -77,8 +77,9 @@ $script:ArmStoreRuntimeDirectory = 'store'
 # Libraries an ARM32 C++/CX component needs, in the Store flavor only.
 $script:CxRuntimeLibraries = @('vccorlib.lib', 'msvcprt.lib', 'msvcrt.lib', 'vcruntime.lib')
 
-# Activation entry point the component source defines and the link must export.
+# Entry points the component source defines and the link must export explicitly.
 $script:ActivationExport = 'DllGetActivationFactory'
+$script:LifetimeExport = 'DllCanUnloadNow'
 
 function Get-LatestDirectory {
     # Newest directory under a parent whose name satisfies a test.
@@ -390,10 +391,10 @@ Write-Host "    winmd: $((Get-Item -LiteralPath $winmd).Length) bytes"
 Write-Host "    header: $generatedHeader"
 
 # Step 3: link. The Store flavor supplies __vcrt_initialize and the vector
-# destructor EH helper; the export flag is what makes the component activatable,
-# because /ZW does not derive it.
+# destructor EH helper; the exports are explicit because /ZW derives neither
+# activation nor the module-lifetime query.
 Write-Host '3/3 link'
-Invoke-Checked -Step 'lld-link /export:DllGetActivationFactory' -Exe $lldLink -WorkingDirectory $OutDir -Environment @{} `
+Invoke-Checked -Step 'lld-link activation/lifetime exports' -Exe $lldLink -WorkingDirectory $OutDir -Environment @{} `
     -Arguments (@(
     '/nologo', '/dll', '/machine:arm', '/appcontainer', '/force:multiple',
     ('/out:' + $dllPath),
@@ -401,15 +402,16 @@ Invoke-Checked -Step 'lld-link /export:DllGetActivationFactory' -Exe $lldLink -W
     ('/libpath:' + (Join-Path $sdk.Root 'um\arm')),
     ('/libpath:' + (Join-Path $sdk.Root 'ucrt\arm')),
     $objectFile
-) + $script:CxRuntimeLibraries + @($oneCoreUap, ('/export:' + $script:ActivationExport)))
+    ) + $script:CxRuntimeLibraries + @($oneCoreUap,
+        ('/export:' + $script:ActivationExport), ('/export:' + $script:LifetimeExport)))
 
 if (-not (Test-Path -LiteralPath $dllPath)) {
     throw "lld-link reported success but produced no DLL at $dllPath"
 }
 
 # Verify the produced binary rather than trusting the exit code: a component that
-# does not export the activation entry point links cleanly but cannot activate,
-# which is exactly the failure this script exists to prevent.
+# does not export either entry point links cleanly but cannot activate or report
+# its unload contract, which is exactly the failure this script exists to prevent.
 $readobj = Join-Path $script:VsInstance 'VC\Tools\Llvm\x64\bin\llvm-readobj.exe'
 $dumpbin = Join-Path $toolset 'bin\Hostx64\arm\dumpbin.exe'
 
@@ -435,7 +437,10 @@ $exports = & $dumpbin /exports $dllPath 2>&1 | Out-String
 if ($exports -notmatch [regex]::Escape($script:ActivationExport)) {
     throw "DLL does not export $script:ActivationExport; the probe would link but never activate"
 }
-Write-Host "  exports          : $script:ActivationExport"
+if ($exports -notmatch [regex]::Escape($script:LifetimeExport)) {
+    throw "DLL does not export $script:LifetimeExport; the host cannot honor the module lifetime contract"
+}
+Write-Host "  exports          : $script:ActivationExport, $script:LifetimeExport"
 
 Write-Host ''
 Write-Host "Component DLL built: $dllPath ($((Get-Item -LiteralPath $dllPath).Length) bytes)"

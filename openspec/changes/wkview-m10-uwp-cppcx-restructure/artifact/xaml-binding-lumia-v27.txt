@@ -1,0 +1,28 @@
+Device: Lumia 950 XL, Windows Mobile 15254.603.armfre.feature2_rs3svc.200106-1633
+Toolchain: MSVC 14.44.35207, SDK 10.0.19041.0, ARM32 /ZW
+Package: WebKitProbe.XamlLifetimeHost_1.0.0.27_arm__2932e6rj4m41p
+Build: powershell.exe -NoProfile -ExecutionPolicy Bypass -File Tools\uwp\build\build-arm32-cx-probe-host.ps1 -OutDir <temporary-output-directory>
+Build result: component/WinMD/host built; Appx packed and signed successfully.
+Compile notes: C4453 WebHostHidden warnings on the published property-provider methods.
+Deploy: HTTP 202; deployment state Success=true, Code=0.
+Fresh launch: taskmanager DELETE HTTP 200, launch HTTP 200.
+Retrieved LocalState\xaml-probe-lifetime.txt: HTTP 200
+
+exit=0 hr=0x00000000
+version=1.0.0.27
+before-activate: direct_hr=0x00000000 direct_match=1 bound_hr=0x00000000 bound_match=0 bound_length=0 known_hr=0x00000000 known_match=0 provider_hr=0x00000000 property_hr=0x00000000 property_present=1
+loaded: direct_hr=0x00000000 direct_match=1 bound_hr=0x00000000 bound_match=1 bound_length=20 known_hr=0x00000000 known_match=1 provider_hr=0x00000000 property_hr=0x00000000 property_present=1
+dispatcher_hr=0x80070057; validating at Loaded instead
+deferred-final: direct_hr=0x00000000 direct_match=1 bound_hr=0x00000000 bound_match=1 bound_length=20 known_hr=0x00000000 known_match=1 provider_hr=0x00000000 property_hr=0x00000000 property_present=1
+checks: lifetime=0 inherited=1 binding=1 layout=1 reinsert=1
+
+Control experiment (v25/v26): direct ProbeText read succeeded; standard ElementName
+binding became valid at Loaded; custom binding stayed empty; QI for
+ICustomPropertyProvider returned E_NOINTERFACE (0x80004002). Adding [Bindable]
+alone in v26 did not change those results. Explicit ICustomPropertyProvider and
+ProbeTextAccessor in v27 made property lookup and the loaded binding succeed.
+
+Scope: plain runtime XAML plus manual component activation/insertion. This does
+not prove custom declarative activation or compiled XAML/generated type-provider
+support. Owner confirmed the visible v27 result: "Yes It passed".
+No screenshot has been captured.

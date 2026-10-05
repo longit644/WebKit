@@ -28,7 +28,10 @@ add_compile_definitions(WTF_PLATFORM_UWP=1)
 # Use the x64 HOST compiler: the sibling Llvm/bin executable is i386 and
 # exhausts its address space on WebCore's generated style bundles. Target
 # objects remain ARM32 through CMAKE_*_COMPILER_TARGET and --target flags.
-set(WK_UWP_CLANG_CL "C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/Llvm/x64/bin/clang-cl.exe"
+if(NOT DEFINED ENV{WK_UWP_NATIVE_C_FLAGS} OR NOT DEFINED ENV{WK_UWP_NATIVE_LINK_FLAGS})
+    message(FATAL_ERROR "Dot-source Tools/uwp/arm32-uwp-env.ps1 before configure; use its installation overrides as needed")
+endif()
+set(WK_UWP_CLANG_CL "$ENV{WK_UWP_CLANG_CL}"
     CACHE FILEPATH "WebKitWebView ARM32-UWP x64-host clang-cl (19.1.5, MSVC 14.44)")
 
 set(CMAKE_C_COMPILER "${WK_UWP_CLANG_CL}")
@@ -40,7 +43,7 @@ set(CMAKE_CXX_COMPILER_TARGET ${WK_UWP_TRIPLE})
 # Windows-Clang enables its separate clang preprocessing if INIT still names
 # llvm-rc, even when COMPILER has been changed to SDK rc.exe. That path fed
 # FreeType's version resource preprocessed C/C++ declarations and hung rc.exe.
-set(WK_UWP_RC "C:/PROGRA~2/WI3CF2~1/10/bin/100190~1.0/x64/rc.exe")
+set(WK_UWP_RC "$ENV{WK_UWP_RC}" CACHE FILEPATH "Discovered native UWP SDK resource compiler")
 set(CMAKE_RC_COMPILER_INIT "${WK_UWP_RC}")
 set(CMAKE_RC_COMPILER "${WK_UWP_RC}" CACHE FILEPATH "ARM UWP host resource compiler")
 
@@ -60,14 +63,17 @@ add_compile_options(/EHs-c- /GR-)
 # through CMAKE_*_FLAGS_INIT here, or ports silently compile for the host.
 # -B gives clang a space-free linker search dir (vcpkg scrubs PATH, so a bare
 # -fuse-ld=lld would not resolve there).
-set(WK_UWP_C_FLAGS "--target=${WK_UWP_TRIPLE} -BC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/Llvm/bin -fuse-ld=lld /MD -DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP -D_WIN32_WINNT=0x0A00 -D_HAS_EXCEPTIONS=0 -Wno-error=incompatible-function-pointer-types -DU_PLATFORM_HAS_WINUWP_API=1 -DSQLITE_OMIT_SEH -D_WINRT_DLL /FIC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include/intrin.h -FIC:/Users/Longi/WORKSP~1/WebKit/Tools/uwp/toolchain/uwp-desktop-apis.h /EHs-c- /GR- -imsvcC:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/include -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100190~1.0/ucrt -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100190~1.0/um -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100190~1.0/shared -imsvcC:/PROGRA~2/WI3CF2~1/10/Include/100190~1.0/winrt")
+set(WK_UWP_C_FLAGS "$ENV{WK_UWP_NATIVE_C_FLAGS}")
 set(CMAKE_C_FLAGS_INIT "${WK_UWP_C_FLAGS}")
 set(CMAKE_CXX_FLAGS_INIT "${WK_UWP_C_FLAGS}")
 
-# Compiler checks must not link: no ARM32 CRT (msvcrt/vcruntime) ships with
-# MSVC 14.4x, and Debug CRT (msvcrtd/oldnames) does not exist at all.
+# Compiler ABI checks build archives; native DLL linking is verified separately.
+# The release ARM UWP runtime exists, but this recipe does not support Debug CRT.
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 # Release CRT only; Debug configs are unsupported on this target.
+if(CMAKE_BUILD_TYPE AND NOT CMAKE_BUILD_TYPE MATCHES "^(Release|RelWithDebInfo)$")
+    message(FATAL_ERROR "Native ARM32 UWP supports Release or RelWithDebInfo, not ${CMAKE_BUILD_TYPE}")
+endif()
 set(CMAKE_MSVC_RUNTIME_LIBRARY MultiThreadedDLL)
 set(CMAKE_CONFIGURATION_TYPES Release RelWithDebInfo)
 
@@ -92,8 +98,8 @@ set(CMAKE_CONFIGURATION_TYPES Release RelWithDebInfo)
 # wins is safe: /FORCE:MULTIPLE. (Proper fix later: shared wkrt.dll.)
 # __RTDynamicCast stub + exact-named type_info vftable documented in
 # toolchain/crrtti.c + crtvft.S.
-set(WK_UWP_LINK_FLAGS "/APPCONTAINER /MACHINE:ARM /SUBSYSTEM:CONSOLE /FORCE:MULTIPLE /NODEFAULTLIB:libcmt /NODEFAULTLIB:libcmtd /NODEFAULTLIB:msvcrt /NODEFAULTLIB:msvcrtd /NODEFAULTLIB:msvcprt /NODEFAULTLIB:msvcprtd /NODEFAULTLIB:oldnames /LIBPATH:C:/PROGRA~2/WI3CF2~1/10/Lib/100190~1.0/um/arm /LIBPATH:C:/PROGRA~2/WI3CF2~1/10/Lib/100190~1.0/ucrt/arm /LIBPATH:C:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/lib/arm/uwp /LIBPATH:C:/Users/Longi/WORKSP~1/WebKit/Tools/uwp/lib C:/Users/Longi/WORKSP~1/WebKit/Tools/uwp/lib/CLANG_~1.LIB C:/Users/Longi/WORKSP~1/WebKit/Tools/uwp/lib/ARM-CR~1.LIB C:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/lib/arm/uwp/vcruntime.lib C:/PROGRA~2/MICROS~3/2022/BUILDT~1/VC/Tools/MSVC/1444~1.352/lib/arm/uwp/msvcprt.lib C:/PROGRA~2/WI3CF2~1/10/Lib/100190~1.0/ucrt/arm/ucrt.lib C:/PROGRA~2/WI3CF2~1/10/Lib/100190~1.0/um/arm/OneCoreUAP.lib")
+set(WK_UWP_LINK_FLAGS "$ENV{WK_UWP_NATIVE_LINK_FLAGS}")
 set(CMAKE_EXE_LINKER_FLAGS_INIT "${WK_UWP_LINK_FLAGS}")
 set(CMAKE_SHARED_LINKER_FLAGS_INIT "${WK_UWP_LINK_FLAGS}")
 set(CMAKE_MODULE_LINKER_FLAGS_INIT "${WK_UWP_LINK_FLAGS}")
-set(WK_UWP_BUILTINS_ARM "C:/Users/Longi/WORKSP~1/WebKit/Tools/uwp/lib/CLANG_~1.LIB")
+set(WK_UWP_BUILTINS_ARM "$ENV{WK_UWP_BUILTINS_ARM}")

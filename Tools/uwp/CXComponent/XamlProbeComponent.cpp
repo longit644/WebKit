@@ -9,11 +9,15 @@
 
 #include <activation.h>
 #include <cwchar>
+#include <new>
 #include <wrl.h>
 
 using namespace Platform;
 using namespace Windows::UI;
+using namespace Windows::UI::Xaml;
 using namespace Windows::UI::Xaml::Controls;
+using namespace Windows::UI::Xaml::Data;
+using namespace Windows::UI::Xaml::Interop;
 using namespace Windows::UI::Xaml::Media;
 
 namespace WebKitProbe {
@@ -34,14 +38,41 @@ public interface class IXamlProbe {
     property unsigned int ProbeId {
         unsigned int get();
     }
+    property String^ ProbeText {
+        String^ get();
+        void set(String^ value);
+    }
+};
+
+// Runtime Binding needs an accessor because this host has no generated XAML
+// type provider. The accessor holds no target reference of its own.
+ref class ProbeTextAccessor sealed : ICustomProperty {
+public:
+    virtual property TypeName Type { TypeName get() { return String::typeid; } }
+    virtual property String^ Name { String^ get() { return L"ProbeText"; } }
+    virtual property bool CanRead { bool get() { return true; } }
+    virtual property bool CanWrite { bool get() { return true; } }
+    virtual Object^ GetValue(Object^ target) { return safe_cast<IXamlProbe^>(target)->ProbeText; }
+    virtual void SetValue(Object^ target, Object^ value)
+    {
+        safe_cast<IXamlProbe^>(target)->ProbeText = safe_cast<String^>(value);
+    }
+    virtual Object^ GetIndexedValue(Object^, Object^) { throw ref new NotImplementedException(); }
+    virtual void SetIndexedValue(Object^, Object^, Object^) { throw ref new NotImplementedException(); }
 };
 
 // C++/CX emits the UserControl runtime identity and the default interface
 // from this public ref class. The host uses ProbeId to confirm the instance.
-public ref class XamlProbe sealed : UserControl, IXamlProbe {
+[Windows::UI::Xaml::Data::Bindable]
+public ref class XamlProbe sealed : UserControl, IXamlProbe, ICustomPropertyProvider {
 public:
     XamlProbe()
     {
+        if (!s_probeTextProperty)
+            s_probeTextProperty = DependencyProperty::Register(
+                L"ProbeText", String::typeid, XamlProbe::typeid,
+                ref new PropertyMetadata(L"Initial probe text"));
+
         auto fill = ref new SolidColorBrush();
         fill->Color = ColorHelper::FromArgb(kProbeFillAlpha, kProbeFillRed, kProbeFillGreen, kProbeFillBlue);
         auto block = ref new Border();
@@ -56,7 +87,28 @@ public:
     virtual property unsigned int ProbeId {
         unsigned int get() { return kProbeId; }
     }
+
+    virtual property String^ ProbeText {
+        String^ get() { return safe_cast<String^>(GetValue(s_probeTextProperty)); }
+        void set(String^ value)
+        {
+            SetValue(s_probeTextProperty, value);
+        }
+    }
+
+    virtual ICustomProperty^ GetCustomProperty(String^ name)
+    {
+        return name == L"ProbeText" ? ref new ProbeTextAccessor() : nullptr;
+    }
+    virtual ICustomProperty^ GetIndexedProperty(String^ name, TypeName type) { return nullptr; }
+    virtual String^ GetStringRepresentation() { return ProbeText; }
+    virtual property TypeName Type { TypeName get() { return XamlProbe::typeid; } }
+
+private:
+    static DependencyProperty^ s_probeTextProperty;
 };
+
+DependencyProperty^ XamlProbe::s_probeTextProperty = nullptr;
 
 // WRL supplies the ABI activation-factory shell; the activated object itself
 // is the C++/CX UserControl above.
@@ -96,12 +148,20 @@ public:
         if (!instance)
             return E_POINTER;
         *instance = nullptr;
-        XamlProbe^ probe = ref new XamlProbe();
-        if (!probe)
+        try {
+            XamlProbe^ probe = ref new XamlProbe();
+            if (!probe)
+                return E_OUTOFMEMORY;
+            *instance = reinterpret_cast<IInspectable*>(probe);
+            (*instance)->AddRef();
+            return S_OK;
+        } catch (Platform::Exception^ exception) {
+            return exception ? exception->HResult : E_FAIL;
+        } catch (const std::bad_alloc&) {
             return E_OUTOFMEMORY;
-        *instance = reinterpret_cast<IInspectable*>(probe);
-        (*instance)->AddRef();
-        return S_OK;
+        } catch (...) {
+            return E_FAIL;
+        }
     }
 };
 
@@ -127,7 +187,20 @@ STDAPI DllCanUnloadNow()
     return S_FALSE;
 }
 
+// DLL entry point.
+//
+// It does nothing: the CX runtime owns initialization, and touching XAML state from
+// the loader lock would be unsafe. It must keep the name DllMain because the
+// default DLL entry point is DllMainCRTStartup, which calls it by that name.
+//
+// C4447 fires here because /ZW parses any function named main as the C++/CX
+// application entry point and objects to the missing threading model. That
+// diagnostic is meaningless for a DLL, so it is suppressed locally rather than
+// renaming the function, which would leave the link without a CRT startup.
+#pragma warning(push)
+#pragma warning(disable : 4447)
 BOOL WINAPI DllMain(HINSTANCE, DWORD, LPVOID)
 {
     return TRUE;
 }
+#pragma warning(pop)

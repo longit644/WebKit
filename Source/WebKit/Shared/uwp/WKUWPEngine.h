@@ -208,7 +208,7 @@ struct WKUWPPageCallbacks;
  * The context is retained once on successful initialize and released only after
  * shutdown quiescence, never per call.
  */
-typedef struct {
+typedef struct WKUWPPlatformServices {
     WKUWPHeader header;
 
     /* Opaque host context; the provider retains it once via retainContext. */
@@ -371,7 +371,7 @@ typedef struct {
  * freezes them and a conflicting later request fails with
  * WKUWPResultConfigurationConflict instead of silently changing live pages.
  */
-typedef struct {
+typedef struct WKUWPEngineOptions {
     WKUWPHeader header;
 
     /* Canonical packaged font directory; validated before it is adopted. */

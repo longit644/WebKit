@@ -16,6 +16,13 @@
     consumer is written against the wrong layout. The check is compile-only and
     links nothing.
 
+    Each compiler compiles the check twice, as C and as C++, because the boundary
+    has a C++ half: the framework consumer is C++/CX. That second pass is not
+    redundant. Writing the first provider against the headers failed to compile as
+    C++ because a structure tag was forward declared and then defined as an
+    anonymous typedef, which C accepts as two unrelated types and C++ rejects; only
+    a C++ pass could have caught it before an implementation depended on it.
+
     This script resolves the native compiler and triple by reading the toolchain
     file rather than duplicating them, so the check cannot drift from the real
     build. It fails rather than guessing when a path is missing.
@@ -161,7 +168,10 @@ New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
 $sdkVersion = Get-ArmSdk
 $toolsetDir = Get-ArmToolset
 $triple = Get-ToolchainSetting -Name 'WK_UWP_TRIPLE'
-$clangCl = Get-ToolchainSetting -Name 'WK_UWP_CLANG_CL'
+if (-not $env:WK_UWP_CLANG_CL) {
+    . (Join-Path $script:RepoRoot 'Tools\uwp\arm32-uwp-env.ps1') -MsvcVersion $MsvcVersion -SdkVersion $sdkVersion
+}
+$clangCl = $env:WK_UWP_CLANG_CL
 
 if (-not (Test-Path -LiteralPath $clangCl)) {
     throw "Native clang-cl named by the toolchain file is missing: $clangCl"
@@ -188,7 +198,7 @@ Write-Host "  objects          : $OutDir"
 # Each argument is parenthesized because PowerShell's comma operator binds tighter
 # than '+', so an unparenthesized '/Fo' + $path inside this array literal would
 # silently concatenate every following element into one argument.
-Invoke-LayoutCheck -Label 'native (clang-cl, armv7-unknown-windows-msvc)' -Exe $clangCl `
+Invoke-LayoutCheck -Label 'native (clang-cl, armv7-unknown-windows-msvc, C)' -Exe $clangCl `
     -ObjectPath (Join-Path $OutDir 'wkuwp-abi-layout-native.obj') `
     -Arguments @(
     ('--target=' + $triple), '/nologo', '/c', '/W4', '/TC', '/std:c11',
@@ -198,10 +208,20 @@ Invoke-LayoutCheck -Label 'native (clang-cl, armv7-unknown-windows-msvc)' -Exe $
     ('/Fo' + (Join-Path $OutDir 'wkuwp-abi-layout-native.obj')), $script:CheckFile
     ) -Environment @{}
 
+Invoke-LayoutCheck -Label 'native (clang-cl, armv7-unknown-windows-msvc, C++)' -Exe $clangCl `
+    -ObjectPath (Join-Path $OutDir 'wkuwp-abi-layout-native-cxx.obj') `
+    -Arguments @(
+    ('--target=' + $triple), '/nologo', '/c', '/W4', '/TP',
+    '/DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP', '/D_WIN32_WINNT=0x0A00',
+    ('/imsvc' + $toolsetInclude), ('/imsvc' + $ucrtInclude), ('/imsvc' + $umInclude),
+    ('/imsvc' + $sharedInclude), ('/I' + $script:AbiHeaderDir),
+    ('/Fo' + (Join-Path $OutDir 'wkuwp-abi-layout-native-cxx.obj')), $script:CheckFile
+    ) -Environment @{}
+
 # C++/CX side: the ARM32 MSVC compiler that owns /ZW, given the same headers.
 # The /ZW flag is deliberately absent because the assertions are plain C and must
 # hold whether or not C++/CX is enabled for the translation unit under test.
-Invoke-LayoutCheck -Label 'cx (MSVC ARM32 cl)' `
+Invoke-LayoutCheck -Label 'cx (MSVC ARM32 cl, C)' `
     -Exe (Join-Path $toolsetDir 'bin\Hostx64\arm\cl.exe') `
     -ObjectPath (Join-Path $OutDir 'wkuwp-abi-layout-cx.obj') `
     -Arguments @(
@@ -215,7 +235,47 @@ Invoke-LayoutCheck -Label 'cx (MSVC ARM32 cl)' `
     ) -join ';'
 }
 
+Invoke-LayoutCheck -Label 'cx (MSVC ARM32 cl, C++)' `
+    -Exe (Join-Path $toolsetDir 'bin\Hostx64\arm\cl.exe') `
+    -ObjectPath (Join-Path $OutDir 'wkuwp-abi-layout-cx-cxx.obj') `
+    -Arguments @(
+    '/nologo', '/c', '/TP', '/W4', '/EHsc',
+    '/DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP', '/D_WIN32_WINNT=0x0A00',
+    ('/I' + $script:AbiHeaderDir),
+    ('/Fo' + (Join-Path $OutDir 'wkuwp-abi-layout-cx-cxx.obj')), $script:CheckFile
+    ) -Environment @{
+    INCLUDE = @(
+        $toolsetInclude, $ucrtInclude, $umInclude, $sharedInclude, $winrtInclude
+    ) -join ';'
+}
+
 Write-Host ''
 Write-Host 'Both boundary compilers agree on every frozen size, offset,'
-Write-Host 'enumeration value and calling convention.'
+Write-Host 'enumeration value and calling convention, as C and as C++.'
+
+# The assertions are only meaningful if they were evaluated under the ARM ABI, so
+# the produced objects are inspected rather than assumed from the command line.
+$llvmBin = Split-Path -Parent $clangCl
+$readObj = Join-Path $llvmBin 'llvm-readobj.exe'
+if (Test-Path -LiteralPath $readObj) {
+    Write-Host ''
+    Write-Host 'ARM32 object inspection'
+    foreach ($object in @('wkuwp-abi-layout-native.obj', 'wkuwp-abi-layout-native-cxx.obj',
+            'wkuwp-abi-layout-cx.obj', 'wkuwp-abi-layout-cx-cxx.obj')) {
+        $objectPath = Join-Path $OutDir $object
+        if (-not (Test-Path -LiteralPath $objectPath)) {
+            throw "Expected object missing: $objectPath"
+        }
+        $headers = (& $readObj '--file-headers' $objectPath 2>&1) -join "`n"
+        if ($headers -notmatch 'IMAGE_FILE_MACHINE_ARMNT') {
+            throw "$object is not ARMNT:`n$headers"
+        }
+        Write-Host "    $object COFF-ARM / IMAGE_FILE_MACHINE_ARMNT"
+    }
+}
+else {
+    Write-Host ''
+    Write-Host "Skipped ARM32 object inspection: llvm-readobj.exe not found beside $clangCl"
+}
+
 exit 0

@@ -13,6 +13,7 @@
 // C-style enums, explicit get_/put_ methods, explicit event add_/remove_.
 import "inspectable.idl";
 import "windows.ui.xaml.controls.idl";
+import "windows.ui.xaml.data.idl";
 
 namespace WebKitProbe
 {
@@ -25,6 +26,11 @@ namespace WebKitProbe
         // Returns a fixed identifier so a host can confirm the activated object
         // is this probe and not some other registered class.
         HRESULT get_ProbeId([out, retval] UINT32* value);
+
+        // Bindable text proves that the public control surface can participate in
+        // normal XAML property binding rather than only being activated by name.
+        HRESULT get_ProbeText([out, retval] HSTRING* value);
+        HRESULT put_ProbeText([in] HSTRING value);
     };
 
     // Probe runtime class declared with the inheritance the public control
@@ -38,5 +44,6 @@ namespace WebKitProbe
         // Default projection confirming the component's own interface resolves
         // alongside the inherited XAML ones.
         [default] interface IXamlProbe;
+        interface Windows.UI.Xaml.Data.ICustomPropertyProvider;
     };
 }

@@ -22,7 +22,7 @@
  * setting is read or written, and TLS or connection reuse never crosses
  * sessions, because reuse would silently apply another page's trust decision.
  */
-typedef struct {
+typedef struct WKUWPPageOptions {
     WKUWPHeader header;
 
     /* PEM bytes copied at creation; replaces native OS trust for this page. */
@@ -58,7 +58,7 @@ typedef struct {
  * that buffer, so a title can never change under a consumer that still holds an
  * earlier snapshot.
  */
-typedef struct {
+typedef struct WKUWPPageState {
     WKUWPHeader header;
 
     /* This page's identity; unique for the process lifetime. */

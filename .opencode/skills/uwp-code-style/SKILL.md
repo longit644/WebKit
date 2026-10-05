@@ -32,6 +32,8 @@ Use this skill for UWP implementation, toolchain, MiniBrowser, WinRT component, 
 
 ## WinRT and generated files
 
+- Preserve the acronym `CX` in authored names for C++/CX code, namespaces, types, project names and metadata/resource names: use `CXCompileProbe`, not `CxCompileProbe`. Lowercase file/script slugs such as `cx-probe` may remain lowercase. Regenerate derived XAML/WinMD outputs after renaming their authored inputs; do not hand-edit generated files or rewrite historical package evidence.
+
 - `Tools/uwp/CXComponent/WebKitWebView.idl` is the source of truth for the WinRT contract and its documentation. Regenerate `.winmd` and MIDL outputs using the durable recipe in `Tools/uwp/CXComponent/README.md`. Do not manually edit generated MIDL outputs: changes will be overwritten.
 - The component uses C++/CX, not C++/WinRT: the SDK's C++/WinRT base header rejects 32-bit ARM. Authored public control sources live in `Source/WebKit/UIProcess/API/uwp/`; `Tools/uwp/CXComponent/` holds only the prototype being replaced, the browser-free gate probe, and build support. Generate nothing into the source tree.
 - `/ZW` does not generate the activation entry point. A `/ZW` component has no `DllGetActivationFactory` and no `/EXPORT` directive, so the link must pass `/export:DllGetActivationFactory` explicitly and the activation factory is hand-written. Never feed an IDL-generated WinMD back into the `/ZW` compilation; the header's `runtimeclass` collides with the CX `ref class` (C2011/C3094).

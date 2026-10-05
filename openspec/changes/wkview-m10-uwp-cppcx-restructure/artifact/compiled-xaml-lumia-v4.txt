@@ -1,0 +1,35 @@
+Device: Lumia 950 XL / Windows Mobile 15254.603 (same device as v27 runtime probe)
+Package: WebKitProbe.XamlCompiledHost_1.0.0.4_arm__2932e6rj4m41p
+Namespace and manifest entry point: CXCompileProbe.App
+Build: SDK 19041 MarkupCompilePass1/2; MSVC 14.44 ARM /ZW; generated app metadata provider.
+Payload: ARM AppContainer exe, CXCompileProbe.winmd, XamlProbeCX.winmd,
+XamlProbeComponent.dll, App.xbf, CustomPage.xbf, resources.pri and logo.
+Compiled XBF is staged; no source XAML is staged in this package.
+Primary PRI map: WebKitProbe.XamlCompiledHost (matches package identity).
+Component registration: windows.activatableClass.inProcessServer,
+WebKitProbe.XamlProbe -> XamlProbeComponent.dll, ThreadingModel=both.
+
+Install: HTTP 202
+Deployment state: HTTP 200, Code=0, Success=true
+Terminate previous instance: HTTP 200
+Launch: HTTP 200
+LocalState/compiled-xaml-result.txt: HTTP 200
+
+result=PASS
+bound=Compiled binding value
+
+V3 diagnosis: application launched but compiled-page construction raised
+0x802B000A: Cannot create instance of type 'WebKitProbe.XamlProbe'.
+V4 changed the package manifest to register that runtime class to its DLL.
+The same v3 executable/XBFs, with the v4 registration, then loaded the compiled
+page and its ElementName binding successfully. The executable's internal stage
+labels still say v3; package identity/version identifies this run as v4.
+
+Scope: generated application metadata provider, custom declarative construction
+from compiled XBF, initial property assignment and loaded binding verified.
+Owner confirmed the visible COMPILED XAML PASS screen: "Yes".
+Compiled-host inherited QI/layout/remove-reinsert/destruction checks, screenshot,
+durable checked-in sources/build recipe and recursive
+runtime import audit remain outstanding. Do not complete M10 2.5/2.6 yet.
+Temporary experiment: opencode/xaml-compile-probe; package-v4.ps1 stages v4 from
+the built v3 payload. Runtime v27 remains the separate passing baseline.

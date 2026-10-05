@@ -33,7 +33,7 @@
  * Ownership of the backing store never moves: the caller allocates it, may
  * inspect it after the call, and is responsible for presenting it.
  */
-typedef struct {
+typedef struct WKUWPPaintBuffer {
     WKUWPHeader header;
 
     /* Caller-owned buffer start; required, aligned to 16 bytes. */
@@ -60,7 +60,7 @@ typedef struct {
  * value is borrowed for the call only. scaleX and scaleY convert CSS pixels to
  * device pixels and normally equal the display's scale on both axes.
  */
-typedef struct {
+typedef struct WKUWPCompositorOptions {
     WKUWPHeader header;
 
     /* Host panel Inspectable; required. */
