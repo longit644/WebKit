@@ -136,13 +136,13 @@ Tools/uwp/
   packaging/         (staging, dependency audits, deployment)
   diagnostics/       (RuntimeSmoke/, FpuProbe/, TlsSmoke/)
   toolchain/         (native C/C++/assembly support)
-  WinRTComponent/    (component project and build support only)
+  CXComponent/       (component project and build support only)
   NavigationTests/
     host/ device/ fixtures/ protocol/ evidence/
 ```
 
 Place the component `.vcxproj` and shared property sheets in
-`Tools/uwp/WinRTComponent/`; link authored source from the API directory. Place
+`Tools/uwp/CXComponent/`; link authored source from the API directory. Place
 app projects alongside their app source. Explicit intermediate/output paths
 keep generated metadata, XAML glue and binaries in build directories.
 

@@ -28,10 +28,18 @@ in sibling subdirectories. It owns the
 public navigation contract, the control visual and its contained rendering
 surface, and typed browser event projection. It must not own MiniBrowser
 address-bar/status-bar UI, blocked-page product copy, test URLs, fixture
-sequencing, or app-specific consent policy. `Tools/uwp/WinRTComponent/` owns
+sequencing, or app-specific consent policy. `Tools/uwp/CXComponent/` owns
 MIDLRT/build/packaging support only; generated products belong in build output.
 The current prototype remains in its existing location until deliberately
 replaced.
+
+The directory is named for the projection it actually uses. It was
+`WinRTComponent/` while the prototype was C++/WinRT; M10 adopts C++/CX because
+the SDK's C++/WinRT base header rejects 32-bit ARM, so the old name misdescribed
+the contents. Nothing is authored under `Source/` from this directory: the public
+control's authored home is `Source/WebKit/UIProcess/API/uwp/`, and this directory
+holds only the prototype being replaced, the browser-free gate probe, and build
+support.
 
 ### Applications
 

@@ -63,7 +63,7 @@ $ErrorActionPreference = 'Stop'
 
 # This file lives in Tools/uwp/build, so the repository root is three levels up.
 $script:RepoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
-$script:ComponentDir = Join-Path $script:RepoRoot 'Tools\uwp\WinRTComponent'
+$script:ComponentDir = Join-Path $script:RepoRoot 'Tools\uwp\CXComponent'
 $script:ComponentSource = Join-Path $script:ComponentDir 'XamlProbeComponent.cpp'
 $script:ComponentIdl = Join-Path $script:ComponentDir 'XamlProbe.idl'
 $script:WindowsKitsRoot = 'C:\Program Files (x86)\Windows Kits\10'
