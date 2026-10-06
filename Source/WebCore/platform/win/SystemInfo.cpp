@@ -41,7 +41,7 @@ static std::tuple<int, int> windowsVersion()
 
     if (!initialized) {
         initialized = true;
-        OSVERSIONINFOEX versionInfo { };
+        OSVERSIONINFOEX versionInfo {};
         versionInfo.dwOSVersionInfoSize = sizeof(versionInfo);
         GetVersionEx(reinterpret_cast<OSVERSIONINFO*>(&versionInfo));
         majorVersion = versionInfo.dwMajorVersion;
@@ -60,10 +60,15 @@ static bool isWOW64()
 
     if (!initialized) {
         initialized = true;
+#if PLATFORM(UWP)
+        // The UWP compatibility surface exposes the wide loader spelling.
+        HMODULE kernel32Module = GetModuleHandleW(L"kernel32.dll");
+#else
         HMODULE kernel32Module = GetModuleHandleA("kernel32.dll");
+#endif
         if (!kernel32Module)
             return wow64;
-        typedef BOOL (WINAPI* IsWow64ProcessFunc)(HANDLE, PBOOL);
+        typedef BOOL(WINAPI * IsWow64ProcessFunc)(HANDLE, PBOOL);
         IsWow64ProcessFunc isWOW64Process = reinterpret_cast<IsWow64ProcessFunc>((void*)GetProcAddress(kernel32Module, "IsWow64Process"));
         if (isWOW64Process) {
             BOOL result = FALSE;
@@ -81,7 +86,7 @@ static WORD processorArchitecture()
 
     if (!initialized) {
         initialized = true;
-        SYSTEM_INFO systemInfo { };
+        SYSTEM_INFO systemInfo {};
         GetNativeSystemInfo(&systemInfo);
         architecture = systemInfo.wProcessorArchitecture;
     }
@@ -96,7 +101,7 @@ static String architectureTokenForUAString()
         return "; Win64; x64"_s;
     if (processorArchitecture() == PROCESSOR_ARCHITECTURE_IA64)
         return "; Win64; IA64"_s;
-    return { };
+    return {};
 }
 
 String windowsVersionForUAString()

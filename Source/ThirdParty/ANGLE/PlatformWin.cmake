@@ -8,6 +8,8 @@ list(APPEND ANGLE_DEFINITIONS
 )
 
 if (WK_UWP)
+    # Keep source-level UWP guards consistent with angle_is_winuwp source selection.
+    list(APPEND ANGLE_DEFINITIONS ANGLE_IS_WINUWP)
     # Mobile's inbox msvcp140 predates the constexpr mutex representation in
     # current MSVC headers. Let that runtime initialize its own lock storage.
     list(APPEND ANGLE_DEFINITIONS _DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR)

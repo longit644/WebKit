@@ -111,7 +111,9 @@ Supporting-document basenames in this checklist resolve under `artifact/`;
 
 ## 4. Engine UWP restructuring and structured lifecycle
 
-- [ ] 4.1 Extract reusable EngineUWP startup/service logic from PageUWP/FirstPageUWP; verify one initialization/service pump and affected named-target ARM build, retaining smoke-only content until its host replacement passes.
+- [x] 4.1 Extract reusable EngineUWP startup/service logic from PageUWP/FirstPageUWP; verify one initialization/service pump and affected named-target ARM build, retaining smoke-only content until its host replacement passes.
+  - `EngineUWP.h/.cpp` owns the preserved startup guard, font setup and platform strategies; the legacy startup export delegates to it, and both tick and dispatcher-wake paths use one service implementation. Source-preservation checks compare against `5f885ad7cc`, including the retained smoke renderer/HTML. Shared scheduling is task 6.2.
+  - Owner-selected fresh-tree proof: `cmake --build build-arm-uwp-fresh --target WebCore --parallel 8` successfully linked the actual ARMNT/AppContainer DLL with 24 legacy exports plus discovery. The rollback tree remains preserved. Compatibility layout/signature checks and frozen C/C++ ABI checks pass with both ARM32 compilers. See `artifact/engine-uwp-extraction.md` for commands, PCH/ANGLE fixes, build logs, hashes and the explicit source/build-only scope.
 - [ ] 4.2 Extract PageHostUWP, frame-loader/chrome/history clients and storage provider into their planned files; verify preserved page creation/history/rendering baseline before behavioral changes.
 - [ ] 4.3 Implement NavigationControllerUWP IDs/generations and typed source/title/history/HTTP signals; verify same-URL reload, redirects and fragment/push/replace/traversal are attributed by real engine signals.
 - [ ] 4.4 Implement exactly-once terminal outcomes for policy veto, Stop, replacement, provisional and committed failures; verify delayed fixtures and reentrant policy cannot deliver a later success for canceled IDs.

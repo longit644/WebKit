@@ -23,6 +23,7 @@ if (WK_UWP)
     list(APPEND WebCore_PRIVATE_FRAMEWORK_HEADERS platform/uwp/ClipboardUWP.h)
 list(APPEND WebCore_PRIVATE_INCLUDE_DIRECTORIES "${WEBCORE_DIR}/platform/uwp")
     list(APPEND WebCore_SOURCES platform/uwp/DragImageUWP.cpp)
+    list(APPEND WebCore_SOURCES platform/uwp/EngineUWP.cpp)
     list(APPEND WebCore_SOURCES platform/uwp/FirstPageUWP.cpp)
     list(APPEND WebCore_SOURCES platform/uwp/PageUWP.cpp)
     # WKUWP V1 discovery export, capability mask and build identity (task 3.2).

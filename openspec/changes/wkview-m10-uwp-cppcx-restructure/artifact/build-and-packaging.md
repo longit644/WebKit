@@ -246,6 +246,11 @@ continues to work and was rerun after this change.
 
 ### Native engine rebuild scope
 
+Task 4.1 subsequently completed an actual fresh-tree `WebCore` build with SDK 19041
+and eight jobs, while retaining the tree below as the rollback reference. See
+`engine-uwp-extraction.md` for the initial-cache helper, build command, PCH recovery,
+native compatibility repairs, PE/export assertions and final DLL hashes.
+
 The existing Skia engine is built separately with named targets and eight jobs:
 
 ```powershell

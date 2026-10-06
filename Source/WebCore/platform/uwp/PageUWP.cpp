@@ -12,6 +12,7 @@
 #include "DocumentWriter.h"
 #include "EmptyClients.h"
 #include "EmptyFrameLoaderClient.h"
+#include "EngineUWP.h"
 #include "EventHandler.h"
 #include "Font.h"
 #include "FontCascadeInlines.h"
@@ -1454,7 +1455,8 @@ extern "C" __declspec(dllexport) unsigned __stdcall WKTickPageUWP(void* handle)
         return WKPageResultInvalidArgumentUWP;
     if (!host(handle)->validThread())
         return WKPageResultWrongThreadUWP;
-    WTF::RunLoop::cycle();
+    // Single shared service pump; see EngineUWP.h for the moved implementation.
+    engineServiceUWP();
     if (host(handle)->compositorActive && !host(handle)->compositor->makeCurrent())
         return WKPageResultCompositorUnavailableUWP;
     host(handle)->page->updateRendering();
@@ -1490,7 +1492,7 @@ extern "C" __declspec(dllexport) long __stdcall WKInstallClipboardDispatcherUWP(
             return;
         auto callback = Microsoft::WRL::Callback<Core::IDispatchedHandler>([wakePending]() -> HRESULT {
             wakePending->store(false);
-            WTF::RunLoop::cycle();
+            engineServiceUWP();
             return S_OK;
         });
         Microsoft::WRL::ComPtr<ABI::Windows::Foundation::IAsyncAction> action;

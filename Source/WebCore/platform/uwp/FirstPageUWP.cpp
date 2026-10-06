@@ -6,6 +6,7 @@
 #include "DocumentView.h"
 #include "DocumentWriter.h"
 #include "EmptyClients.h"
+#include "EngineUWP.h"
 #include "FrameLoader.h"
 #if USE(CAIRO)
 #include "GraphicsContextCairo.h"
@@ -18,56 +19,17 @@
 #include "LocalFrame.h"
 #include "LocalFrameInlines.h"
 #include "LocalFrameView.h"
-#include "MediaStrategy.h"
 #include "Page.h"
 #include "PageConfiguration.h"
 #include "PageUWP.h" // shared result codes and validation limits
-#include "PlatformStrategies.h"
 #include "ResourceError.h"
 #include "ResourceRequest.h"
 #include "Settings.h"
 #include "SubresourceLoader.h"
-#include "WebCoreMainThread.h"
-#include <fontconfig/fontconfig.h>
-#include <ft2build.h>
-#include FT_FREETYPE_H
 #include <wtf/text/MakeString.h>
 #include <wtf/text/WTFString.h>
 
 namespace WebCore {
-
-// Snapshot-harness result codes; each value names the stage that failed.
-enum FirstPageResultUWP {
-    // Success; the snapshot rendered.
-    FirstPageResultOkUWP = 0,
-
-    // Null directory, pixels or log sink, or oversized snapshot.
-    FirstPageResultInvalidArgumentUWP = 1,
-
-    // Fontconfig configuration could not be created.
-    FirstPageResultNoFontConfigUWP = 2,
-
-    // Bundled fonts failed to install into fontconfig.
-    FirstPageResultFontsFailedUWP = 3,
-
-    // No local frame existed to render.
-    FirstPageResultNoFrameUWP = 4,
-
-    // No document loader was active for the frame.
-    FirstPageResultNoLoaderUWP = 5,
-
-    // Cairo/Skia surface creation failed.
-    FirstPageResultNoSurfaceUWP = 6,
-
-    // Document writing could not begin.
-    FirstPageResultDocumentBeginFailedUWP = 7,
-
-    // Called on a thread other than the engine thread.
-    FirstPageResultWrongThreadUWP = 8
-};
-
-// FreeType face selected from the packaged fonts.
-constexpr FT_Long kRegularFontFaceIndex = 0;
 
 // This snapshot harness has no network requests. Completion callbacks report
 // unsupported requests; browser navigation requires a real loader strategy.
@@ -166,95 +128,20 @@ private:
     static ResourceError error(const URL& url, int code) { return { "UWPFirstPage"_s, code, url, "External resource loading is unavailable in the first-page snapshot harness"_s }; }
 };
 
-// Empty media strategy; the snapshot paints no audio or video.
-class FirstPageMediaStrategy final : public MediaStrategy { };
+// Shared engine startup and its strategies now live in EngineUWP.h/.cpp, so
+// both the smoke snapshot path and the persistent page host initialize once
+// through the same implementation. The harness loader strategy above stays
+// here as smoke-only content until its diagnostics host replacement passes.
 
-// Snapshot platform strategies: real UWP loader, no pasteboard or blob registry.
-class FirstPagePlatformStrategies final : public PlatformStrategies {
-
-    // Binds the snapshot to the real UWP loader adapter.
-    LoaderStrategy* createLoaderStrategy() final { return new LoaderStrategyUWP; }
-
-    // Copy/paste has no backing store in the snapshot harness.
-    PasteboardStrategy* createPasteboardStrategy() final { return nullptr; }
-
-    // Binds the empty media strategy above.
-    MediaStrategy* createMediaStrategy() final { return new FirstPageMediaStrategy; }
-
-    // Blob URLs resolve to nothing in the snapshot harness.
-    BlobRegistry* createBlobRegistry() final { return nullptr; }
-};
-
-}
+} // namespace WebCore
 
 // Initializes WebCore's main thread, bundled fonts and UWP platform strategies once.
 extern "C" __declspec(dllexport) unsigned __stdcall WKInitializeEngineUWP(
     const wchar_t* fontDirectory,
     void(__stdcall* log)(const char*, unsigned long))
 {
-    using namespace WebCore;
-    if (!fontDirectory)
-        return FirstPageResultInvalidArgumentUWP;
-    static DWORD engineThread;
-    static bool initialized;
-    if (engineThread && engineThread != GetCurrentThreadId())
-        return FirstPageResultWrongThreadUWP;
-    if (initialized)
-        return FirstPageResultOkUWP;
-    engineThread = GetCurrentThreadId();
-    // Emits a stage with a success value unless an API supplies an error code.
-    auto report = [log](const char* stage, unsigned long result = WKPageLogFalseUWP) {
-        if (log)
-            log(stage, result);
-    };
-    report("page-initialize-start");
-    setLoaderStrategyUWPLog(log);
-    initializeMainThreadIfNeeded();
-    report("page-main-thread-ready");
-
-    FcConfig* fonts = FcConfigCreate();
-    if (!fonts)
-        return FirstPageResultNoFontConfigUWP;
-    String directory(fontDirectory);
-    auto regular = makeString(directory, "/DejaVuSans.ttf"_s).utf8();
-    auto bold = makeString(directory, "/DejaVuSans-Bold.ttf"_s).utf8();
-    auto nativePath = makeString(directory, "\\DejaVuSans.ttf"_s).wideCharacters();
-    HANDLE fontFile = CreateFile2(nativePath.span().data(), GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING, nullptr);
-    report("page-font-native-open", fontFile == INVALID_HANDLE_VALUE ? GetLastError() : WKPageLogFalseUWP);
-    if (fontFile != INVALID_HANDLE_VALUE)
-        CloseHandle(fontFile);
-    FT_Library freeType;
-    auto ftResult = FT_Init_FreeType(&freeType);
-    report("page-font-freetype-init", ftResult);
-    if (!ftResult) {
-        FT_Face face;
-        ftResult = FT_New_Face(freeType, regular.data(), kRegularFontFaceIndex, &face);
-        report("page-font-freetype-open", ftResult);
-        if (!ftResult)
-            FT_Done_Face(face);
-        FT_Done_FreeType(freeType);
-    }
-    auto regularAdded = FcConfigAppFontAddFile(fonts, reinterpret_cast<const FcChar8*>(regular.data()));
-    report("page-font-regular-added", regularAdded);
-    auto boldAdded = FcConfigAppFontAddFile(fonts, reinterpret_cast<const FcChar8*>(bold.data()));
-    report("page-font-bold-added", boldAdded);
-    auto built = FcConfigBuildFonts(fonts);
-    report("page-font-config-built", built);
-    auto current = FcConfigSetCurrent(fonts);
-    report("page-font-config-current", current);
-    if (!regularAdded || !boldAdded || !built || !current) {
-        FcConfigDestroy(fonts);
-        return FirstPageResultFontsFailedUWP;
-    }
-    FcConfigDestroy(fonts); // FcConfigSetCurrent holds its own reference.
-    report("page-bundled-fonts-ready");
-
-    static FirstPagePlatformStrategies strategies;
-    if (!platformStrategies())
-        setPlatformStrategies(&strategies);
-    report("page-platform-strategies-ready");
-    initialized = true;
-    return FirstPageResultOkUWP;
+    // Single shared startup; see EngineUWP.h for the moved implementation.
+    return WebCore::engineEnsureInitializedUWP(fontDirectory, log);
 }
 
 // Renders one snapshot frame into the caller pixels; result is a FirstPageResultUWP code.

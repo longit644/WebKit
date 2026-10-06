@@ -7,6 +7,7 @@
 #ifndef WK_UWP_DESKTOP_APIS_H
 #define WK_UWP_DESKTOP_APIS_H
 // ABI-compatible Win32 handle and scalar aliases hidden by WINAPI_FAMILY_PC_APP.
+#include <stdint.h>
 typedef void* HANDLE;
 typedef unsigned long DWORD;
 typedef int BOOL;
@@ -59,6 +60,75 @@ HANDLE __stdcall CreateFileW(
 
 // Reports whether the process' legacy file APIs use the ANSI code page.
 BOOL __stdcall AreFileApisANSI(void);
+
+// Module-handle tag forward-declared so the loader declarations below spell
+// the SDK's own handle type exactly. The real windows.h merges with this tag
+// when it appears later; the type then matches HMODULE/HINSTANCE in both C
+// and C++, where a void* return would strand C++ callers without a cast.
+struct HINSTANCE__;
+
+// Desktop-partition module handle lookup; resolved from the OneCore import library.
+// libpas queries ntdll for RtlDllShutdownInProgress and tolerates a null
+// answer, but the App partition headers hide the declaration entirely, which
+// newer compilers reject as an implicit declaration.
+struct HINSTANCE__* __stdcall GetModuleHandleW(
+    LPCWSTR lpModuleName
+    );
+
+// --- PSAPI working-set snapshot (psapi.h hides these under PC_APP behind the
+// DESKTOP|SYSTEM|GAMES partition). WTF's footprint probe needs only the block
+// union, the information struct and QueryWorkingSet itself; all resolve from
+// the OneCore import library. Layout mirrors the SDK exactly: pointer-width
+// members (uintptr_t, like the SDK's ULONG_PTR) with the same 32/64-bit
+// VirtualPage split, so indexing and the Shared bit land where the engine
+// wrote them. Guarded so a real psapi.h still wins.
+#ifndef WK_UWP_PSAPI_WORKING_SET_DEFINED
+#define WK_UWP_PSAPI_WORKING_SET_DEFINED
+#ifdef __cplusplus
+// Mirrors the SDK's own warning suppression around the unnamed struct.
+#pragma warning(push)
+#pragma warning(disable:4201)
+#pragma warning(disable:4214)
+#endif
+typedef union _WK_UWP_WORKING_SET_BLOCK {
+    uintptr_t Flags;
+    struct {
+        uintptr_t Protection : 5;
+        uintptr_t ShareCount : 3;
+        uintptr_t Shared : 1;
+        uintptr_t Reserved : 3;
+#if defined(_WIN64)
+        uintptr_t VirtualPage : 52;
+#else
+        uintptr_t VirtualPage : 20;
+#endif
+    };
+} WK_UWP_WORKING_SET_BLOCK;
+typedef struct _WK_UWP_WORKING_SET_INFORMATION {
+    uintptr_t NumberOfEntries;
+    WK_UWP_WORKING_SET_BLOCK WorkingSetInfo[1];
+} WK_UWP_WORKING_SET_INFORMATION;
+#ifdef __cplusplus
+#pragma warning(pop)
+#endif
+// Same names the probe code uses; defined here because the SDK hides them.
+#define PSAPI_WORKING_SET_BLOCK WK_UWP_WORKING_SET_BLOCK
+#define PSAPI_WORKING_SET_INFORMATION WK_UWP_WORKING_SET_INFORMATION
+// Working-set query; resolved from the OneCore import library.
+BOOL __stdcall QueryWorkingSet(
+    HANDLE hProcess,
+    void* pv,
+    DWORD cb
+    );
+#endif // WK_UWP_PSAPI_WORKING_SET_DEFINED
+
+// LoadLibrary (unsuffixed): the SDK macro mapping to LoadLibraryW lives in the
+// desktop partition; WebKit builds UNICODE so map it here. Third-party Windows
+// code such as mimalloc calls both spellings directly, including from C++.
+struct HINSTANCE__* __stdcall LoadLibraryW(
+    LPCWSTR lpLibFileName
+    );
+#define LoadLibrary LoadLibraryW
 // CreateFile (unsuffixed): the SDK macro mapping to CreateFileW lives in the
 // desktop partition; WebKit builds UNICODE so map it here.
 #define CreateFile CreateFileW

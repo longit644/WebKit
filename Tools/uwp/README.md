@@ -95,8 +95,11 @@ into a CX build.
 
 The smoke target verifies native ARM compilation, SDK includes, RC/link inputs
 and an imported OS symbol; it is not an engine execution or full WebCore rebuild.
-The existing Skia build directory is preserved. Dependency-port/vcpkg triplet
-migration and full engine clean rebuild remain later M10 build/integration work.
+The existing Skia build directory is preserved. Task 4.1 now also has a successful
+full `WebCore` build in `build-arm-uwp-fresh`, with SDK 19041 and eight jobs. It uses
+the installed dependencies; dependency-port/vcpkg triplet migration remains later
+M10 build/integration work. Configure/build and PCH recovery commands:
+[EngineUWP extraction evidence](../../openspec/changes/wkview-m10-uwp-cppcx-restructure/artifact/engine-uwp-extraction.md).
 
 Detailed native/CX commands and task 2.7 verification evidence:
 [M10 build-and-packaging.md](../../openspec/changes/wkview-m10-uwp-cppcx-restructure/artifact/build-and-packaging.md).
