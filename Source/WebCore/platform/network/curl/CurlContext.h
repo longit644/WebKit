@@ -21,7 +21,7 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #pragma once
@@ -62,7 +62,7 @@ protected:
     {
         curl_global_init(CURL_GLOBAL_ALL);
     }
-    
+
     virtual ~CurlGlobal()
     {
         curl_global_cleanup();
@@ -96,6 +96,7 @@ class CurlStreamScheduler;
 class CurlContext : public CurlGlobal {
     WTF_MAKE_NONCOPYABLE(CurlContext);
     friend NeverDestroyed<CurlContext>;
+
 public:
     WEBCORE_EXPORT static CurlContext& singleton();
 
@@ -194,7 +195,7 @@ public:
     CurlSList() { }
     ~CurlSList() { clear(); }
 
-    operator struct curl_slist** () { return &m_list; }
+    operator struct curl_slist **() { return &m_list; }
 
     const struct curl_slist* head() const { return m_list; }
     bool isEmpty() const { return !m_list; }
@@ -279,6 +280,10 @@ public:
     void disableServerTrustEvaluation();
     void setCACertPath(const char*);
     void setCACertBlob(void*, size_t);
+    // Overrides process trust and connection defaults for this handle: an
+    // explicit CA bundle file (null keeps process defaults), native-store
+    // augmentation, and connection reuse across transfers.
+    void setRequestSSLPolicy(const char* caCertPath, bool nativeCAEnabled, bool allowConnectionReuse);
     void setSslVerifyPeer(VerifyPeer);
     void setSslVerifyHost(VerifyHost);
     void setSslCipherList(const char*);
@@ -336,7 +341,7 @@ private:
     std::optional<SSL*> sslConnection() const;
 
     CURL* m_handle { nullptr };
-    char m_errorBuffer[CURL_ERROR_SIZE] { };
+    char m_errorBuffer[CURL_ERROR_SIZE] {};
 
     URL m_url;
     CurlSList m_localhostAlias;

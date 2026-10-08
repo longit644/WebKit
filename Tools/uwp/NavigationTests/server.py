@@ -6,6 +6,7 @@ import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http import HTTPStatus
 from pathlib import Path
+import ssl
 import struct
 import threading
 import time
@@ -212,15 +213,42 @@ def default_font():
     return Path(__file__).resolve().parents[2] / 'WebKitTestRunner/glib/fonts/DejaVuSans.ttf'
 
 
+def default_tls_directory():
+    """Return the directory holding the fixture TLS certificate and key."""
+    return Path(__file__).resolve().parent / 'tls'
+
+
 def main():
     """Parse bind/font options and run the fixture server until shutdown."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--host', default=DEFAULT_SERVER_HOST)
     parser.add_argument('--port', type=int, default=DEFAULT_SERVER_PORT)
     parser.add_argument('--font', type=Path, default=default_font())
+    parser.add_argument('--tls-port', type=int, default=None,
+                        help='Serve the same fixtures over HTTPS on this port')
+    parser.add_argument('--tls-cert', type=Path, default=None,
+                        help='Fixture server certificate (PEM), signed by tls-ca')
+    parser.add_argument('--tls-key', type=Path, default=None,
+                        help='Fixture server private key (PEM)')
+    parser.add_argument('--tls-ca', type=Path, default=None,
+                        help='Fixture certificate authority (PEM) for documentation only')
     args = parser.parse_args()
     if not args.font.is_file():
         parser.error('Fixture font does not exist: ' + str(args.font))
+    if args.tls_port is not None:
+        tls_directory = default_tls_directory()
+        cert = args.tls_cert or tls_directory / 'fixture-server.pem'
+        key = args.tls_key or tls_directory / 'fixture-server-key.pem'
+        if not cert.is_file():
+            parser.error('Fixture TLS certificate does not exist: ' + str(cert))
+        if not key.is_file():
+            parser.error('Fixture TLS key does not exist: ' + str(key))
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.load_cert_chain(str(cert), str(key))
+        tls_server = FixtureServer((args.host, args.tls_port), args.font)
+        tls_server.socket = context.wrap_socket(tls_server.socket, server_side=True)
+        threading.Thread(target=tls_server.serve_forever, daemon=True).start()
+        print(f'Fixture TLS listening on https://{args.host}:{args.tls_port}/index.html', flush=True)
     with FixtureServer((args.host, args.port), args.font) as server:
         print(f'Fixture listening on http://{args.host}:{server.server_port}/index.html', flush=True)
         server.serve_forever()

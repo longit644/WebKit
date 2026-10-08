@@ -5,6 +5,8 @@
 #include "ResourceResponse.h"
 #include <pal/SessionID.h>
 #include <wtf/HashMap.h>
+#include <wtf/MonotonicTime.h>
+#include <wtf/Seconds.h>
 
 namespace WebCore {
 
@@ -48,6 +50,12 @@ enum UWPResourceErrorCode {
     // Single resource grew past the 32 MB transfer budget.
     UWPResourceErrorByteBudgetExceeded = 11,
 
+    // Session transient undelivered bytes grew past the 16 MB buffer budget.
+    UWPResourceErrorTransientBufferExceeded = 13,
+
+    // Session request queue grew past its 128-request bound.
+    UWPResourceErrorQueueOverflow = 14,
+
     // Blocking load attempted; the adapter is async-only.
     UWPResourceErrorSynchronousUnsupported = 12
 };
@@ -60,12 +68,12 @@ NetworkStorageSession* storageSessionUWP(PAL::SessionID);
 // applies only to the recorded host while its page lives; it is never set
 // silently, never persists, and never applies to other hosts. Sessions are
 // ephemeral per page in this port, so erasing on page teardown bounds it.
-void addProceedException(PAL::SessionID, const String& host);
-
-// Removes all explicitly consented hosts when a page session ends.
+// Backed by CertificateExceptionStoreUWP: session/host/effective-port scoped,
+// single-use tokens, no reserved-URL consent (task 4.8).
 void removeProceedExceptions(PAL::SessionID);
 
-// Tests whether this request host has an exception in its own session.
+// Tests whether this request host and effective port carry an armed exception
+// in its own session; parsing the URL is enforcement, never consent.
 bool hasProceedException(PAL::SessionID, const URL&);
 
 using LoaderStrategyUWPLog = void(__stdcall*)(const char*, unsigned long);
@@ -134,6 +142,9 @@ public:
     // Reports completion through the finished callback.
     void isResourceLoadFinished(CachedResource&, CompletionHandler<void(bool)>&&) final;
 
+    // Running transfers for one session, for diagnostics and tests.
+    unsigned activeTransferCount(PAL::SessionID) const;
+
     // Superseded-load error for the cancelled code.
     ResourceError cancelledError(const ResourceRequest&) const final;
 
@@ -171,8 +182,40 @@ public:
     ResourceError pluginWillHandleLoadError(const ResourceResponse&) const final;
 
 private:
+    // Queued loader waiting for a concurrency slot, with its enqueue instant
+    // for deadline accounting. Deadline exclusion for queued time arrives
+    // through the transfer's own extension, since every queued loader already
+    // owns its transfer in m_loads. The loader is a non-owning pointer like
+    // every other strategy key: loader destruction always unregisters through
+    // remove().
+    struct QueuedLoad {
+        ResourceLoader* loader;
+        PAL::SessionID session;
+        MonotonicTime enqueueTime;
+    };
+
+    // Admits a fresh transfer to a concurrency slot or queues it FIFO;
+    // refuses with queue-overflow code 14 past the session queue bound.
+    void admitOrQueue(ResourceLoader&, PAL::SessionID);
+
+    // Starts one loader now when suspension, deferral and the concurrency
+    // bound all permit; returns whether it started.
+    bool startNow(ResourceLoader&);
+
+    // Starts queued loaders for a session while slots stay free.
+    void startQueuedLoads(PAL::SessionID);
+
+    // Queued loaders by session, for the queue bound.
+    unsigned queuedLoadCount(PAL::SessionID) const;
+
     // Active transfers by loader; erased on finish, cancel or teardown.
     HashMap<ResourceLoader*, Ref<ResourceLoadUWP>> m_loads;
+
+    // Loaders with a running transfer; queued loaders are absent here.
+    HashSet<ResourceLoader*> m_activeLoaders;
+
+    // FIFO loaders waiting for a concurrency slot.
+    Vector<QueuedLoad> m_queuedLoads;
 
     // Suspend nesting depth from suspend/resumePendingRequests.
     unsigned m_suspended { 0 };

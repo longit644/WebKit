@@ -9,7 +9,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS''
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
  * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
@@ -35,6 +35,7 @@
 #include <wtf/MonotonicTime.h>
 #include <wtf/Noncopyable.h>
 #include <wtf/TZoneMalloc.h>
+#include <wtf/text/CString.h>
 
 namespace WebCore {
 
@@ -47,6 +48,7 @@ class CurlRequest final : public ThreadSafeRefCounted<CurlRequest>, public CurlR
     WTF_MAKE_TZONE_ALLOCATED(CurlRequest);
     WTF_MAKE_NONCOPYABLE(CurlRequest);
     WTF_OVERRIDE_DELETE_FOR_CHECKED_PTR(CurlRequest);
+
 public:
     enum class CaptureNetworkLoadMetrics : uint8_t {
         Basic,
@@ -66,6 +68,17 @@ public:
     bool isServerTrustEvaluationDisabled() { return m_shouldDisableServerTrustEvaluation; }
     void disableServerTrustEvaluation() { m_shouldDisableServerTrustEvaluation = true; }
     void enableLocalhostAlias() { m_localhostAlias = CurlHandle::LocalhostAlias::Enable; }
+
+    // Stages per-request trust and connection policy applied at handle setup
+    // on the worker thread, after the process defaults: explicit CA bundle
+    // file (empty keeps defaults), native-store augmentation, reuse. Must be
+    // called before scheduling; the handle does not exist any earlier.
+    void setRequestSSLPolicyState(const String& caCertPath, bool nativeCAEnabled, bool allowConnectionReuse)
+    {
+        m_sslCACertPath = caCertPath.utf8();
+        m_sslNativeCAEnabled = nativeCAEnabled;
+        m_sslAllowConnectionReuse = allowConnectionReuse;
+    }
 
     WEBCORE_EXPORT void resume();
     WEBCORE_EXPORT void cancel();
@@ -116,7 +129,7 @@ private:
 
     int didReceiveDebugInfo(curl_infotype, std::span<const char>);
 
-    // For setup 
+    // For setup
     void appendAcceptLanguageHeader(HTTPHeaderMap&);
     void setupPOST();
     void setupPUT();
@@ -125,7 +138,7 @@ private:
     bool needToInvokeDidReceiveResponse() const { return m_didReceiveResponse && !m_didNotifyResponse; }
     bool needToInvokeDidCancelTransfer() const { return m_didNotifyResponse && !m_didReturnFromNotify && m_mustInvokeCancelTransfer; }
     void invokeDidReceiveResponseForFile(const URL&);
-    void invokeDidReceiveResponse(const CurlResponse&, Function<void()>&& completionHandler = { });
+    void invokeDidReceiveResponse(const CurlResponse&, Function<void()>&& completionHandler = {});
 
     NetworkLoadMetrics networkLoadMetrics();
     std::optional<long long> getContentLength();
@@ -136,8 +149,7 @@ private:
     static size_t didReceiveDataCallback(char*, size_t, size_t, void*);
     static int didReceiveDebugInfoCallback(CURL*, curl_infotype, char*, size_t, void*);
 
-
-    CurlRequestClient* m_client { };
+    CurlRequestClient* m_client {};
     Lock m_statusMutex;
     bool m_cancelled { false };
     bool m_completed { false };
@@ -148,6 +160,9 @@ private:
     unsigned long m_authType { CURLAUTH_ANY };
     bool m_shouldDisableServerTrustEvaluation { false };
     CurlHandle::LocalhostAlias m_localhostAlias { CurlHandle::LocalhostAlias::Disable };
+    CString m_sslCACertPath;
+    bool m_sslNativeCAEnabled { true };
+    bool m_sslAllowConnectionReuse { true };
 
     std::unique_ptr<CurlHandle> m_curlHandle;
     CurlFormDataStream m_formDataStream;

@@ -25,6 +25,7 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
     get = sub.add_parser("get")
     get.add_argument("path")
+    get.add_argument("--output", type=Path, help="Save the response bytes instead of printing the body")
     post = sub.add_parser("post")
     post.add_argument("path")
     install = sub.add_parser("install")
@@ -32,6 +33,8 @@ def main():
     launch = sub.add_parser("launch")
     launch.add_argument("app_id")
     launch.add_argument("package_full_name")
+    stop = sub.add_parser("stop", help="Terminate this package's running application")
+    stop.add_argument("package_full_name")
     args = parser.parse_args()
     jar = http.cookiejar.CookieJar()
     context = ssl._create_unverified_context() if args.insecure else ssl.create_default_context()
@@ -61,15 +64,26 @@ def main():
                 'Content-Type: application/octet-stream\r\n\r\n').encode() + args.package.read_bytes() + f"\r\n--{boundary}--\r\n".encode()
         headers["Content-Type"] = "multipart/form-data; boundary=" + boundary
         path = "/api/app/packagemanager/package?" + urllib.parse.urlencode({"package": args.package.name})
+    elif args.command == "stop":
+        package = base64.b64encode(args.package_full_name.encode()).decode()
+        path = "/api/taskmanager/app?" + urllib.parse.urlencode({"package": package})
     else:
         encode = lambda text: base64.b64encode(text.encode()).decode()
         path = "/api/taskmanager/app?" + urllib.parse.urlencode({"appid": encode(args.app_id), "package": encode(args.package_full_name)})
         data = b""
-    request = urllib.request.Request(base + path, data=data, headers=headers)
+    method = "DELETE" if args.command == "stop" else None
+    request = urllib.request.Request(base + path, data=data, headers=headers, method=method)
     try:
         with opener.open(request, timeout=PORTAL_DEPLOY_TIMEOUT) as response:
-            body = response.read().decode("utf-8", errors="replace")
+            raw_body = response.read()
             print(f"HTTP {response.status}")
+            if args.command == "get" and args.output:
+                if not args.output.parent.is_dir():
+                    raise SystemExit(f"Output parent directory does not exist: {args.output.parent}")
+                args.output.write_bytes(raw_body)
+                print(f"Saved {len(raw_body)} bytes to {args.output}")
+                return
+            body = raw_body.decode("utf-8", errors="replace")
             try:
                 print(json.dumps(json.loads(body), indent=2))
             except json.JSONDecodeError:

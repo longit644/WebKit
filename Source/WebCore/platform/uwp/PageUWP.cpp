@@ -1,7 +1,9 @@
 #include "config.h"
 #include "PageUWP.h"
 #include "BackForwardClient.h"
+#include "BackForwardClientUWP.h"
 #include "BackForwardController.h"
+#include "ChromeClientUWP.h"
 #include "ClipboardUWP.h"
 #include "ContainerNodeInlines.h"
 #include "CookieJar.h"
@@ -19,18 +21,23 @@
 #include "FrameDestructionObserverInlines.h"
 #include "FrameLoadRequest.h"
 #include "FrameLoader.h"
+#include "FrameLoaderClientUWP.h"
 #include "HTMLImageElement.h"
 #include "HandleUserInputEventResult.h"
 #include "HistoryController.h"
 #include "HistoryItem.h"
 #include "LoaderStrategyUWP.h"
 #include "MIMETypeRegistry.h"
+#include "MemoryCache.h"
 #include "NetworkStorageSession.h"
+#include "PageHostUWP.h"
 #include "RenderElement.h"
 #include "ResourceError.h"
+#include "ResourcePolicyUWP.h"
 #include "ResourceRequest.h"
 #include "ResourceResponse.h"
 #include "StorageSessionProvider.h"
+#include "StorageSessionProviderUWP.h"
 #include "StyleComputedStyle+GettersInlines.h"
 #include <wtf/NeverDestroyed.h>
 #include <wtf/text/MakeString.h>
@@ -53,6 +60,7 @@
 #include "PlatformMouseEvent.h"
 #include "Settings.h"
 #include "TextureMapperCompositorUWP.h"
+#include "TlsPolicyUWP.h"
 #include <algorithm>
 #include <atomic>
 #include <cmath>
@@ -65,1087 +73,31 @@
 
 using namespace WebCore;
 
-namespace WebCore {
-static HashMap<PAL::SessionID, NetworkStorageSession*>& storageSessionsUWP()
+// Session lifetime follows host teardown, not the last cached CookieJar.
+// Cancel transfers before destroying the provider's cookie database, and
+// evict only this page's ephemeral session so other controls stay intact.
+PageHostUWP::~PageHostUWP()
 {
-    static NeverDestroyed<HashMap<PAL::SessionID, NetworkStorageSession*>> sessions;
-    return sessions;
-}
-
-// Returns the page-owned cookie session for this ephemeral ID, or null.
-NetworkStorageSession* storageSessionUWP(PAL::SessionID sessionID)
-{
-    return storageSessionsUWP().get(sessionID);
-}
-
-// In-memory cookie session registered for one page lifetime; unregisters on teardown.
-class StorageSessionProviderUWP final : public StorageSessionProvider {
-public:
-    // Creates the session and registers it for the page lifetime.
-    explicit StorageSessionProviderUWP(PAL::SessionID sessionID)
-        : m_session(makeUnique<NetworkStorageSession>(sessionID))
-    {
-        storageSessionsUWP().add(sessionID, m_session.get());
+    probeLifetime.reset();
+    if (page)
+        page->forEachLocalFrame([](LocalFrame& frame) { frame.loader().stopAllLoaders(); });
+    if (compositor) {
+        compositor->makeCurrent();
+        compositor->setRootLayer(nullptr);
     }
-
-    // Unregisters the session so no stale cookies survive the page.
-    ~StorageSessionProviderUWP() final
-    {
-        storageSessionsUWP().remove(m_session->sessionID());
-    }
-
-    // Session handed to the cookie jar for this page.
-    NetworkStorageSession* storageSession() const final { return m_session.get(); }
-
-private:
-    // Owned session backing DOM and transport cookies.
-    std::unique_ptr<NetworkStorageSession> m_session;
-};
-
-}
-
-namespace {
-
-// In-memory session history: appending truncates the forward branch and the
-// list is capped, so Back/Forward/Reload work without persistent storage.
-class BackForwardClientUWP final : public BackForwardClient {
-public:
-    // Creates an empty history with no current item.
-    static Ref<BackForwardClient> create() { return adoptRef(*new BackForwardClientUWP); }
-
-private:
-    // Appends after the current item, truncating any forward branch first.
-    void addItem(Ref<HistoryItem>&& item) final
-    {
-        if (m_hasCurrent) {
-            while (m_entries.size() > m_current + 1)
-                m_entries.takeLast();
-        }
-
-        // Oldest entries fall off; history never grows without bound.
-        constexpr size_t kMaxHistoryEntries = 100;
-        if (m_entries.size() >= kMaxHistoryEntries) {
-            m_entries.removeAt(0);
-            if (m_hasCurrent && m_current > 0)
-                --m_current;
-        }
-        if (!m_hasCurrent) {
-            m_entries.append(WTF::move(item));
-            m_current = 0;
-        } else {
-            m_entries.insert(m_current + 1, WTF::move(item));
-            ++m_current;
-        }
-        m_hasCurrent = true;
-    }
-
-    // Replaces the child item of the matching frame entry.
-    void setChildItem(BackForwardFrameItemIdentifier frameItemID, Ref<HistoryItem>&& item) final
-    {
-        for (auto& entry : m_entries) {
-            if (entry->frameItemID() == frameItemID) {
-                entry->setChildItem(item.copyRef());
-                return;
-            }
-        }
-    }
-
-    // Moves the current pointer to the given entry; unknown items are ignored.
-    void goToItem(HistoryItem& item) final
-    {
-        for (size_t i = 0; i < m_entries.size(); ++i) {
-            if (m_entries[i].ptr() == &item) {
-                m_current = i;
-                m_hasCurrent = true;
-                return;
-            }
-        }
-    }
-
-    // Returns every entry for history traversal queries.
-    Vector<Ref<HistoryItem>> allItems(FrameIdentifier) final { return m_entries; }
-
-    // Returns the entry at a relative offset; null when out of range.
-    RefPtr<HistoryItem> itemAtIndex(int index, FrameIdentifier) final
-    {
-        if (!m_hasCurrent)
-            return nullptr;
-        if (index < -static_cast<int>(m_current) || index > static_cast<int>(forwardListCount()))
-            return nullptr;
-        return m_entries[index + m_current].copyRef();
-    }
-
-    // Entries behind the current one; zero before the first navigation.
-    unsigned backListCount() const final { return m_hasCurrent ? static_cast<unsigned>(m_current) : 0; }
-
-    // Entries ahead of the current one; zero at the newest navigation.
-    unsigned forwardListCount() const final { return m_hasCurrent ? static_cast<unsigned>(m_entries.size() - m_current - 1) : 0; }
-
-    // True when the item belongs to this history.
-    bool containsItem(const HistoryItem& item) const final
-    {
-        for (auto& entry : m_entries) {
-            if (entry.ptr() == &item)
-                return true;
-        }
-        return false;
-    }
-
-    // Clears every entry and resets the current pointer.
-    void close() final
-    {
-        m_entries.clear();
-        m_current = 0;
-        m_hasCurrent = false;
-    }
-
-    // Ordered entries, oldest first.
-    Vector<Ref<HistoryItem>> m_entries;
-
-    // Index of the current entry within the list above.
-    size_t m_current { 0 };
-
-    // False until the first navigation lands.
-    bool m_hasCurrent { false };
-};
-
-// Mutable engine-side page state behind the WK*PageUWP entry points; owned by
-// the creating thread and torn down with the page.
-struct PageHostUWP {
-    // Backing WebCore page; null after teardown.
-    RefPtr<Page> page;
-
-    // Creating engine thread id; every entry point revalidates against it.
-    DWORD owner { GetCurrentThreadId() };
-
-    // Last accepted control size in CSS pixels.
-    unsigned width, height;
-
-    // Diagnostic sink installed at creation; null means quiet.
-    WKPageLogUWP log;
-
-    // Set when layer, scroll or content changes need a repaint.
-    bool dirty { true };
-
-    // GPU compositor when enabled, otherwise null (software paint).
-    std::unique_ptr<TextureMapperCompositorUWP> compositor;
-
-    // Whether the compositor path currently presents frames.
-    bool compositorActive { false };
-
-    // Device scale the compositor was enabled with.
-    double compositorScale { 1 };
-
-    // Removes session exceptions, detaches the compositor and releases the page.
-    ~PageHostUWP()
-    {
-        // Session-scoped certificate exceptions die with the page.
-        if (page)
-            removeProceedExceptions(page->sessionID());
-        if (compositor) {
-            compositor->makeCurrent();
-            compositor->setRootLayer(nullptr);
-        }
+    if (page) {
+        auto sessionID = page->sessionID();
+        removeProceedExceptions(sessionID);
         page = nullptr;
-        compositor.reset();
+        MemoryCache::singleton().evictResources(sessionID);
+        ResourcePolicyUWP::resetSessionLimits(sessionID);
+        TlsPolicyUWP::eraseSession(sessionID);
     }
-
-    // True on the creating engine thread; every entry point revalidates.
-    bool validThread() const { return owner == GetCurrentThreadId(); }
-
-    // Main frame of the backing page; valid while page is set.
-    LocalFrame& frame() const { return *page->localMainFrame(); }
-
-    // Bumped per provisional load so deferred marker probes belonging to a
-    // replaced document are dropped instead of reporting into the new page.
-    unsigned loadGeneration { 0 };
-
-    // Committed document title reported by the loader client. Hosts read this
-    // instead of scraping the title out of diagnostic log lines.
-    String documentTitle;
-
-    // UTF-8 copy of documentTitle owned by the page. Held separately so the
-    // borrowed pointer handed across the ABI stays valid after the exporting
-    // call returns; it is refreshed whenever documentTitle changes.
-    CString documentTitleUtf8;
-
-    // HTTP status of the committed main-document response, valid only while
-    // hasDocumentHttpStatus is set. An error status with a displayable body is
-    // a completed document, not a transport failure.
-    unsigned documentHttpStatus { 0 };
-
-    // Whether a main-document response supplied an HTTP status yet.
-    bool hasDocumentHttpStatus { false };
-
-    // How the committed URL last changed without a new document load; a
-    // WKDocumentChangeKindUWP value. Reset at each provisional load.
-    WKDocumentChangeKindUWP documentChange { WKDocumentChangeKindNoneUWP };
-
-    // Server redirect hops reported for the active navigation. Reset at each
-    // provisional load so counts never span navigations.
-    unsigned documentRedirectHops { 0 };
-
-    // Deferred diagnostics must also expire when the owning page is destroyed.
-    std::shared_ptr<unsigned> probeLifetime { std::make_shared<unsigned>(0) };
-
-    // Whether the temporary fixture suite has started for this page.
-    bool fixtureSuiteStarted { false };
-
-    // Whether the suite's history-back step succeeded.
-    bool fixtureBackSucceeded { false };
-
-    // Fixture server origin the suite navigates relative to.
-    String fixtureBase;
-
-    // Load generation captured before the suite's reload step.
-    unsigned fixtureReloadGeneration { 0 };
-
-    // Scroll offset captured before the suite's scroll-restoration step.
-    int fixtureScrollBefore { 0 };
-
-    // Failing main-frame URL backing the interstitial's proceed link. Cleared
-    // on every successful commit, so a stale failure can never arm a bypass.
-    String lastFailedNavUrl;
-
-    // Optional host veto consulted on every navigation policy check, after
-    // the proceed interception. Null means allow per the normal rules.
-    WKNavigationPolicyCallback policyHandler { nullptr };
-
-    // Opaque context passed through to the policy handler.
-    void* policyContext { nullptr };
-};
-
-// The fixture markers must not be read at finishedLoading(). A blocking
-// <script src> in <head> (and the stylesheet beside it) stall the HTML parser
-// before <body> is constructed, so document->body() is still null when the
-// main document's network transfer completes and every contains() probe
-// reports a false zero. The DOM load event is the first point at which the
-// body exists and is laid out.
-// Returns body text when parsing/layout has created a document body.
-String fixtureBodyText(LocalFrame& frame)
-{
-    auto* document = frame.document();
-    if (!document || !document->body())
-        return String();
-    return document->body()->innerText();
+    if (storageProvider)
+        storageProvider->close();
+    storageProvider = nullptr;
+    compositor.reset();
 }
-
-// Logs DOM, network, cookie and font assertions for the current fixture phase.
-void probeFixtureMarkers(PageHostUWP& owner, const char* phase)
-{
-    if (!owner.log || !owner.page)
-        return;
-    String text = fixtureBodyText(owner.frame());
-    auto stage = makeString("fixture-probe-phase: "_s, String::fromUTF8(phase)).utf8();
-    owner.log(stage.data(), text.length());
-    owner.log("fixture-css-heading", text.contains("External CSS makes this green"_s) ? WKPageLogTrueUWP : WKPageLogFalseUWP);
-    owner.log("fixture-script-order", text.contains("PASS external script order: first,second"_s) ? WKPageLogTrueUWP : WKPageLogFalseUWP);
-    owner.log("fixture-fetch", text.contains("PASS fetch:"_s) ? WKPageLogTrueUWP : WKPageLogFalseUWP);
-    owner.log("fixture-xhr", text.contains("PASS XHR:"_s) ? WKPageLogTrueUWP : WKPageLogFalseUWP);
-    owner.log("fixture-cookie-pass", text.contains("PASS cookie"_s) ? WKPageLogTrueUWP : WKPageLogFalseUWP);
-    owner.log("fixture-cookie-fail", text.contains("FAIL cookie"_s) ? WKPageLogTrueUWP : WKPageLogFalseUWP);
-    auto* document = owner.frame().document();
-    if (!document)
-        return;
-    auto selected = document->querySelector(".fixture-font"_s);
-    if (selected.hasException())
-        return;
-    auto element = selected.releaseReturnValue();
-    if (element && element->renderer()) {
-        auto& font = element->renderer()->style().fontCascade().primaryFont();
-        owner.log("fixture-web-font-custom", font.platformData().customPlatformData() ? WKPageLogTrueUWP : WKPageLogFalseUWP);
-        owner.log("fixture-web-font-interstitial", font.isInterstitial() ? WKPageLogTrueUWP : WKPageLogFalseUWP);
-        owner.log("fixture-web-font-glyph", font.glyphForCharacter('B') ? WKPageLogTrueUWP : WKPageLogFalseUWP);
-    }
-}
-
-// Initial settle-probe phase before the delayed follow-up checks.
-constexpr unsigned kInitialSettleProbeStep = 0;
-constexpr unsigned kSettleProbeStepIncrement = 1;
-constexpr unsigned kFixtureSettleProbeDelayCount = 3;
-constexpr Seconds kFixtureSettleProbeDelays[] = { 300_ms, 1200_ms, 3000_ms };
-static_assert(sizeof(kFixtureSettleProbeDelays) / sizeof(*kFixtureSettleProbeDelays) == kFixtureSettleProbeDelayCount);
-
-// Re-probes fetch/XHR after load because their promise callbacks can settle later.
-void scheduleSettleProbe(PageHostUWP* owner, unsigned generation, unsigned step)
-{
-    if (step >= kFixtureSettleProbeDelayCount)
-        return;
-    auto runLoop = &WTF::RunLoop::currentSingleton();
-    std::weak_ptr<unsigned> lifetime = owner->probeLifetime;
-    runLoop->dispatchAfter(kFixtureSettleProbeDelays[step], [owner, lifetime, generation, step] {
-        if (!lifetime.lock())
-            return;
-        if (owner->loadGeneration != generation || !owner->page)
-            return;
-        probeFixtureMarkers(*owner, "settle");
-        scheduleSettleProbe(owner, generation, step + kSettleProbeStepIncrement);
-    });
-}
-
-// Temporary device-acceptance phases, explicitly opted into by the fixture
-// URL's uwp-suite=1 query. Numbers are stable log protocol: the device log
-// names completed phases, so never renumber. Unscoped for switch labels.
-enum FixtureSuitePhase {
-    // Probes index.html markers, then follows the redirect fixture.
-    FixtureSuitePhaseIndexProbes = 0,
-
-    // Verifies the redirect landed without a query, then opens second.html.
-    FixtureSuitePhaseRedirect = 1,
-
-    // Goes back in engine history, or falls back to the missing page.
-    FixtureSuitePhaseHistoryBack = 2,
-
-    // Verifies the back landing, then goes forward again.
-    FixtureSuitePhaseHistoryForward = 3,
-
-    // Verifies the forward landing, then reloads the document.
-    FixtureSuitePhaseHistoryReload = 4,
-
-    // Back-failure fallback; shares the missing-page checks below.
-    FixtureSuitePhaseHistoryBackFallback = 5,
-
-    // Verifies latin-1 decoding, then opens the CSP fixture.
-    FixtureSuitePhaseLatin1 = 6,
-
-    // Verifies blocked script and image, then opens cross-origin.html.
-    FixtureSuitePhaseContentSecurityPolicy = 7,
-
-    // Verifies allowed and blocked CORS, then opens slow.html.
-    FixtureSuitePhaseCrossOrigin = 8,
-
-    // Arms a replacement navigation while slow.html is still loading.
-    FixtureSuitePhaseReplacementPending = 9,
-
-    // Waits for the replacement document to settle.
-    FixtureSuitePhaseReplacementStabilize = 10,
-
-    // Verifies the replacement won, then reloads slow.html for the stop test.
-    FixtureSuitePhaseReplacementStable = 11,
-
-    // Stops slow.html mid-load.
-    FixtureSuitePhaseStopPending = 12,
-
-    // Verifies the stopped document stayed put, then returns to index.
-    FixtureSuitePhaseStopStable = 13,
-
-    // Verifies the reloaded document, then navigates to a same-page fragment.
-    FixtureSuitePhaseReloadDocument = 14,
-
-    // Verifies same-document fragment nav scrolled, then goes back.
-    FixtureSuitePhaseSameFragment = 15,
-
-    // Verifies the back landing, then opens the missing page.
-    FixtureSuitePhaseSameBackDocument = 16,
-
-    // Verifies the 404 document and truncated forward history, then latin1.
-    FixtureSuitePhaseHttpError = 17,
-
-    // Records the scroll offset, then opens second.html.
-    FixtureSuitePhaseScrollBefore = 18,
-
-    // Goes back and checks scroll restoration on return.
-    FixtureSuitePhaseScrollBack = 19,
-
-    // Verifies the restored offset, then opens pushstate.html.
-    FixtureSuitePhaseScrollRestored = 20,
-
-    // Verifies pushState added an entry, then goes back.
-    FixtureSuitePhasePushState = 21,
-
-    // Verifies back dropped the pushed query, then goes forward.
-    FixtureSuitePhasePushBack = 22,
-
-    // Verifies forward restored the pushed query, then returns to index.
-    FixtureSuitePhasePushForward = 23,
-
-    // Returns to index before the replaceState sequence.
-    FixtureSuitePhaseReplaceSetup = 24,
-
-    // Verifies replaceState mutated without pushing, then goes back.
-    FixtureSuitePhaseReplaceState = 25,
-
-    // Verifies back skipped the replaced query, then goes forward.
-    FixtureSuitePhaseReplaceBack = 26,
-
-    // Verifies forward restored the replaced query, then returns to index.
-    FixtureSuitePhaseReplaceForward = 27,
-
-    // Verifies the final landing and reports suite completion.
-    FixtureSuitePhaseDone = 28
-};
-
-// Retry state and run-loop delays used by the temporary fixture runner.
-constexpr unsigned kInitialFixtureRetry = 0;
-constexpr unsigned kFixtureRetryIncrement = 1;
-constexpr Seconds kInitialFixtureRetryDelay = 250_ms;
-constexpr Seconds kFixtureReloadProbeDelay = 1500_ms;
-constexpr Seconds kFixtureStablePageDelay = 3500_ms;
-constexpr int kFixtureScrollProbeY = 300;
-
-// Temporary device acceptance runner, explicitly opted into by the fixture
-// URL's uwp-suite=1 query. Uses the real page/loader; never injects downloaded
-// HTML or substitutes a shell URL history for engine history.
-void scheduleFixtureSuite(PageHostUWP* owner, FixtureSuitePhase phase, unsigned retry = kInitialFixtureRetry, Seconds delay = kInitialFixtureRetryDelay)
-{
-    std::weak_ptr<unsigned> lifetime = owner->probeLifetime;
-    WTF::RunLoop::currentSingleton().dispatchAfter(delay, [owner, lifetime, phase, retry] {
-        if (!lifetime.lock() || !owner->page || !owner->log)
-            return;
-        auto* document = owner->frame().document();
-        auto text = fixtureBodyText(owner->frame());
-        auto at = [&](ASCIILiteral path) {
-            return document && document->url().path() == path
-                && document->readyState() == Document::ReadyState::Complete;
-        };
-        auto navigate = [&](const String& path, FixtureSuitePhase next) {
-            ResourceRequest request;
-            request.setURL(URL { makeString(owner->fixtureBase, path) });
-            owner->frame().loader().load(FrameLoadRequest(owner->frame(), WTF::move(request)));
-            scheduleFixtureSuite(owner, next);
-        };
-        auto wait = [&] {
-            // Retries ride the run loop until the document settles; then the suite fails.
-            constexpr unsigned kFixtureMaxRetries = 60;
-            if (retry < kFixtureMaxRetries)
-                scheduleFixtureSuite(owner, phase, retry + kFixtureRetryIncrement);
-            else {
-                owner->log("fixture-suite-timeout", static_cast<unsigned long>(phase));
-                owner->log("fixture-suite-completed", WKPageLogFalseUWP);
-            }
-        };
-        switch (phase) {
-        case FixtureSuitePhaseIndexProbes:
-            if (!at("/index.html"_s) || !text.contains("PASS cookie"_s)) {
-                wait();
-                return;
-            }
-            probeFixtureMarkers(*owner, "suite");
-            navigate("redirect"_s, FixtureSuitePhaseRedirect);
-            return;
-        case FixtureSuitePhaseRedirect:
-            if (!at("/index.html"_s) || !document->url().query().isEmpty()) {
-                wait();
-                return;
-            }
-            owner->log("fixture-suite-redirect", text.contains("External CSS makes this green"_s));
-            navigate("second.html"_s, FixtureSuitePhaseHistoryBack);
-            return;
-        case FixtureSuitePhaseHistoryBack:
-            if (!at("/second.html"_s)) {
-                wait();
-                return;
-            }
-            owner->log("fixture-suite-history-back-count", owner->page->backForward().backCount());
-            owner->fixtureBackSucceeded = owner->page->backForward().goBack();
-            owner->log("fixture-suite-history-back", owner->fixtureBackSucceeded);
-            if (owner->fixtureBackSucceeded)
-                scheduleFixtureSuite(owner, FixtureSuitePhaseHistoryForward);
-            else
-                navigate("missing.html"_s, FixtureSuitePhaseHistoryBackFallback);
-            return;
-        case FixtureSuitePhaseHistoryForward:
-            if (!at("/index.html"_s)) {
-                wait();
-                return;
-            }
-            owner->log("fixture-suite-history-back-document", WKPageLogTrueUWP);
-            owner->log("fixture-suite-history-forward", owner->page->backForward().goForward());
-            scheduleFixtureSuite(owner, FixtureSuitePhaseHistoryReload);
-            return;
-        case FixtureSuitePhaseHistoryReload:
-            if (!at("/second.html"_s)) {
-                wait();
-                return;
-            }
-            owner->log("fixture-suite-history-forward-document", WKPageLogTrueUWP);
-            owner->fixtureReloadGeneration = owner->loadGeneration;
-            owner->frame().loader().reload();
-            owner->log("fixture-suite-history-reload-requested", WKPageLogTrueUWP);
-            scheduleFixtureSuite(owner, FixtureSuitePhaseReloadDocument, kInitialFixtureRetry, kFixtureReloadProbeDelay);
-            return;
-        case FixtureSuitePhaseReloadDocument:
-            if (!at("/second.html"_s) || owner->loadGeneration == owner->fixtureReloadGeneration) {
-                wait();
-                return;
-            }
-            owner->log("fixture-suite-history-reload-document", text.contains("Second page"_s));
-            navigate("index.html#bottom"_s, FixtureSuitePhaseSameFragment);
-            return;
-        case FixtureSuitePhaseSameFragment: {
-            bool sameDocument = document && document->url().path() == "/index.html"_s
-                && document->url().string().contains("#bottom"_s)
-                && document->readyState() == Document::ReadyState::Complete;
-            if (!sameDocument) {
-                wait();
-                return;
-            }
-            int scrollY = owner->frame().view()->scrollPosition().y();
-            owner->log("fixture-suite-same-fragment", WKPageLogTrueUWP);
-            owner->log("fixture-suite-same-scrolled", scrollY > 0);
-            bool back = owner->page->backForward().goBack();
-            owner->log("fixture-suite-same-back", back);
-            if (back)
-                scheduleFixtureSuite(owner, FixtureSuitePhaseSameBackDocument);
-            else
-                navigate("missing.html"_s, FixtureSuitePhaseHttpError);
-            return;
-        }
-        case FixtureSuitePhaseSameBackDocument:
-            if (!at("/second.html"_s)) {
-                wait();
-                return;
-            }
-            owner->log("fixture-suite-same-back-document", text.contains("Second page"_s));
-            navigate("missing.html"_s, FixtureSuitePhaseHttpError);
-            return;
-        // The history-back fallback lands here too; both expect the missing page.
-        case FixtureSuitePhaseHistoryBackFallback:
-        case FixtureSuitePhaseHttpError:
-            if (!at("/missing.html"_s)) {
-                wait();
-                return;
-            }
-            owner->log("fixture-suite-http-error-document", text.contains("404 fixture document"_s));
-            owner->log("fixture-suite-branch-forward-count", owner->page->backForward().forwardCount());
-            owner->log("fixture-suite-branch-truncated", !owner->page->backForward().forwardCount());
-            navigate("latin1.html"_s, FixtureSuitePhaseLatin1);
-            return;
-        case FixtureSuitePhaseLatin1:
-            if (!at("/latin1.html"_s)) {
-                wait();
-                return;
-            }
-            owner->log("fixture-suite-latin1", text.contains(String::fromUTF8("caf\xc3\xa9")));
-            navigate("policy.html"_s, FixtureSuitePhaseContentSecurityPolicy);
-            return;
-        case FixtureSuitePhaseContentSecurityPolicy: {
-            if (!at("/policy.html"_s)) {
-                wait();
-                return;
-            }
-            owner->log("fixture-suite-csp-script", text.contains("PASS script blocked"_s));
-            auto image = document->querySelector("img"_s);
-            bool imageBlocked = false;
-            if (!image.hasException()) {
-                auto element = image.releaseReturnValue();
-                auto* img = dynamicDowncast<HTMLImageElement>(element);
-                imageBlocked = img && !img->naturalWidth();
-            }
-            owner->log("fixture-suite-csp-image", imageBlocked);
-            URL other { owner->fixtureBase };
-            // Second fixture server: cross-origin means a different port here.
-            constexpr uint16_t kFixtureCrossOriginPort = 8003;
-            other.setPort(kFixtureCrossOriginPort);
-            navigate(makeString("cross-origin.html?origin="_s, other.protocolHostAndPort()), FixtureSuitePhaseCrossOrigin);
-            return;
-        }
-        case FixtureSuitePhaseCrossOrigin:
-            if (!at("/cross-origin.html"_s) || text.contains("pending"_s)) {
-                wait();
-                return;
-            }
-            owner->log("fixture-suite-cors-allowed", text.contains("PASS allowed"_s));
-            owner->log("fixture-suite-cors-blocked", text.contains("PASS blocked"_s) && !text.contains("FAIL exposed"_s));
-            navigate("slow.html"_s, FixtureSuitePhaseReplacementPending);
-            return;
-        case FixtureSuitePhaseReplacementPending:
-            if (!document || document->url().path() != "/slow.html"_s || !text.contains("Input should stay responsive"_s)) {
-                wait();
-                return;
-            }
-            owner->log("fixture-suite-replacement-pending", owner->frame().loader().activeDocumentLoader()->isLoading());
-            navigate("second.html"_s, FixtureSuitePhaseReplacementStabilize);
-            return;
-        case FixtureSuitePhaseReplacementStabilize:
-            if (!at("/second.html"_s)) {
-                wait();
-                return;
-            }
-            scheduleFixtureSuite(owner, FixtureSuitePhaseReplacementStable, kInitialFixtureRetry, kFixtureStablePageDelay);
-            return;
-        case FixtureSuitePhaseReplacementStable:
-            owner->log("fixture-suite-replacement-stable", at("/second.html"_s) && text.contains("Second page"_s));
-            navigate("slow.html"_s, FixtureSuitePhaseStopPending);
-            return;
-        case FixtureSuitePhaseStopPending:
-            if (!document || document->url().path() != "/slow.html"_s || !text.contains("Input should stay responsive"_s)) {
-                wait();
-                return;
-            }
-            owner->log("fixture-suite-stop-pending", owner->frame().loader().activeDocumentLoader()->isLoading());
-            owner->frame().loader().stopAllLoaders();
-            scheduleFixtureSuite(owner, FixtureSuitePhaseStopStable, kInitialFixtureRetry, kFixtureStablePageDelay);
-            return;
-        case FixtureSuitePhaseStopStable:
-            owner->log("fixture-suite-stop-stable", document && document->url().path() == "/slow.html"_s && !owner->frame().loader().activeDocumentLoader()->isLoading());
-            navigate("index.html"_s, FixtureSuitePhaseScrollBefore);
-            return;
-        case FixtureSuitePhaseScrollBefore:
-            if (!at("/index.html"_s)) {
-                wait();
-                return;
-            }
-
-            // Scroll depth the restoration check below must recover.
-            owner->frame().view()->setScrollPosition({ 0, kFixtureScrollProbeY });
-            owner->fixtureScrollBefore = owner->frame().view()->scrollPosition().y();
-            owner->log("fixture-suite-scroll-before", static_cast<unsigned long>(owner->fixtureScrollBefore));
-            navigate("second.html"_s, FixtureSuitePhaseScrollBack);
-            return;
-        case FixtureSuitePhaseScrollBack:
-            if (!at("/second.html"_s)) {
-                wait();
-                return;
-            }
-            owner->log("fixture-suite-scroll-back", owner->page->backForward().goBack());
-            scheduleFixtureSuite(owner, FixtureSuitePhaseScrollRestored);
-            return;
-        case FixtureSuitePhaseScrollRestored: {
-            if (!at("/index.html"_s)) {
-                wait();
-                return;
-            }
-            int scrollAfter = owner->frame().view()->scrollPosition().y();
-            owner->log("fixture-suite-scroll-after", static_cast<unsigned long>(scrollAfter));
-            owner->log("fixture-suite-scroll-restored", scrollAfter == owner->fixtureScrollBefore && scrollAfter > 0);
-            navigate("pushstate.html"_s, FixtureSuitePhasePushState);
-            return;
-        }
-        case FixtureSuitePhasePushState: {
-            bool pushed = document && document->url().path() == "/pushstate.html"_s
-                && document->url().query() == "pushed=1"_s
-                && text.contains("PASS pushed"_s);
-            if (!pushed) {
-                wait();
-                return;
-            }
-            owner->log("fixture-suite-pushstate-url", WKPageLogTrueUWP);
-            bool back = owner->page->backForward().goBack();
-            owner->log("fixture-suite-pushstate-back", back);
-            if (back)
-                scheduleFixtureSuite(owner, FixtureSuitePhasePushBack);
-            else
-                navigate("index.html"_s, FixtureSuitePhaseReplaceSetup);
-            return;
-        }
-        case FixtureSuitePhasePushBack: {
-            bool unpushed = document && document->url().path() == "/pushstate.html"_s
-                && document->url().query().isEmpty()
-                && document->readyState() == Document::ReadyState::Complete;
-            if (!unpushed) {
-                wait();
-                return;
-            }
-            owner->log("fixture-suite-pushstate-back-document", WKPageLogTrueUWP);
-            bool forward = owner->page->backForward().goForward();
-            owner->log("fixture-suite-pushstate-forward", forward);
-            if (forward)
-                scheduleFixtureSuite(owner, FixtureSuitePhasePushForward);
-            else
-                navigate("index.html"_s, FixtureSuitePhaseReplaceSetup);
-            return;
-        }
-        case FixtureSuitePhasePushForward: {
-            bool repushed = document && document->url().path() == "/pushstate.html"_s
-                && document->url().query() == "pushed=1"_s
-                && document->readyState() == Document::ReadyState::Complete;
-            if (!repushed) {
-                wait();
-                return;
-            }
-            owner->log("fixture-suite-pushstate-forward-document", WKPageLogTrueUWP);
-            navigate("index.html"_s, FixtureSuitePhaseReplaceSetup);
-            return;
-        }
-        case FixtureSuitePhaseReplaceSetup:
-            if (!at("/index.html"_s)) {
-                wait();
-                return;
-            }
-            navigate("replacestate.html"_s, FixtureSuitePhaseReplaceState);
-            return;
-        case FixtureSuitePhaseReplaceState: {
-            bool replaced = document && document->url().path() == "/replacestate.html"_s
-                && document->url().query() == "v=2"_s
-                && text.contains("PASS replaced"_s);
-            if (!replaced) {
-                wait();
-                return;
-            }
-            owner->log("fixture-suite-replacestate-url", WKPageLogTrueUWP);
-            // pushState + replaceState must net exactly one new entry: Back
-            // must land on index, not on an intermediate ?v=1 entry.
-            bool back = owner->page->backForward().goBack();
-            owner->log("fixture-suite-replacestate-back", back);
-            if (back)
-                scheduleFixtureSuite(owner, FixtureSuitePhaseReplaceBack);
-            else
-                scheduleFixtureSuite(owner, FixtureSuitePhaseDone);
-            return;
-        }
-        case FixtureSuitePhaseReplaceBack: {
-            // pushState + replaceState net one entry on top of the page-load
-            // entry, so Back must land on replacestate.html with an empty
-            // query. Landing on ?v=1 instead would prove replaceState pushed.
-            bool unreplaced = document && document->url().path() == "/replacestate.html"_s
-                && document->url().query().isEmpty()
-                && document->readyState() == Document::ReadyState::Complete;
-            if (!unreplaced) {
-                wait();
-                return;
-            }
-            owner->log("fixture-suite-replacestate-back-noreplace", WKPageLogTrueUWP);
-            owner->log("fixture-suite-replacestate-forward", owner->page->backForward().goForward());
-            scheduleFixtureSuite(owner, FixtureSuitePhaseReplaceForward);
-            return;
-        }
-        case FixtureSuitePhaseReplaceForward: {
-            bool rereplaced = document && document->url().path() == "/replacestate.html"_s
-                && document->url().query() == "v=2"_s
-                && document->readyState() == Document::ReadyState::Complete;
-            if (!rereplaced) {
-                wait();
-                return;
-            }
-            owner->log("fixture-suite-replacestate-forward-document", WKPageLogTrueUWP);
-            navigate("index.html"_s, FixtureSuitePhaseDone);
-            return;
-        }
-        case FixtureSuitePhaseDone:
-            if (!at("/index.html"_s)) {
-                wait();
-                return;
-            }
-            owner->log("fixture-suite-completed", WKPageLogTrueUWP);
-            return;
-        }
-    });
-}
-
-// Chrome client forwarding invalidation, scroll and layer events to the host;
-// the wrapper owns the frame loop, so nothing schedules work here.
-class PageChromeUWP final : public EmptyChromeClient {
-    WTF_MAKE_TZONE_ALLOCATED(PageChromeUWP);
-
-public:
-    // Binds the chrome client to its owning host.
-    explicit PageChromeUWP(PageHostUWP& owner)
-        : m_owner(owner)
-    {
-    }
-
-private:
-    // Marks the view dirty; the wrapper repaints on the next tick.
-    void invalidateRootView(const IntRect&) final { m_owner.dirty = true; }
-
-    // Slow scroll falls back to a full invalidation (see scroll below).
-    void invalidateContentsForSlowScroll(const IntRect& rect) final { invalidateContentsAndRootView(rect); }
-
-    // Repaints the whole scrolled area; the host keeps no blittable backing store.
-    void scroll(const IntSize&, const IntRect& rect, const IntRect& clip) final
-    {
-        // The TextureMapper host doesn't blit its non-composited backing store.
-        // Repaint the complete scrolled area rather than only the exposed strip.
-        auto dirtyRect = rect;
-        dirtyRect.intersect(clip);
-        invalidateContentsAndRootView(dirtyRect);
-    }
-
-    // Marks dirty and forwards the rect to the compositor when active.
-    void invalidateContentsAndRootView(const IntRect& rect) final
-    {
-        m_owner.dirty = true;
-        if (m_owner.compositorActive)
-            m_owner.compositor->invalidate(rect);
-    }
-
-    // Installs the layer tree in the compositor and marks dirty.
-    void attachRootGraphicsLayer(LocalFrame&, GraphicsLayer* layer) final
-    {
-        if (m_owner.compositor)
-            m_owner.compositor->setRootLayer(layer);
-        m_owner.dirty = true;
-    }
-
-    // Marks dirty; the wrapper owns the frame loop, so nothing schedules here.
-    void triggerRenderingUpdate() final { m_owner.dirty = true; }
-
-    // Marks dirty and claims the update; the wrapper pumps frames on Rendering.
-    bool scheduleRenderingUpdate() final
-    {
-        m_owner.dirty = true;
-        return true;
-    }
-
-    // Owning host holding the page and compositor.
-    PageHostUWP& m_owner;
-};
-WTF_MAKE_TZONE_ALLOCATED_IMPL(PageChromeUWP);
-
-// Frame loader client owning policy, navigation events, history delegation
-// and the temporary fixture suite; all diagnostics funnel through report().
-class PageFrameLoaderUWP final : public EmptyFrameLoaderClient {
-public:
-    // Binds the loader client to its frame and owning host.
-    PageFrameLoaderUWP(FrameLoader& loader, PageHostUWP& owner)
-        : EmptyFrameLoaderClient(loader)
-        , m_owner(owner)
-    {
-    }
-
-private:
-    // Always hosted; enables WebView-specific loader paths.
-    bool hasWebView() const final { return true; }
-
-    // Only http(s), data: and about: URLs load on this port.
-    bool canHandleRequest(const ResourceRequest& request) const final { return request.url().protocolIsInHTTPFamily() || request.url().protocolIsData() || request.url().protocolIsAbout(); }
-
-    // Defers to the shared MIME registry.
-    bool canShowMIMEType(const String& type) const final { return MIMETypeRegistry::canShowMIMEType(type); }
-
-    // Phone-shaped UA string identifying this port.
-    String userAgent(const URL&) const final { return "Mozilla/5.0 (Windows Phone 10.0; ARM) AppleWebKit/605.1.15 WebKitWebView/1.0"_s; }
-
-    // Intercepts the proceed link, consults the host veto, then allows handled schemes.
-    void dispatchDecidePolicyForNavigationAction(const NavigationAction&, const ResourceRequest& request, const ResourceResponse&, FormState*, const String&, std::optional<NavigationIdentifier>, std::optional<HitTestResult>&&, bool, NavigationUpgradeToHTTPSBehavior, SandboxFlags, PolicyDecisionMode, FramePolicyFunction&& completion) final
-    {
-        if (m_owner.log) {
-            auto stage = makeString("navigation-policy: "_s, request.url().string()).utf8();
-            m_owner.log(stage.data(), canHandleRequest(request));
-        }
-
-        // Application-layer consented bypass: the warning page's proceed link.
-        // Arms a host exception for the recorded failure only, then re-issues
-        // the original navigation; the link itself never loads. Anything
-        // unexpected fails closed.
-        if (request.url().protocolIs("minibrowser"_s)) {
-            URL target(m_owner.lastFailedNavUrl);
-            if (!m_owner.page || !target.protocolIs("https"_s)) {
-                completion(PolicyAction::Ignore);
-                return;
-            }
-            auto& page = *m_owner.page;
-            addProceedException(page.sessionID(), target.host().toString());
-            if (m_owner.log) {
-                auto stage = makeString("history-proceed-exception: "_s, target.host().toString()).utf8();
-                m_owner.log(stage.data(), WKPageLogTrueUWP);
-            }
-            ResourceRequest renewed;
-            renewed.setURL(WTF::move(target));
-            // Consented re-issue gets a full load window, not the remaining slice.
-            constexpr double kProceedTimeoutSeconds = 60;
-            renewed.setTimeoutInterval(kProceedTimeoutSeconds);
-            m_owner.frame().loader().load(FrameLoadRequest(m_owner.frame(), WTF::move(renewed)));
-            completion(PolicyAction::Ignore);
-            return;
-        }
-
-        // Optional host veto (component NavigationStarting). Runs synchronously
-        // here so refusal lands before any transfer. Null allows normally.
-        if (m_owner.policyHandler) {
-            auto url = request.url().string().utf8();
-            if (!m_owner.policyHandler(m_owner.policyContext, url.data())) {
-                completion(PolicyAction::Ignore);
-                return;
-            }
-        }
-        completion(canHandleRequest(request) ? PolicyAction::Use : PolicyAction::Ignore);
-    }
-
-    // New windows are never opened on this port.
-    void dispatchDecidePolicyForNewWindowAction(const NavigationAction&, const ResourceRequest&, FormState*, const String&, std::optional<HitTestResult>&&, FramePolicyFunction&& completion) final
-    {
-        completion(PolicyAction::Ignore);
-    }
-
-    // Attachments never display inline; anything viewable loads.
-    void dispatchDecidePolicyForResponse(const ResourceResponse& response, const ResourceRequest&, const String&, FramePolicyFunction&& completion) final
-    {
-        completion(!response.isAttachment() && canShowMIMEType(response.mimeType()) ? PolicyAction::Use : PolicyAction::Ignore);
-    }
-
-    // Counts the provisional load so stale marker probes drop themselves.
-    void dispatchDidStartProvisionalLoad() final
-    {
-        ++m_owner.loadGeneration;
-        // Per-navigation facts must not leak into the next document: a new
-        // provisional load invalidates the previous status, redirect count and
-        // same-document classification.
-        m_owner.hasDocumentHttpStatus = false;
-        m_owner.documentHttpStatus = 0;
-        m_owner.documentChange = WKDocumentChangeKindNoneUWP;
-        m_owner.documentRedirectHops = 0;
-        m_owner.documentTitle = String();
-        m_owner.documentTitleUtf8 = CString();
-        report("navigation-started", WKPageLogFalseUWP);
-    }
-
-    // Retires the recorded failure: only the current failure can back a proceed gesture.
-    void dispatchDidCommitLoad(std::optional<HasInsecureContent>, std::optional<UsedLegacyTLS>, std::optional<WasPrivateRelayed>) final
-    {
-        // A successful commit retires any recorded failure: only the current
-        // failure can ever back a proceed gesture.
-        m_owner.lastFailedNavUrl = String();
-        report("navigation-committed", WKPageLogFalseUWP);
-        if (auto* document = m_owner.frame().document(); document && m_owner.log) {
-            auto stage = makeString("navigation-committed-url: "_s, document->url().string()).utf8();
-            m_owner.log(stage.data(), WKPageLogFalseUWP);
-        }
-    }
-
-    // Reports completion and kicks the settle probes for async page scripts.
-    void dispatchDidFinishLoad() final
-    {
-        report("navigation-completed", WKPageLogFalseUWP);
-        if (auto* document = m_owner.frame().document(); document && m_owner.log) {
-            auto stage = makeString("navigation-completed-url: "_s, document->url().string()).utf8();
-            m_owner.log(stage.data(), WKPageLogFalseUWP);
-        }
-        auto generation = m_owner.loadGeneration;
-        probeFixtureMarkers(m_owner, "load");
-        scheduleSettleProbe(&m_owner, generation, kInitialSettleProbeStep);
-        auto* document = m_owner.frame().document();
-        if (document && !m_owner.fixtureSuiteStarted && document->url().query().contains("uwp-suite=1"_s)) {
-            m_owner.fixtureSuiteStarted = true;
-            m_owner.fixtureBase = URL(document->url(), "/"_s).string();
-            scheduleFixtureSuite(&m_owner, FixtureSuitePhaseIndexProbes);
-        }
-        RefPtr next = document ? document->getElementById(AtomString { "next"_s }) : nullptr;
-        if (!next || !m_owner.log)
-            return;
-        auto rect = next->boundingClientRect();
-        auto hit = m_owner.frame().hitTestResultAtPoint(roundedIntPoint(rect.center()), HitTestRequest::Type::ReadOnly);
-        report("link-center-x", static_cast<unsigned long>(rect.center().x()));
-        report("link-center-y", static_cast<unsigned long>(rect.center().y()));
-        report("link-center-url-length", hit.absoluteLinkURL().string().length());
-        if (auto* node = hit.targetNode()) {
-            auto stage = makeString("link-center-node: "_s, node->nodeName()).utf8();
-            m_owner.log(stage.data(), WKPageLogFalseUWP);
-        }
-    }
-
-    // Records the main-document HTTP status so hosts can distinguish an error
-    // document that rendered from a transport failure. Uses the response's own
-    // status value; no status is invented when the load never got one.
-    void NODELETE dispatchDidReceiveResponse(DocumentLoader*, ResourceLoaderIdentifier, const ResourceResponse& response) final
-    {
-        m_owner.hasDocumentHttpStatus = true;
-        m_owner.documentHttpStatus = response.httpStatusCode();
-    }
-
-    // Counts server redirect hops for the active navigation so a host can
-    // report that a navigation was redirected without scraping log lines.
-    void NODELETE dispatchDidReceiveServerRedirectForProvisionalLoad() final
-    {
-        ++m_owner.documentRedirectHops;
-    }
-
-    // Captures the committed document title as reported by the loader.
-    void NODELETE dispatchDidReceiveTitle(const StringWithDirection& title) final
-    {
-        m_owner.documentTitle = title.string;
-        m_owner.documentTitleUtf8 = title.string.utf8();
-    }
-
-    // Fragment-only change: same document, new anchor. Replaces inferring this
-    // from URL equality, which also matched same-URL reloads.
-    void NODELETE dispatchDidChangeLocationWithinPage() final
-    {
-        m_owner.documentChange = WKDocumentChangeKindFragmentUWP;
-    }
-
-    // pushState mutated the URL and added a history entry.
-    void NODELETE dispatchDidPushStateWithinPage() final
-    {
-        m_owner.documentChange = WKDocumentChangeKindPushStateUWP;
-    }
-
-    // replaceState mutated the URL without adding a history entry.
-    void NODELETE dispatchDidReplaceStateWithinPage() final
-    {
-        m_owner.documentChange = WKDocumentChangeKindReplaceStateUWP;
-    }
-
-    // History traversal restored an existing same-document entry.
-    void NODELETE dispatchDidPopStateWithinPage() final
-    {
-        m_owner.documentChange = WKDocumentChangeKindPopStateUWP;
-    }
-
-    // Records provisional failures for the interstitial and the proceed link.
-    void dispatchDidFailProvisionalLoad(const ResourceError& error, WillContinueLoading, WillInternallyHandleFailure) final
-    {
-        report("navigation-provisional-error", error.errorCode());
-        auto stage = makeString("navigation-provisional-error-url: "_s, error.failingURL().string()).utf8();
-        m_owner.log(stage.data(), error.errorCode());
-        m_owner.lastFailedNavUrl = error.failingURL().string();
-    }
-
-    // Records committed-load failures such as teardown races.
-    void dispatchDidFailLoad(const ResourceError& error) final
-    {
-        report("navigation-error", error.errorCode());
-        auto stage = makeString("navigation-error-url: "_s, error.failingURL().string()).utf8();
-        m_owner.log(stage.data(), error.errorCode());
-    }
-
-    // History traversals always run; same-document forks are handled by core.
-    ShouldGoToHistoryItem shouldGoToHistoryItem(HistoryItem&, IsSameDocumentNavigation) const final { return ShouldGoToHistoryItem::Yes; }
-
-    // Delegates item-tree creation to the frame history.
-    RefPtr<HistoryItem> createHistoryItemTree(bool clipAtTarget, BackForwardItemIdentifier itemID) const final
-    {
-        auto& frame = m_owner.frame();
-        return frame.loader().history().createItemTree(frame, clipAtTarget, itemID);
-    }
-
-    // EmptyFrameLoaderClient drops every delivered chunk on the floor, so
-    // m_gotFirstByte never becomes true and DocumentLoader::finishedLoading()
-    // commits an empty placeholder Document at the end of the load. That is why
-    // a fully transferred page committed and finished but rendered blank.
-    // commitData() is WebCore's own writer pipeline: it records the first byte,
-    // calls DocumentWriter::begin() with the document URL and appends the data.
-
-    // Feeds delivered bytes to the writer; counts them for the parse report.
-    void committedLoad(DocumentLoader* loader, const SharedBuffer& data) override
-    {
-        if (!loader)
-            return;
-        loader->commitData(data);
-        m_parsedBytes += data.size();
-        report("document-bytes-parsed", static_cast<unsigned long>(data.size()));
-        report("document-bytes-total", static_cast<unsigned long>(m_parsedBytes));
-    }
-
-    // Lays out the finished document; marker probing waits for DOMContentLoaded instead.
-    void finishedLoading(DocumentLoader* loader) override
-    {
-        // DocumentLoader::finishedLoading() closes the writer itself.
-        if (!loader)
-            return;
-        auto* frame = loader->frame();
-        if (frame && frame->view())
-            frame->view()->updateLayoutAndStyleIfNeededRecursive();
-        report("document-parsed-total", static_cast<unsigned long>(m_parsedBytes));
-        // Fixture markers are deliberately NOT probed here. See
-        // fixtureBodyText(): <body> does not exist yet at this point.
-    }
-
-    // Marks dirty and emits one diagnostic line when a sink is installed.
-    void report(const char* stage, unsigned long result)
-    {
-        m_owner.dirty = true;
-        if (m_owner.log)
-            m_owner.log(stage, result);
-    }
-
-    // Bytes committed so far; reported per chunk and in total.
-    size_t m_parsedBytes { 0 };
-
-    // Owning host holding the page and the diagnostic sink.
-    PageHostUWP& m_owner;
-};
 
 // Casts the opaque WK handle back to its host; every entry point funnels here.
 PageHostUWP* host(void* handle) { return static_cast<PageHostUWP*>(handle); }
@@ -1155,7 +107,6 @@ constexpr double kScaleUniformityToleranceUWP = 0.01;
 
 // Nonempty extents inside the compositor's presentable range.
 bool validSize(unsigned width, unsigned height) { return width && height && width <= UWPMaxPageDimension && height <= UWPMaxPageDimension; }
-}
 
 // Creates the persistent page, per-page history, cookie session and host clients.
 extern "C" __declspec(dllexport) void* __stdcall WKCreatePageUWP(const wchar_t* fonts, unsigned width, unsigned height, WKPageLogUWP log, unsigned* result)
@@ -1173,18 +124,20 @@ extern "C" __declspec(dllexport) void* __stdcall WKCreatePageUWP(const wchar_t* 
     handle->height = height;
     handle->log = log;
     // DOM and transport cookies share one in-memory session per page. The
-    // provider lives with CookieJar, and unregisters when the page is released.
+    // host explicitly closes it even when cached resources retain its jar.
     auto sessionID = PAL::SessionID::generateEphemeralSessionID();
     auto configuration = pageConfigurationWithEmptyClients(std::nullopt, sessionID);
     configuration.backForwardClient = BackForwardClientUWP::create();
-    configuration.cookieJar = CookieJar::create(adoptRef(*new StorageSessionProviderUWP(sessionID)));
-    configuration.chromeClient = makeUniqueRef<PageChromeUWP>(*handle);
+    auto storageProvider = adoptRef(*new StorageSessionProviderUWP(sessionID));
+    handle->storageProvider = storageProvider.copyRef();
+    configuration.cookieJar = CookieJar::create(WTF::move(storageProvider));
+    configuration.chromeClient = makeUniqueRef<ChromeClientUWP>(*handle);
     // App-supplied local HTML has the normal script sandbox policy. External
     // requests remain unsupported by the current local-only loader strategy.
     auto& local = std::get<PageConfiguration::LocalMainFrameCreationParameters>(configuration.mainFrameCreationParameters);
     local.effectiveSandboxFlags = {};
     local.clientCreator = [owner = handle.get()](LocalFrame&, FrameLoader& loader) -> UniqueRef<LocalFrameLoaderClient> {
-        return makeUniqueRefWithoutRefCountedCheck<PageFrameLoaderUWP>(loader, *owner);
+        return makeUniqueRefWithoutRefCountedCheck<FrameLoaderClientUWP>(loader, *owner);
     };
     auto page = Page::create(WTF::move(configuration));
     page->settings().setScriptEnabled(true);
@@ -1250,6 +203,8 @@ extern "C" __declspec(dllexport) unsigned __stdcall WKLoadHTMLUWP(void* handle, 
     writer.setMIMEType("text/html"_s);
     if (!writer.begin(URL {}))
         return WKPageResultDocumentWriterBeginFailedUWP;
+    // Host HTML is an accepted command with its own navigation ID.
+    view.navigation.beginNavigation();
     writer.insertDataSynchronously(String::fromUTF8(utf8));
     writer.end();
     view.frame().view()->setScrollPosition({ 0, 0 });
@@ -1271,14 +226,19 @@ extern "C" __declspec(dllexport) unsigned __stdcall WKNavigatePageUWP(void* hand
     URL url(String::fromUTF8(utf8));
     if (!url.isValid() || !url.protocolIsInHTTPFamily())
         return WKPageResultInvalidArgumentUWP;
-    auto& ssl = CurlContext::singleton().sslHandle();
-    ssl.setIgnoreSSLErrors(false);
-    ssl.setCACertPath(String(caPath));
+    // Trust is snapshotted per session, never mutated globally: the first CA
+    // bundle a control navigates with freezes for its lifetime, so concurrent
+    // controls cannot rebind each other's verification through the process
+    // singleton. A later different bundle for the same session is ignored.
+    TlsPolicyUWP::snapshotSessionBundle(host(handle)->page->sessionID(), String(caPath));
     ResourceRequest request;
     request.setURL(WTF::move(url));
     // Main-frame loads get a full minute before the transport gives up.
     constexpr double kNavigationTimeoutSeconds = 60;
     request.setTimeoutInterval(kNavigationTimeoutSeconds);
+    // Accepted commands allocate a navigation ID that survives redirects and
+    // is never reused; validation above already rejected malformed commands.
+    view.navigation.beginNavigation();
     view.frame().loader().load(FrameLoadRequest(view.frame(), WTF::move(request)));
     view.dirty = true;
     return WKPageResultOkUWP;
@@ -1322,6 +282,8 @@ extern "C" __declspec(dllexport) unsigned __stdcall WKReloadPageUWP(void* handle
     auto& view = *host(handle);
     if (!view.validThread())
         return WKPageResultWrongThreadUWP;
+    // Reload allocates a fresh ID with no history entry, matching the V1 rule.
+    view.navigation.beginNavigation();
     view.frame().loader().reload();
     if (view.log)
         view.log("history-reload", WKPageLogFalseUWP);
@@ -1685,10 +647,10 @@ extern "C" __declspec(dllexport) unsigned __stdcall WKGetPageDocumentStateUWP(vo
     auto& view = *host(handle);
     if (!view.validThread())
         return WKPageResultWrongThreadUWP;
-    state->title = view.documentTitleUtf8.data();
-    state->httpStatus = view.documentHttpStatus;
-    state->hasHttpStatus = view.hasDocumentHttpStatus;
-    state->documentChange = view.documentChange;
-    state->redirectHops = view.documentRedirectHops;
+    state->title = view.navigation.titleUtf8();
+    state->httpStatus = view.navigation.httpStatus();
+    state->hasHttpStatus = view.navigation.hasHttpStatus();
+    state->documentChange = view.navigation.change();
+    state->redirectHops = view.navigation.redirectHops();
     return WKPageResultOkUWP;
 }

@@ -43,14 +43,21 @@ enum FirstPageResultUWP {
     FirstPageResultDocumentBeginFailedUWP = 7,
 
     // Called on a thread other than the engine thread.
-    FirstPageResultWrongThreadUWP = 8
+    FirstPageResultWrongThreadUWP = 8,
+
+    // A later font directory or fingerprint conflicts with the frozen process
+    // configuration; the existing pages keep working unchanged.
+    FirstPageResultConfigurationConflictUWP = 9
 };
 
 // Initializes WebCore's main thread, bundled fonts and UWP platform strategies
-// once per process. Idempotent: a second call on the engine thread reports
-// success without repeating any stage, and any thread but the first reports
-// the wrong-thread code. Called by the WKInitializeEngineUWP export and, in
-// engine, by page creation.
+// once per process. The first successful setup freezes the font directory and
+// its content fingerprint; a later directory or content conflict reports the
+// conflict code before any page creation instead of silently changing live
+// pages. A second call with matching configuration reports success without
+// repeating any stage, and any thread but the first reports the wrong-thread
+// code. Called by the WKInitializeEngineUWP export and, in engine, by page
+// creation.
 unsigned engineEnsureInitializedUWP(const wchar_t* fontDirectory, WKPageLogUWP log);
 
 // Runs timers, transport pump and deferred work once on the owner thread.

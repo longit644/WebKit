@@ -9,7 +9,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS''
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
  * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
@@ -46,7 +46,7 @@ namespace WebCore {
 
 WTF_MAKE_TZONE_ALLOCATED_IMPL(CurlRequest);
 
-CurlRequest::CurlRequest(const ResourceRequest&request, CurlRequestClient* client, CaptureNetworkLoadMetrics captureExtraMetrics)
+CurlRequest::CurlRequest(const ResourceRequest& request, CurlRequestClient* client, CaptureNetworkLoadMetrics captureExtraMetrics)
     : m_client(client)
     , m_request(request.isolatedCopy())
     , m_formDataStream(m_request.httpBody())
@@ -100,7 +100,7 @@ void CurlRequest::resume()
     // The pausing of transfer does not work with protocols, like file://.
     // Therefore, PAUSE can not be done in didReceiveData().
     // It means that the same logic as http:// can not be used.
-    // In the file scheme, invokeDidReceiveResponse() is done first. 
+    // In the file scheme, invokeDidReceiveResponse() is done first.
     // Then StartWithJobManager is called with completeDidReceiveResponse and start transfer with libcurl.
 
     // http : didReceiveHeader => didReceiveData[PAUSE] => invokeDidReceiveResponse => (MainThread)curlDidReceiveResponse => completeDidReceiveResponse[RESUME] => didReceiveData
@@ -192,6 +192,10 @@ CURL* CurlRequest::setupTransfer()
     m_curlHandle = makeUnique<CurlHandle>();
 
     m_curlHandle->setURL(m_request.url(), m_localhostAlias);
+    // Staged per-request policy only; default callers keep byte-identical
+    // handle setup on every platform.
+    if (!m_sslCACertPath.isEmpty() || !m_sslNativeCAEnabled || !m_sslAllowConnectionReuse)
+        m_curlHandle->setRequestSSLPolicy(m_sslCACertPath.isEmpty() ? nullptr : m_sslCACertPath.data(), m_sslNativeCAEnabled, m_sslAllowConnectionReuse);
 
     m_curlHandle->appendRequestHeaders(httpHeaderFields);
 
@@ -292,7 +296,7 @@ size_t CurlRequest::didReceiveHeader(String&& header)
     // In this process, deletes the first block to send a correct headers to WebCore.
     if (m_didReceiveResponse) {
         m_didReceiveResponse = false;
-        m_response = CurlResponse { };
+        m_response = CurlResponse {};
         m_multipartHandle = nullptr;
     }
 

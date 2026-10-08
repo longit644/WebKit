@@ -87,4 +87,63 @@ fresh WebCore.dll:    947A530BA0875002852734ED01C588B5770FCC0B5B566FE9E1640CCFD2
 rollback WebCore.dll: 9D9B1C28727712E300CB7509AB3CCDAA04AB3E9AAB0F9360026B57E3C3F6436D
 ```
 
-No package staging, deployment or phone execution was performed for this slice.
+## Focused phone regression
+
+Device: Lumia 950 XL, Windows Mobile `15254.603.armfre.feature2_rs3svc.200106-1633`.
+
+Side-by-side packages used the fresh `build-arm-uwp-fresh` engine DLLs:
+
+- `WebKitProbe.EngineRuntime 1.0.0.1`
+  - Appx SHA-256: `72819941D25C3B618B30804C0A7859E1FAF72E77FD6B3EF99DA64CC7B19A9553`
+  - Staged `WebCore.dll` SHA-256: `947A530BA0875002852734ED01C588B5770FCC0B5B566FE9E1640CCFD24A79B0`
+- `WebKitProbe.EngineBrowser 1.0.0.1`
+  - Appx SHA-256: `BEF760E93470926FE282033A00643F70265319C3D12E8CA3F79F89F2E7648661`
+  - Staged `WebCore.dll` SHA-256: `947A530BA0875002852734ED01C588B5770FCC0B5B566FE9E1640CCFD24A79B0`
+
+Both Appx packages were packed with SDK 19041 MakeAppx and signed with the
+existing `CN=WebKitWebView` development certificate. Fixture servers ran on
+`192.168.1.69:8002` and `:8003`.
+
+RuntimeSmoke passed:
+
+- `runtime-smoke-failure-mask: 0x00000000`
+- `javascript-evaluation: 0x00000000`
+- `load-webcore: 0x00000000`
+- Font install, HTML parsing, layout, paint and D3D presentation all returned `0`.
+- The owner confirmed the visible snapshot was correct. The demo copy still
+  contains the stale word “Cairo”; the packaged engine was the Skia fresh-tree
+  build, so only the wording is stale.
+
+MiniBrowser passed the retained fixture suite after both fixture servers ran:
+
+- `gpu-paint-backend-skia-ganesh: 0x00000001`
+- `control-compositor-initialize: 0x00000000`
+- `gpu-document-composited-scrolling: 0x00000001`
+- `fixture-suite-cors-allowed: 0x00000001`
+- `fixture-suite-cors-blocked: 0x00000001`
+- `fixture-suite-completed: 0x00000001`
+- HTTPS navigation to `https://example.com/` committed and completed.
+- Owner-confirmed manual checks: HTTPS page loads, `about:demo` JavaScript
+  counter increments, and long-page scrolling repaints.
+- The retrieved `page.png` is 325,194 bytes and `1439x2321`, matching the
+  portrait backing size, so it does not establish the sideways landscape
+  presentation.
+
+Open regression:
+
+- Rotation reports succeed in the log across five viewport reports,
+  alternating `411x663` and `731x343` with `control-resize: 0` and continued
+  GPU frames, but the owner-supplied photos show the displayed image lagging
+  the resize: portrait is clipped on the right edge until a scroll corrects
+  it, and landscape is blank before scrolling and still clipped after
+  scrolling. The retrieved `page.png` is `1439x2321`, matching the portrait
+  backing size, so it does not establish the landscape presentation.
+  Rotation/resize recovery remains open for task 6.3.
+- The MiniBrowser log also contains `native-fault-code: 0xe06d7363` entries.
+  The app continued and completed its suite; no crash dump was produced and no
+  root cause is established.
+- Device Portal connectivity was intermittent. After the successful runs it
+  timed out again, so no further device reads were possible in this slice.
+
+No full MiniBrowser interaction matrix, suspend/resume coverage or phone-side
+performance acceptance is claimed.

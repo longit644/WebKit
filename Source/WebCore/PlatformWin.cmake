@@ -21,10 +21,14 @@ if (WK_UWP)
     endif ()
     list(APPEND WebCore_SOURCES platform/uwp/ClipboardUWP.cpp)
     list(APPEND WebCore_PRIVATE_FRAMEWORK_HEADERS platform/uwp/ClipboardUWP.h)
-list(APPEND WebCore_PRIVATE_INCLUDE_DIRECTORIES "${WEBCORE_DIR}/platform/uwp")
+    list(APPEND WebCore_PRIVATE_INCLUDE_DIRECTORIES "${WEBCORE_DIR}/platform/uwp")
+    list(APPEND WebCore_SOURCES platform/uwp/BackForwardClientUWP.cpp)
+    list(APPEND WebCore_SOURCES platform/uwp/CertificateExceptionStoreUWP.cpp)
+    list(APPEND WebCore_SOURCES platform/uwp/ChromeClientUWP.cpp)
     list(APPEND WebCore_SOURCES platform/uwp/DragImageUWP.cpp)
     list(APPEND WebCore_SOURCES platform/uwp/EngineUWP.cpp)
     list(APPEND WebCore_SOURCES platform/uwp/FirstPageUWP.cpp)
+    list(APPEND WebCore_SOURCES platform/uwp/FrameLoaderClientUWP.cpp)
     list(APPEND WebCore_SOURCES platform/uwp/PageUWP.cpp)
     # WKUWP V1 discovery export, capability mask and build identity (task 3.2).
     list(APPEND WebCore_SOURCES platform/uwp/WKUWPEngineAPI.cpp)
@@ -32,7 +36,20 @@ list(APPEND WebCore_PRIVATE_INCLUDE_DIRECTORIES "${WEBCORE_DIR}/platform/uwp")
     # dual-compiler layout check, so only their directory is added here.
     list(APPEND WebCore_PRIVATE_INCLUDE_DIRECTORIES "${WEBKIT_DIR}/Shared/uwp")
     list(APPEND WebCore_SOURCES platform/uwp/LoaderStrategyUWP.cpp)
+    list(APPEND WebCore_SOURCES platform/uwp/NavigationControllerUWP.cpp)
+    list(APPEND WebCore_SOURCES platform/uwp/ResourceLoadUWP.cpp)
+    list(APPEND WebCore_SOURCES platform/uwp/ResourcePolicyUWP.cpp)
+    list(APPEND WebCore_SOURCES platform/uwp/StorageSessionProviderUWP.cpp)
     list(APPEND WebCore_SOURCES platform/uwp/TextureMapperCompositorUWP.cpp)
+    list(APPEND WebCore_SOURCES platform/uwp/TlsPolicyUWP.cpp)
+    list(APPEND WebCore_SOURCES platform/uwp/TransientPageUWP.cpp)
+    # ARM32 clang-cl's include dependency output omits quoted UWP headers
+    # (proven by stale EngineUWP/ChromeClient/Transient objects crashing at
+    # startup). Every UWP translation unit therefore rebuilds when any UWP
+    # header changes; the set is small and the cost is one relink.
+    file(GLOB UWP_REBUILD_SOURCES "${WEBCORE_DIR}/platform/uwp/*.cpp")
+    file(GLOB UWP_REBUILD_HEADERS "${WEBCORE_DIR}/platform/uwp/*.h")
+    set_source_files_properties(${UWP_REBUILD_SOURCES} PROPERTIES OBJECT_DEPENDS "${UWP_REBUILD_HEADERS}")
     list(APPEND WebCore_PRIVATE_FRAMEWORK_HEADERS platform/uwp/DragImageUWP.h)
 endif ()
 

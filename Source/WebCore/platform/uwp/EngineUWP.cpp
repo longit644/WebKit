@@ -8,18 +8,52 @@
 #include "MediaStrategy.h"
 #include "PageUWP.h"
 #include "PlatformStrategies.h"
+#include "TlsPolicyUWP.h"
 #include "WebCoreMainThread.h"
 #include <fontconfig/fontconfig.h>
 #include <ft2build.h>
 #include FT_FREETYPE_H
+#include <pal/crypto/CryptoDigest.h>
+#include <wtf/FileSystem.h>
 #include <wtf/RunLoop.h>
 #include <wtf/text/MakeString.h>
 #include <wtf/text/WTFString.h>
+
+#include <algorithm>
 
 namespace WebCore {
 
 // FreeType face selected from the packaged fonts.
 constexpr FT_Long kRegularFontFaceIndex = 0;
+
+// Lowercase hex SHA-256 over canonically sorted font file names and contents
+// in a directory; empty when nothing readable backs the configuration.
+String fontFingerprintForDirectory(const String& directory)
+{
+    auto names = FileSystem::listDirectory(directory);
+    std::sort(names.begin(), names.end(), [](const String& a, const String& b) {
+        return codePointCompare(a, b) < 0;
+    });
+    auto digest = PAL::Crypto::CryptoDigest::create(PAL::Crypto::CryptoDigest::Algorithm::SHA_256);
+    if (!digest)
+        return String();
+    bool anyFont = false;
+    for (auto& name : names) {
+        String lower = name.convertToASCIILowercase();
+        if (!lower.endsWith(".ttf"_s) && !lower.endsWith(".otf"_s) && !lower.endsWith(".ttc"_s) && !lower.endsWith(".otc"_s))
+            continue;
+        auto bytes = FileSystem::readEntireFile(makeString(directory, "/"_s, name));
+        if (!bytes || bytes->isEmpty())
+            return String();
+        auto utf8 = name.utf8();
+        digest->addBytes({ reinterpret_cast<const uint8_t*>(utf8.data()), utf8.length() });
+        digest->addBytes({ bytes->begin(), bytes->size() });
+        anyFont = true;
+    }
+    if (!anyFont)
+        return String();
+    return digest->toHexString();
+}
 
 // Empty media strategy; the snapshot paints no audio or video.
 class FirstPageMediaStrategy final : public MediaStrategy { };
@@ -49,8 +83,21 @@ unsigned engineEnsureInitializedUWP(const wchar_t* fontDirectory, WKPageLogUWP l
     static bool initialized;
     if (engineThread && engineThread != GetCurrentThreadId())
         return FirstPageResultWrongThreadUWP;
-    if (initialized)
+    // Frozen process font configuration: the first successful setup wins, and
+    // a conflicting directory or content fingerprint fails before any page
+    // creation instead of silently changing live pages.
+    static String frozenFontDirectory;
+    static String frozenFontFingerprint;
+    String directory(fontDirectory);
+    String fingerprint = fontFingerprintForDirectory(directory);
+    if (initialized) {
+        if (directory != frozenFontDirectory || fingerprint != frozenFontFingerprint) {
+            if (log)
+                log("page-font-configuration-conflict", FirstPageResultConfigurationConflictUWP);
+            return FirstPageResultConfigurationConflictUWP;
+        }
         return FirstPageResultOkUWP;
+    }
     engineThread = GetCurrentThreadId();
     // Emits a stage with a success value unless an API supplies an error code.
     auto report = [log](const char* stage, unsigned long result = WKPageLogFalseUWP) {
@@ -65,7 +112,6 @@ unsigned engineEnsureInitializedUWP(const wchar_t* fontDirectory, WKPageLogUWP l
     FcConfig* fonts = FcConfigCreate();
     if (!fonts)
         return FirstPageResultNoFontConfigUWP;
-    String directory(fontDirectory);
     auto regular = makeString(directory, "/DejaVuSans.ttf"_s).utf8();
     auto bold = makeString(directory, "/DejaVuSans-Bold.ttf"_s).utf8();
     auto nativePath = makeString(directory, "\\DejaVuSans.ttf"_s).wideCharacters();
@@ -103,6 +149,9 @@ unsigned engineEnsureInitializedUWP(const wchar_t* fontDirectory, WKPageLogUWP l
     if (!platformStrategies())
         setPlatformStrategies(&strategies);
     report("page-platform-strategies-ready");
+    // Freeze the configuration that just succeeded; later mismatches fail.
+    frozenFontDirectory = directory;
+    frozenFontFingerprint = fingerprint;
     initialized = true;
     return FirstPageResultOkUWP;
 }

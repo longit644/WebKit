@@ -72,10 +72,12 @@ $script:LegacyExports = @(
 )
 
 # Smoke surface this slice must leave byte-identical to prove retained semantics.
+# The two engine implementation files are intentionally excluded: task 4.1 moved
+# shared startup into EngineUWP and task 4.2 splits the page clients into their
+# planned files, so those two files evolve by design while their declarations,
+# the wrapper and the diagnostic hosts must not.
 $script:SmokeSurface = @(
     'Source/WebCore/platform/uwp/PageUWP.h',
-    'Source/WebCore/platform/uwp/PageUWP.cpp',
-    'Source/WebCore/platform/uwp/FirstPageUWP.cpp',
     'Source/WebKit/UIProcess/API/uwp/WebKitWebViewUWP.h',
     'Source/WebKit/UIProcess/API/uwp/WebKitWebViewUWP.cpp',
     'Source/WebKit/UIProcess/API/uwp/WebKitWebViewPresenterUWP.h',

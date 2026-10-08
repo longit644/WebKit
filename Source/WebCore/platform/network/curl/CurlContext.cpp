@@ -21,7 +21,7 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "config.h"
@@ -585,6 +585,17 @@ void CurlHandle::setCACertPath(const char* path)
         curl_easy_setopt(m_handle, CURLOPT_CAINFO, path);
 }
 
+void CurlHandle::setRequestSSLPolicy(const char* caCertPath, bool nativeCAEnabled, bool allowConnectionReuse)
+{
+    if (caCertPath)
+        curl_easy_setopt(m_handle, CURLOPT_CAINFO, caCertPath);
+    curl_easy_setopt(m_handle, CURLOPT_SSL_OPTIONS, nativeCAEnabled ? CURLSSLOPT_NATIVE_CA : 0L);
+    if (!allowConnectionReuse) {
+        curl_easy_setopt(m_handle, CURLOPT_FRESH_CONNECT, 1L);
+        curl_easy_setopt(m_handle, CURLOPT_FORBID_REUSE, 1L);
+    }
+}
+
 void CurlHandle::setCACertBlob(void* data, size_t length)
 {
     if (!data || !length)
@@ -623,7 +634,7 @@ void CurlHandle::enableProxyIfExists()
     auto& proxy = CurlContext::singleton().proxySettings();
 
     switch (proxy.mode()) {
-    case CurlProxySettings::Mode::Default :
+    case CurlProxySettings::Mode::Default:
         // For the proxy set by environment variable
         if (!proxy.user().isEmpty())
             curl_easy_setopt(m_handle, CURLOPT_PROXYUSERNAME, proxy.user().utf8().data());
@@ -631,11 +642,11 @@ void CurlHandle::enableProxyIfExists()
             curl_easy_setopt(m_handle, CURLOPT_PROXYPASSWORD, proxy.password().utf8().data());
         curl_easy_setopt(m_handle, CURLOPT_PROXYAUTH, proxy.authMethod());
         break;
-    case CurlProxySettings::Mode::NoProxy :
+    case CurlProxySettings::Mode::NoProxy:
         // Disable the use of a proxy, even if there is an environment variable set for it.
         curl_easy_setopt(m_handle, CURLOPT_PROXY, "");
         break;
-    case CurlProxySettings::Mode::Custom :
+    case CurlProxySettings::Mode::Custom:
         curl_easy_setopt(m_handle, CURLOPT_PROXY, proxy.url().utf8().data());
         curl_easy_setopt(m_handle, CURLOPT_NOPROXY, proxy.ignoreHosts().utf8().data());
         curl_easy_setopt(m_handle, CURLOPT_PROXYAUTH, proxy.authMethod());
