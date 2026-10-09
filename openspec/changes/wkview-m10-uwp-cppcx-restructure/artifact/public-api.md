@@ -140,6 +140,14 @@ invalidates that proposal before loading. A new remote load starts only after th
 old load's Cancelled terminal transaction finishes. No command starts B between
 A's IsLoading=false and Completed(A). Getter state remains A until transaction end.
 
+Deferred execution rejection is diagnostic and does not strand following FIFO
+work. Native admission rejection before Starting has no main ID/terminal obligation;
+direct rejection restores prior requested Source and preserves the original HRESULT.
+An unstarted readiness command is deferred: its failure restores committed Source
+without changing successful initialization observations. Latest document intent
+revalidates pending Source/HTML continuations; Stop/null Source clears it while
+shared initialization continues. Readiness bookkeeping cannot veto a proposal.
+
 Close immediately marks closing, rejects later commands, clears queued commands,
 and requests engine cancellation. Actual destruction/revocation waits for active
 dispatch unwind. Finish already-owed terminal transactions, create exactly one
@@ -219,6 +227,12 @@ redirects and other sessions use normal verification. The immutable trust policy
 and exception partition must also govern TLS/connection-cache reuse.
 
 ## Metadata and deferred capabilities
+
+Implemented declaration identity (task 5.1): M10 metadata revision 2 uses
+`WebKit.IWebKitWebViewV2`, IID `B0CACD92-A344-4B7B-9E94-99C3C3BFB35C`, as the
+control's default interface. This revision is distinct from compiler-emitted
+WinRT type-version attributes. See `cx-component-contract.md` and
+`webview-options.md` for declaration/configuration evidence and behavioral scope.
 
 New class/argument/enum/token signatures get the M10 metadata revision; do not
 reuse incompatible prototype interface identities. Generated WebKit.dll/WinMD

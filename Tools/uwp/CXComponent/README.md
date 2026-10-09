@@ -9,7 +9,17 @@ Two things live here and they have different fates. `XamlProbe.idl` and
 `WebKitWebView*` files are the prototype control that M10 replaces with authored
 sources in `Source/WebKit/UIProcess/API/uwp/`; do not add to them.
 
-## XAML identity probe
+## M10 authored control
+
+The new public declarations live in `Source/WebKit/UIProcess/API/uwp/`; see that
+directory's README for revision-2 identity and current implementation progress.
+`ComponentExports.cpp` here is only the build/activation entry-point shell.
+Build the new component with `Tools/uwp/build/build-arm32-cx-component.ps1` and
+verify its generated metadata/consumer boundaries with
+`Tools/uwp/build/test-cx-component-contract.ps1`. These commands use the new
+authored sources and compiler-generated `WebKit.winmd`.
+
+## XAML identity probe baseline
 
 The compiled-page host now lives in `Tools/uwp/CXCompiledProbe/`; its README and
 `build-arm32-cx-compiled-probe.ps1` describe the successful v6 device gate and
