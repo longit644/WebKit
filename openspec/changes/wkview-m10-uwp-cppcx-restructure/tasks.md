@@ -185,14 +185,24 @@ Supporting-document basenames in this checklist resolve under `artifact/`;
 
 ## 8. MiniBrowser and diagnostic application migration
 
-- [ ] 8.1 Add CX App/MainPage XAML/code-behind with component project reference; verify no private framework .cpp is compiled directly into MiniBrowser and compiled markup constructs the control. Carry from 6.3: subscribe VisibleBoundsChanged in CX code-behind and lay out inside the visible bounds so the landscape system nav bar no longer covers page content (engine output already proven correct).
-- [ ] 8.2 Implement BrowserViewModel toolbar/address/title/history/loading binding; verify engine event changes drive UI and back/forward/reload use public methods.
-- [ ] 8.3 Implement BrowserPolicy and assets/blocked.html/demo migration; verify escaping/override order, separate remote token versus HostHtml IDs, explicit warning-token overload and successful consent after warning commit without generic-navigation preservation.
+Application hosts and shells are C#: the owner controls the application layer
+in C#/XAML over the C++/CX component (`WebKit.winmd`), while engine, component,
+OS service projections and native diagnostic payloads stay C++/CX and native.
+Toolchain gate (proven before any §8 implementation): UWP tools plus .NET
+Native on Community 2022, blank ARM Release app installing and launching on
+the Lumia (proof package 1.0.0.1, 4/4 assertions, see
+`artifact/csharp-toolchain.md`). Every app targets 10.0.19041.0 with MinVersion
+10.0.15063.0 and restores `Microsoft.NETCore.UniversalWindowsPlatform` 6.0.x
+or older; the cached 6.2.10 cannot install on the phone.
+
+- [ ] 8.1 Add C# App/MainPage XAML with a component WinMD reference; verify no private framework .cpp is compiled into MiniBrowser and compiled markup constructs the public `WebKitWebView`. Carry from 6.3: subscribe VisibleBoundsChanged in C# code-behind and lay out inside the visible bounds so the landscape system nav bar no longer covers page content (engine output already proven correct).
+- [ ] 8.2 Implement BrowserViewModel toolbar/address/title/history/loading binding in C#; verify engine event changes drive UI and back/forward/reload use public methods.
+- [ ] 8.3 Implement BrowserPolicy and assets/blocked.html/demo migration in C#; verify escaping/override order, separate remote token versus HostHtml IDs, explicit warning-token overload and successful consent after warning commit without generic-navigation preservation.
 - [ ] 8.4 Remove MiniBrowser downloader/shadow history/completion polling after replacement checks; verify no curl-to-loadHTML worker, URL vector or log-derived completion remains in ordinary app paths.
-- [ ] 8.5 Migrate RuntimeSmoke application host to CX under diagnostics/ and move smoke-only first-page payload; verify the unchanged native payload results and update source/script/project references.
-- [ ] 8.6 Migrate FpuProbe application host to CX, retaining native FPU/ARM payload; verify prior expected arithmetic/ABI results and documented launch commands.
-- [ ] 8.7 Migrate TlsSmoke application host to CX, retaining native transport probe; verify fail-closed TLS results and independent warning policy.
-- [ ] 8.8 Document sample embedding/configuration/lifecycle and diagnostic commands; verify normal MiniBrowser startup runs no test navigation and suspension/Close respects shared engine lifetime.
+- [ ] 8.5 Migrate RuntimeSmoke application host to C# under diagnostics/ and move smoke-only first-page payload; verify the unchanged native payload results and update source/script/project references.
+- [ ] 8.6 Migrate FpuProbe application host to C#, retaining native FPU/ARM payload; verify prior expected arithmetic/ABI results and documented launch commands.
+- [ ] 8.7 Migrate TlsSmoke application host to C#, retaining native transport probe; verify fail-closed TLS results and independent warning policy.
+- [ ] 8.8 Document sample embedding/configuration/lifecycle, the C# toolchain commands and diagnostic commands; verify normal MiniBrowser startup runs no test navigation and suspension/Close respects shared engine lifetime.
 
 ## 9. Replacement device tests and fixture extraction (G5)
 

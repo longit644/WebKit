@@ -35,11 +35,11 @@ family rows into exact symbols/files and record consumers before changing them.
 | CurlContext mutable SSL configuration and first-init font state | Immutable per-session/request CA policy; EngineUWP canonical font fingerprint | Windows curl backend, TLS/connection cache, first-page font setup; different-bundle/conflicting-font tests |
 | FirstPageUWP.cpp startup/strategy/content | EngineUWP for generic startup; smoke payload under diagnostics/RuntimeSmoke | Search all exports/build references before split; retained smoke results |
 | TextureMapperCompositorUWP/SkiaGPUContextUWP/TextureMapperFrameStatsUWP/DragImageUWP | Keep upstream-style platform names; remove only app/fixture leakage | Rendering, WebCore platform CMake; accepted Skia regression |
-| MiniBrowserUWP.cpp/MiniBrowserApp | MiniBrowser::App, MainPage, BrowserViewModel, BrowserPolicy and assets | App project/manifest; declarative component and UX tests |
+| MiniBrowserUWP.cpp/MiniBrowserApp | C# App, MainPage, BrowserViewModel, BrowserPolicy and assets referencing WebKit.winmd; no private framework .cpp compiled in | App project/manifest; declarative component and UX tests; VisibleBoundsChanged overlay fix carried from 6.3 |
 | MiniBrowser curl worker/shadow state/poll completion | Remove after component-backed equivalents pass | No app curl link/HTML shortcut or shadow history |
 | MiniBrowser diagnostic/test-stage enums/fixture constants | NavigationTests device scenario state and fixture config | Old-to-new assertion comparison; no hard-coded LAN IP in production |
 | blocked.html/demos | MiniBrowser assets/blocked.html and assets/demo | Packaging, LocalState override and HTML escaping; TLS UX tests |
-| RuntimeSmoke/FpuProbe/TlsSmoke hosts | Tools/uwp/diagnostics/<name>/, CX Application/CoreApplication projections | Projects, scripts, native payload entrypoints; retained results |
+| RuntimeSmoke/FpuProbe/TlsSmoke hosts | Tools/uwp/diagnostics/<name>/, C# Application hosts over unchanged native payloads | Projects, scripts, native payload entrypoints; retained results; C# toolchain gate in csharp-toolchain.md |
 | NavigationTests/server.py/test_server.py | host/fixture-server.py and host/test-fixture-server.py; fixtures/ separate content | README/imports/launchers; transitional forwarding wrappers |
 | Tools/uwp/arm32-uwp-env.ps1/build-runtime.ps1 | build/arm32-native-env.ps1 and build/build-native-runtime.ps1 | Native projects/vcpkg invocation; discovery, wrapper compatibility |
 | audit-dlls.py/device-portal.py | packaging/audit-dependencies.py and packaging/device-portal.py | Staging/deployment callers; validated CLI compatibility |

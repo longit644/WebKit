@@ -3,7 +3,23 @@
 Provide UWP applications and diagnostics that consume the reusable browser
 component while owning their own user experience, policy and test orchestration.
 
+Application hosts and shells are implemented in C# over the C++/CX component;
+engine, component, OS service projections and native diagnostic payloads stay
+native and C++/CX. The component WinMD is the only contract between them.
+
 ## ADDED Requirements
+
+### Requirement: C# application hosts over the component WinMD
+Application shells and diagnostic hosts SHALL be C# UWP applications that
+reference the component metadata and construct the public control from
+compiled XAML. They SHALL NOT compile private framework implementations.
+Every app SHALL target 10.0.19041.0 with MinVersion 10.0.15063.0 and restore a
+phone-installable framework line.
+
+#### Scenario: A new application shell is added
+- **WHEN** it embeds the browser
+- **THEN** it references `WebKit.winmd`, constructs `WebKitWebView` from
+  compiled markup, and compiles no `Source/WebKit/UIProcess/API/uwp/` source
 
 ### Requirement: Component-consuming application
 MiniBrowser SHALL embed the public control declaratively and consume its properties/events rather than compile private framework implementations or maintain its own downloader/history/completion inference.
