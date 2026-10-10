@@ -129,5 +129,43 @@ matching version/counts and zero failures. The new fixture DOM height oracle
 requires actual delayed CSS, external JavaScript, a JavaScript timer and fetch
 while no presentation callback runs. It also checks peer-close continuation,
 SDK frame epoch deduplication, process suspension and coalesced worker wakes.
-`artifact/shared-frame-scheduling.md` in M10 records exact payload/report hashes
+`artifact/shared-frame-scheduling.md` in the M10 change records exact payload/report hashes
 and the native legacy creation versus negotiated service scope.
+
+## Clipboard routing over the real dispatcher and transport
+
+Add `-ClipboardTests` with all earlier switches to run `ClipboardTests.cpp`
+through the real dispatcher hop, neutral service, retained-token router and
+WinRT clipboard transport. The host shows `CLIPBOARD / REGRESSIONS PASS` (or
+`SCHEDULER / REGRESSIONS PASS` when the scheduler suite is also selected) only
+when every selected suite passes. Fetch `LocalState/clipboard-result.txt` and
+all seven earlier reports.
+
+Version 1.0.0.44 passes **27/27** clipboard assertions: real copy/paste and
+cut/paste round trips with exact bytes, worker-thread copy/paste/close
+rejection, a close-while-in-flight race completing exactly once, post-close
+Closed rejection, engine-table interop and clipboard save/restore. Async reads
+complete through dispatcher tasks pumped with `ProcessEvents` in a bounded
+drain. The run saves the existing clipboard text first and restores it at the
+end; only the version-tagged strings are asserted.
+`artifact/clipboard-routing.md` in the M10 change records exact payload/report
+hashes; the runtime owner that consumes this stack is proven in 7.5.
+
+## Runtime owner over the real dispatcher and transport
+
+Add `-OwnerTests` with all earlier switches to run `OwnerTests.cpp` through
+the real dispatcher hop, ticketed clipboard routing, hook revocation and host
+shutdown on the XAML owner thread. The host shows `OWNER / REGRESSIONS PASS`
+(or `SCHEDULER / REGRESSIONS PASS` when the scheduler suite is also selected)
+only when every selected suite passes. Fetch `LocalState/owner-result.txt`
+and all eight earlier reports.
+
+Version 1.0.0.45 passes **37/37** owner assertions: ticketed copy/paste/cut
+round trips, worker-thread rejection, close/recreate generations with carried
+totals, hook registration and revocation, shutdown with acknowledged tickets
+and revoked hooks, fail-closed post-shutdown behavior and engine-table
+ShuttingDown refusal. Engine pinning stays a host proof: binding the real
+engine inside the probe would start ungraded engine work. The run saves and
+restores the device clipboard text with only version-tagged strings asserted.
+`artifact/runtime-owner.md` in the M10 change records exact payload/report
+hashes. G4 waits solely on task 6.3.

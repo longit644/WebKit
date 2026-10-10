@@ -21,6 +21,8 @@ param(
     [switch]$LifecycleTests,
     [switch]$TransactionTests,
     [switch]$SchedulerTests,
+    [switch]$ClipboardTests,
+    [switch]$OwnerTests,
     [string]$TestPackageVersion = '1.0.0.1'
 )
 Set-StrictMode -Version Latest
@@ -78,6 +80,9 @@ try {
     $files = @("$api\WebKitWebView.cpp", "$api\WebKitWebViewOptions.cpp", "$api\WebKitNavigationEventArgs.cpp",
         "$api\WebKitCertificateFailureToken.cpp", "$api\platform\InitializationActionUWP.cpp", "$api\platform\PageCallbacksUWP.cpp",
         "$api\platform\FrameSchedulerDriverUWP.cpp", "$repo\Tools\uwp\CXComponent\ComponentExports.cpp")
+    # Neutral routing sources compiled without /ZW once the clipboard flavor is
+    # selected; the 7.5 runtime owner promotes them to the unconditional lists.
+    $clipboardNativeFiles = @()
     if ($SourceStateTests) {
         if ($TestPackageVersion -notmatch '^\d+\.\d+\.\d+\.\d+$') { throw 'Invalid diagnostic package version' }
         $common += ('/DTEST_PACKAGE_VERSION="' + $TestPackageVersion + '"')
@@ -115,6 +120,26 @@ try {
         }
         $files += "$repo\Tools\uwp\CXStateTests\SchedulerTests.cpp"
     }
+    if ($ClipboardTests) {
+        if ($TestPackageVersion -notmatch '^\d+\.\d+\.\d+\.\d+$') { throw 'Invalid diagnostic package version' }
+        if (-not ($SourceStateTests -or $InitializationTests -or $EventCallbackTests -or $CommandTests -or $LifecycleTests -or $TransactionTests -or $SchedulerTests -or $OwnerTests)) {
+            $common += ('/DTEST_PACKAGE_VERSION="' + $TestPackageVersion + '"')
+        }
+        $files += "$repo\Tools\uwp\CXStateTests\ClipboardTests.cpp"
+    }
+    if ($OwnerTests) {
+        if ($TestPackageVersion -notmatch '^\d+\.\d+\.\d+\.\d+$') { throw 'Invalid diagnostic package version' }
+        if (-not ($SourceStateTests -or $InitializationTests -or $EventCallbackTests -or $CommandTests -or $LifecycleTests -or $TransactionTests -or $SchedulerTests -or $ClipboardTests)) {
+            $common += ('/DTEST_PACKAGE_VERSION="' + $TestPackageVersion + '"')
+        }
+        $files += "$repo\Tools\uwp\CXStateTests\OwnerTests.cpp"
+    }
+    if ($ClipboardTests -or $OwnerTests) {
+        # The clipboard stack ships with its diagnostic consumers; the production
+        # control adopts the owner in section 8.
+        $files += "$api\platform\DispatcherUWP.cpp", "$api\platform\ClipboardPlatformUWP.cpp"
+        $clipboardNativeFiles = @("$api\platform\ClipboardServiceUWP.cpp", "$api\platform\ClipboardRouteUWP.cpp", "$api\platform\RuntimeOwnerUWP.cpp", "$api\native\EngineModuleUWP.cpp")
+    }
     $objects = @()
     foreach ($file in $files) {
         $object = Join-Path $OutDir ('obj\' + [IO.Path]::GetFileNameWithoutExtension($file) + '.obj')
@@ -125,6 +150,7 @@ try {
     $nativeFiles = @("$api\native\WebViewConfigurationUWP.cpp", "$api\native\NavigationStateUWP.cpp", "$api\native\PageControllerUWP.cpp",
         "$api\rendering\SwapChainPresenterUWP.cpp", "$api\rendering\FrameMetricsUWP.cpp", "$api\rendering\FrameSchedulerUWP.cpp",
         "$api\input\ScrollControllerUWP.cpp", "$api\input\InputAdapterUWP.cpp")
+    $nativeFiles = @($nativeFiles + $clipboardNativeFiles)
     foreach ($file in $nativeFiles) {
         $object = Join-Path $OutDir ('obj\' + [IO.Path]::GetFileNameWithoutExtension($file) + '.obj')
         Invoke-ComponentTool $cl ($nativeFlags + @("/Fo$object", $file))
@@ -168,11 +194,17 @@ try {
     if ([bool]($exports -match 'Name: WKUWPTestScheduler') -ne [bool]$SchedulerTests) {
         throw 'Scheduler diagnostic-export presence does not match selected build flavor'
     }
+    if ([bool]($exports -match 'Name: WKUWPTestClipboard') -ne [bool]$ClipboardTests) {
+        throw 'Clipboard diagnostic-export presence does not match selected build flavor'
+    }
+    if ([bool]($exports -match 'Name: WKUWPTestOwner') -ne [bool]$OwnerTests) {
+        throw 'Owner diagnostic-export presence does not match selected build flavor'
+    }
     & python (Join-Path $PSScriptRoot 'check-cx-component-metadata.py') --idl "$OutDir\inspect\WebKit.idl" --api $api
     if ($LASTEXITCODE -ne 0) { throw 'M10 metadata contract check failed' }
     $identity = [ordered]@{ ContractRevision = 2; Architecture = $Architecture; SourceStateTests = [bool]$SourceStateTests;
         InitializationTests = [bool]$InitializationTests; EventCallbackTests = [bool]$EventCallbackTests; CommandTests = [bool]$CommandTests;
-        LifecycleTests = [bool]$LifecycleTests; TransactionTests = [bool]$TransactionTests; SchedulerTests = [bool]$SchedulerTests; MsvcVersion = $MsvcVersion;
+        LifecycleTests = [bool]$LifecycleTests; TransactionTests = [bool]$TransactionTests; SchedulerTests = [bool]$SchedulerTests; ClipboardTests = [bool]$ClipboardTests; OwnerTests = [bool]$OwnerTests; MsvcVersion = $MsvcVersion;
         SdkVersion = $SdkVersion; VsPath = $VsPath; ToolsetRoot = $tool; SdkRoot = $SdkRoot;
         Sources = @(($files + $nativeFiles) | ForEach-Object { [IO.Path]::GetRelativePath($repo, $_).Replace('\', '/') });
         Payload = @('WebKit.dll', 'WebKit.winmd' | ForEach-Object {

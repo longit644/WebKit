@@ -227,6 +227,24 @@ notifications and engine DLL hot-unload are deferred. Capability reporting must
 match delivered native table behavior; compile/metadata proof does not imply
 arbitrary website compatibility or completed renderer/services integration.
 
+Per-service availability (task 7.4 review; the engine mask stays zero until an
+end-to-end production path works, so every item below that is not yet wired
+fails fail-closed rather than claiming success):
+
+- Navigation notifications/HTML/certificates: engine implements, control
+  consumes only against controlled V1 tables; production bind needs the
+  StructuredNotifications/HostHtml/CertificateDecisions bits and fails
+  E_NOTIMPL without them.
+- CPU presentation: device-proven on Lumia; GPU attach needs the
+  GPUCompositor bit and fails E_NOTIMPL without it; resize correctness stays open.
+- Input/focus forwarding: validated, needs the Input bit; real-engine
+  keyboard/focus answers E_NOTIMPL explicitly.
+- Clipboard copy/cut/paste: host route device-proven; engine self-serves
+  internally; the ClipboardService bit needs an engine-forward decision plus
+  runtime-owner wiring.
+- Sessions/trust/fonts: engine isolation, immutable policy and canonical
+  fingerprint implement; production consumption needs their bits.
+
 `Tools/uwp/CXWebViewCompiledProbe` imports only generated public WinMD and stages
 XBF/PRI. `Tools/uwp/CXStateTests` tests typed consumer semantics against controlled
 V1 inputs; its exports are excluded from production. Exact package/build/report

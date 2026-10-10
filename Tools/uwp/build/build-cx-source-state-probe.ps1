@@ -14,6 +14,8 @@ param(
     [switch]$LifecycleTests,
     [switch]$TransactionTests,
     [switch]$SchedulerTests,
+    [switch]$ClipboardTests,
+    [switch]$OwnerTests,
     [string]$SchedulerBaseUrl,
     [string]$EngineDirectory,
     [string]$DependencyBaseline,
@@ -31,7 +33,7 @@ if ($SchedulerTests -and (-not $SchedulerBaseUrl -or -not $EngineDirectory -or -
     throw 'Scheduler tests require -SchedulerBaseUrl, -EngineDirectory and -DependencyBaseline'
 }
 New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
-& (Join-Path $PSScriptRoot 'build-arm32-cx-component.ps1') -OutDir "$OutDir\component" -SourceStateTests -InitializationTests:$InitializationTests -EventCallbackTests:$EventCallbackTests -CommandTests:$CommandTests -LifecycleTests:$LifecycleTests -TransactionTests:$TransactionTests -SchedulerTests:$SchedulerTests -TestPackageVersion $Version
+& (Join-Path $PSScriptRoot 'build-arm32-cx-component.ps1') -OutDir "$OutDir\component" -SourceStateTests -InitializationTests:$InitializationTests -EventCallbackTests:$EventCallbackTests -CommandTests:$CommandTests -LifecycleTests:$LifecycleTests -TransactionTests:$TransactionTests -SchedulerTests:$SchedulerTests -ClipboardTests:$ClipboardTests -OwnerTests:$OwnerTests -TestPackageVersion $Version
 $identity = Get-Content "$OutDir\component\build-identity.json" -Raw | ConvertFrom-Json
 $tool = $identity.ToolsetRoot
 $sdk = $identity.SdkRoot
@@ -58,6 +60,8 @@ try {
     if ($LifecycleTests) { $common += '/DTEST_CONTROL_LIFECYCLE' }
     if ($TransactionTests) { $common += '/DTEST_NOTIFICATION_TRANSACTIONS' }
     if ($SchedulerTests) { $common += '/DTEST_FRAME_SCHEDULER'; $common += ('/DTEST_SCHEDULER_BASE=L"' + $SchedulerBaseUrl.TrimEnd('/') + '"') }
+    if ($ClipboardTests) { $common += '/DTEST_CLIPBOARD_ROUTE' }
+    if ($OwnerTests) { $common += '/DTEST_RUNTIME_OWNER' }
     Invoke-ProbeTool $cl ($common + @("/Fo$OutDir\StateProbeApp.obj", "$repo\Tools\uwp\CXStateTests\StateProbeApp.cpp"))
     $libs = @("/libpath:$tool\lib\arm\store", "/libpath:$sdk\Lib\$sdkVersion\um\arm", "/libpath:$sdk\Lib\$sdkVersion\ucrt\arm",
         'vccorlib.lib', 'msvcprt.lib', 'msvcrt.lib', 'vcruntime.lib', 'ucrt.lib', 'OneCoreUAP.lib')

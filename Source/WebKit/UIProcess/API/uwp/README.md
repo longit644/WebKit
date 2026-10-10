@@ -179,6 +179,32 @@ tap/scroll/fling interaction. The v42 shell also serializes first-time window
 creation after portal launch exposed an OnLaunched/OnActivated race tripping the
 process owner gate. See M10 `artifact/input-controllers.md`.
 
+Task 7.1 adds `platform/DispatcherUWP`, `platform/ClipboardServiceUWP` and
+`platform/ClipboardPlatformUWP`: an internal owner-thread dispatcher hop, a
+neutral host-side V1 clipboard service with exactly-once completion/cancel
+semantics, and the CX WinRT text-transport boundary. The service compiles
+without `/ZW` on both ARM compilers and without C++ unwinding under the native
+toolchain; an empty clipboard completes OK with an empty span. The borrowed
+table leaves `postWake` null until the 7.5 runtime owner wires it. Host checks
+pass 83/83 with the engine purity gate; WinRT copy/paste behavior stays 7.2.
+See M10 `artifact/clipboard-service.md`.
+
+Task 7.2 adds `platform/ClipboardRouteUWP`: owner-side copy/cut/paste routing
+over the service with retained per-operation tokens, monotonic IDs and
+erase-before-delivery. Close cancels every pending route operation exactly
+once and latches idempotently; later calls fail Closed. Host checks pass
+89/89; Lumia v1.0.0.44 passes 27 real round-trip/worker/close-race assertions
+plus all 220 existing assertions. See M10 `artifact/clipboard-routing.md`.
+
+Task 7.5 adds `platform/RuntimeOwnerUWP`: ticketed clipboard routing with
+acknowledged cancellation, hook revocation, shutdown with quiescence,
+dispatcher-loss drops with synchronous close release, engine pin survival and
+close/recreate generations. It builds the engine-facing table with owner
+context and a working `postWake`. Host checks pass 137/137; Lumia v1.0.0.45
+passes 37 owner assertions plus all 247 existing assertions. Production control
+adoption belongs to section 8; G4 waits solely on task 6.3. See M10
+`artifact/runtime-owner.md`.
+
 Native acronym spelling uses CPU/GPU/OK (`PresentationModeUWP::CPU/GPU`,
 `WKUWPResultOK`, `WKUWPCapabilityCPUPaint/GPUCompositor`). Mixed-case spellings are
 fully replaced without aliases, per owner instruction. See M10

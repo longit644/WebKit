@@ -20,13 +20,17 @@
  *     WKUWPResultUnsupported. Nothing here creates a page, allocates an
  *     identifier or touches engine state, so a rejected negotiation request
  *     cannot have produced a side effect.
- *   - The capability mask advertises only what this build actually delivers,
- *     which today is nothing: the page, navigation, input, rendering and
- *     platform-service behaviour is still being built in tasks 3.3-7.5. Each bit
- *     is added only by the task that implements it. Claiming a capability that
- *     the engine does not honour would make a consumer's negotiation succeed and
- *     then fail at use, which is precisely the silent-failure mode the contract
- *     is written to prevent.
+ *   - The capability mask advertises only what a consumer can rely on
+ *     end to end: the engine must honour the bit and the control must be able
+ *     to consume it through production forwarding. Engine-side work alone does
+ *     not advertise; neither does a host-side service the engine never calls.
+ *     Which today is nothing: production initialization still fails Unsupported
+ *     by design, engine slots report Unsupported, and the runtime owner in
+ *     task 7.5 is unwired. Each bit is added only by the task that completes
+ *     its end-to-end path. Claiming a capability that the engine does not
+ *     honour would make a consumer's negotiation succeed and then fail at use,
+ *     which is precisely the silent-failure mode the contract is written to
+ *     prevent.
  *   - Discovery is stateless, reentrant and safe to call from any thread before
  *     initialization, so the module-pinning and runtime-ownership state that task
  *     3.3 adds cannot be observed through an ordering bug here.
@@ -54,17 +58,28 @@ namespace {
 
 // Capabilities this build delivers, as a bitwise OR of WKUWPCapability values.
 //
-// WKUWPCapabilityStructuredNotifications (0x001) arrives with the navigation
-// controller in task 4.3, WKUWPCapabilityHostHtml (0x002) with the substitute
-// data contract in task 4.5, WKUWPCapabilityIndependentSessions (0x004) in task
-// 4.7, WKUWPCapabilityCPUPaint (0x008) and WKUWPCapabilityGPUCompositor
-// (0x010) with the presenter/compositor work in section 6,
-// WKUWPCapabilityClipboardService (0x020) with the engine clipboard forward in
-// task 7.2, WKUWPCapabilityCertificateDecisions (0x040) with the certificate
-// store in task 4.8, WKUWPCapabilityInput (0x080) with the input adapter in
-// task 6.4, WKUWPCapabilityImmutableTrustPolicy (0x100) in task 4.11 and
-// WKUWPCapabilityGlobalFontConfiguration (0x200) with the process-global font
-// decision in task 4.1.
+// A bit is advertised only when its end-to-end path works through production
+// forwarding, never for engine-side or host-side work alone. Engine state and
+// the unblocking condition per bit (task 7.4 review):
+// StructuredNotifications (0x001): engine navigation controller done (4.3,
+// real signals); needs production forwarding integration.
+// HostHtml (0x002): substitute-data contract done (4.5); needs the same.
+// IndependentSessions (0x004): cookie isolation done (4.7); needs the same.
+// CPUPaint (0x008): CPU presentation device-proven (6.1); needs production
+// presenter wiring and resize correctness (6.3).
+// GPUCompositor (0x010): engine-owned path exists; needs production visual
+// attach plus the same resize gate.
+// ClipboardService (0x020): host route device-proven (7.2); the engine still
+// self-serves clipboard internally (7.3) and the runtime owner is unwired, so
+// the bit needs an engine-forward decision plus task 7.5 wiring.
+// CertificateDecisions (0x040): decision store done (4.8); needs production
+// forwarding integration.
+// Input (0x080): adapter done (6.4) with real-engine keyboard/focus explicit
+// E_NOTIMPL; needs engine slot delivery plus production wiring.
+// ImmutableTrustPolicy (0x100): immutable policy done (4.11); needs
+// production forwarding integration.
+// GlobalFontConfiguration (0x200): canonical fingerprint done (4.1/4.11);
+// needs production initialization integration.
 constexpr uint64_t s_deliveredCapabilities = 0;
 
 // Every capability bit frozen by artifact/native-abi.md; nothing else may be claimed.

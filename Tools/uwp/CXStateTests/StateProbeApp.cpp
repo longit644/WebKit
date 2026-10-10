@@ -126,6 +126,57 @@ protected:
 #endif
             m_status->Text = transactionsPassed ? L"TRANSACTIONS / REGRESSIONS PASS " TEST_PACKAGE_VERSION_W : L"TRANSACTIONS / REGRESSIONS FAIL " TEST_PACKAGE_VERSION_W;
 #endif
+#if defined(TEST_CLIPBOARD_ROUTE)
+            // Real clipboard routing acceptance runs on the same XAML owner thread.
+            using RunClipboard = HRESULT(__stdcall*)(const wchar_t*);
+            auto clipboard = module ? reinterpret_cast<RunClipboard>(GetProcAddress(module, "WKUWPTestClipboard")) : nullptr;
+            auto clipboardPath = Windows::Storage::ApplicationData::Current->LocalFolder->Path + L"\\clipboard-result.txt";
+            auto clipboardResult = clipboard ? clipboard(clipboardPath->Data()) : E_NOINTERFACE;
+            auto clipboardPassed = SUCCEEDED(result) && SUCCEEDED(clipboardResult);
+#if defined(TEST_INITIALIZATION_ACTIONS)
+            clipboardPassed = clipboardPassed && SUCCEEDED(initialized);
+#endif
+#if defined(TEST_EVENT_CALLBACKS)
+            clipboardPassed = clipboardPassed && SUCCEEDED(eventResult);
+#endif
+#if defined(TEST_PUBLIC_COMMANDS)
+            clipboardPassed = clipboardPassed && SUCCEEDED(commandResult);
+#endif
+#if defined(TEST_CONTROL_LIFECYCLE)
+            clipboardPassed = clipboardPassed && SUCCEEDED(lifecycleResult);
+#endif
+#if defined(TEST_NOTIFICATION_TRANSACTIONS)
+            clipboardPassed = clipboardPassed && SUCCEEDED(transactionResult);
+#endif
+            m_status->Text = clipboardPassed ? L"CLIPBOARD / REGRESSIONS PASS " TEST_PACKAGE_VERSION_W : L"CLIPBOARD / REGRESSIONS FAIL " TEST_PACKAGE_VERSION_W;
+#endif
+#if defined(TEST_RUNTIME_OWNER)
+            // Real runtime-owner acceptance runs on the same XAML owner thread.
+            using RunOwner = HRESULT(__stdcall*)(const wchar_t*);
+            auto owner = module ? reinterpret_cast<RunOwner>(GetProcAddress(module, "WKUWPTestOwner")) : nullptr;
+            auto ownerPath = Windows::Storage::ApplicationData::Current->LocalFolder->Path + L"\\owner-result.txt";
+            auto ownerResult = owner ? owner(ownerPath->Data()) : E_NOINTERFACE;
+            auto ownerPassed = SUCCEEDED(result) && SUCCEEDED(ownerResult);
+#if defined(TEST_INITIALIZATION_ACTIONS)
+            ownerPassed = ownerPassed && SUCCEEDED(initialized);
+#endif
+#if defined(TEST_EVENT_CALLBACKS)
+            ownerPassed = ownerPassed && SUCCEEDED(eventResult);
+#endif
+#if defined(TEST_PUBLIC_COMMANDS)
+            ownerPassed = ownerPassed && SUCCEEDED(commandResult);
+#endif
+#if defined(TEST_CONTROL_LIFECYCLE)
+            ownerPassed = ownerPassed && SUCCEEDED(lifecycleResult);
+#endif
+#if defined(TEST_NOTIFICATION_TRANSACTIONS)
+            ownerPassed = ownerPassed && SUCCEEDED(transactionResult);
+#endif
+#if defined(TEST_CLIPBOARD_ROUTE)
+            ownerPassed = ownerPassed && SUCCEEDED(clipboardResult);
+#endif
+            m_status->Text = ownerPassed ? L"OWNER / REGRESSIONS PASS " TEST_PACKAGE_VERSION_W : L"OWNER / REGRESSIONS FAIL " TEST_PACKAGE_VERSION_W;
+#endif
 #if defined(TEST_FRAME_SCHEDULER)
             // Asynchronous idle-resource acceptance must finish before the aggregate UI passes.
             using RunScheduler = Windows::Foundation::IAsyncAction^(__stdcall*)(const wchar_t*, const wchar_t*);
@@ -146,6 +197,12 @@ protected:
 #endif
 #if defined(TEST_NOTIFICATION_TRANSACTIONS)
             priorPassed = priorPassed && SUCCEEDED(transactionResult);
+#endif
+#if defined(TEST_CLIPBOARD_ROUTE)
+            priorPassed = priorPassed && SUCCEEDED(clipboardResult);
+#endif
+#if defined(TEST_RUNTIME_OWNER)
+            priorPassed = priorPassed && SUCCEEDED(ownerResult);
 #endif
             m_status->Text = L"SCHEDULER / REGRESSIONS RUNNING " TEST_PACKAGE_VERSION_W;
             if (!scheduler) m_status->Text = L"SCHEDULER EXPORT MISSING " TEST_PACKAGE_VERSION_W;

@@ -239,3 +239,10 @@ reuse incompatible prototype interface identities. Generated WebKit.dll/WinMD
 are the one packaged authority. Host script execution, shared/persistent profiles,
 independent font registries, redirect-hop events and permission/download/new-window
 deferrals remain deferred. Process-global engine DLL hot-unload is also deferred.
+
+Capability reporting rule (task 7.4): the engine mask advertises a bit only
+when its end-to-end production path works, so the mask is zero and every
+unwired consumer path fails fail-closed (E_NOTIMPL/MissingCapability) instead
+of claiming success. The per-bit engine state and unblocking conditions live in
+the provider ledger (`Source/WebCore/platform/uwp/WKUWPEngineAPI.cpp`); the
+per-service availability list lives in `API/uwp/USAGE.md`.
