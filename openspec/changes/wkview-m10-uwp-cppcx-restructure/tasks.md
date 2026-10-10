@@ -168,7 +168,8 @@ Supporting-document basenames in this checklist resolve under `artifact/`;
   - Evidence: `artifact/input-controllers.md` records gesture/physics extraction, V1 input/focus forwarding and the launch-activation race fix. Native checks pass 54/54 on both ARM compilers; Lumia v1.0.0.42 passes tap/scroll/fling interaction with identical stages. Keyboard/focus verified as explicit E_NOTIMPL with full validation coverage. Full G4 stays open.
 - [x] 6.5 Implement Loaded/Unloaded and app suspend/resume subscription handling; verify temporary reparenting preserves page state and restores exactly one token set without conflating Close.
   - Evidence: `artifact/lifecycle-subscriptions.md` records the subscription state machine, shell suspend/resume forwarding and the launch-activation race guard. Native checks pass 35/35 on both ARM compilers; Lumia v1.0.0.43 passes three power-button suspend/resume cycles with continued rendering. Device reparent runs have no shell affordance; unload is proven by host machine plus wiring. Full G4 stays open.
-- [ ] 6.6 Document presentation/service/input ownership and add focused regressions; verify no network-completion inference and record partial presentation evidence, leaving combined G4 pending until all section 7 services pass.
+- [x] 6.6 Document presentation/service/input ownership and add focused regressions; verify no network-completion inference and record partial presentation evidence, leaving combined G4 pending until all section 7 services pass.
+  - Evidence: `artifact/presentation-ownership.md` records the ownership table, the separation gate (6/6 negative tests), the phone paused-resource oracle and the 6.1–6.5 aggregate. Shell curl probe stays confined to 8.4 scope. G4 remains pending on 6.3 items and all of 7.1–7.5.
 
 ## 7. C++/CX OS services and engine forwarding
 
