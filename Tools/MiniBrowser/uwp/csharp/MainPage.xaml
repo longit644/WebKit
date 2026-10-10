@@ -75,9 +75,14 @@
             <Grid x:Name="MenuCommandSurface" Background="{TemplateBinding Background}">
                 <VisualStateManager.VisualStateGroups>
                     <VisualStateGroup x:Name="CommonStates">
-                        <VisualState x:Name="Normal" />
+                        <VisualState x:Name="Normal">
+                            <Storyboard>
+                                <PointerUpThemeAnimation Storyboard.TargetName="MenuCommandContent" />
+                            </Storyboard>
+                        </VisualState>
                         <VisualState x:Name="PointerOver">
                             <Storyboard>
+                                <PointerUpThemeAnimation Storyboard.TargetName="MenuCommandContent" />
                                 <ObjectAnimationUsingKeyFrames Storyboard.TargetName="MenuCommandSurface"
                                                                Storyboard.TargetProperty="Background">
                                     <DiscreteObjectKeyFrame KeyTime="0"
@@ -87,6 +92,7 @@
                         </VisualState>
                         <VisualState x:Name="Pressed">
                             <Storyboard>
+                                <PointerDownThemeAnimation Storyboard.TargetName="MenuCommandContent" />
                                 <ObjectAnimationUsingKeyFrames Storyboard.TargetName="MenuCommandSurface"
                                                                Storyboard.TargetProperty="Background">
                                     <DiscreteObjectKeyFrame KeyTime="0"
@@ -117,8 +123,8 @@
         <!-- App-bar rows use icons and text in one full-width touch target. -->
         <Style x:Key="BrowserMenuItemStyle" TargetType="Button">
             <Setter Property="MinWidth" Value="0" />
-            <Setter Property="Height" Value="48" />
-            <Setter Property="Padding" Value="16,0" />
+            <Setter Property="Height" Value="40" />
+            <Setter Property="Padding" Value="12,0" />
             <Setter Property="FontSize" Value="14" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Background" Value="Transparent" />
@@ -212,7 +218,7 @@
                         <RowDefinition Height="56" />
                     </Grid.RowDefinitions>
                     <!-- Secondary actions are above the primary icon/label strip. -->
-                    <ScrollViewer x:Name="MenuScroll" Grid.Row="0" Padding="0,8"
+                    <ScrollViewer x:Name="MenuScroll" Grid.Row="0" Padding="0,4"
                                   VerticalScrollMode="Auto"
                                   VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled"
                                   HorizontalScrollBarVisibility="Disabled">
@@ -247,6 +253,10 @@
                             </Button>
                         </StackPanel>
                     </ScrollViewer>
+                    <!-- Thin neutral divider matches the top edge of the Files app overflow panel. -->
+                    <Border x:Name="MenuTopDivider" Grid.Row="0" Height="1"
+                            HorizontalAlignment="Stretch" VerticalAlignment="Top"
+                            Background="{StaticResource BrowserMenuPressedBrush}" IsHitTestVisible="False" />
                     <!-- One sample primary action demonstrates an in-app notification badge. -->
                     <Grid Grid.Row="1" Background="{ThemeResource AppBarBackground}">
                         <Grid x:Name="HelloActionHost" Width="68" HorizontalAlignment="Right">

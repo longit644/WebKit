@@ -37,7 +37,7 @@ namespace WebKitMiniBrowser
         private const int CheckCount = 8;
 
         /// <summary>Number of additional geometry checks evaluated with the menu open.</summary>
-        private const int MenuCheckCount = 3;
+        private const int MenuCheckCount = 4;
 
         /// <summary>Number of additional layout and focus checks evaluated while editing the address.</summary>
         private const int AddressEditingCheckCount = 2;
@@ -167,6 +167,7 @@ namespace WebKitMiniBrowser
             Visibility? moreButtonVisibility = GetNamedElementVisibility(page, "MoreButton");
             Visibility? addressDividerVisibility = GetNamedElementVisibility(page, "AddressDivider");
             AppBarButton helloActionButton = page.FindName("HelloActionButton") as AppBarButton;
+            Border menuTopDivider = page.FindName("MenuTopDivider") as Border;
             Rect helloActionSize = helloActionButton == null ? new Rect()
                 : new Rect(0, 0, helloActionButton.ActualWidth, helloActionButton.ActualHeight);
             double menuWidth = menuSheet.Width;
@@ -184,6 +185,8 @@ namespace WebKitMiniBrowser
             Rect? addressBounds = GetTransformedBounds(addressBox, shellRoot, "AddressBox to ShellRoot");
             Rect? helloActionBounds = !menuOpen || helloActionButton == null ? (Rect?)null
                 : GetTransformedBounds(helloActionButton, shellRoot, "HelloActionButton to ShellRoot");
+            Rect? menuTopDividerBounds = !menuOpen || menuTopDivider == null ? (Rect?)null
+                : GetTransformedBounds(menuTopDivider, shellRoot, "MenuTopDivider to ShellRoot");
             Rect? menuBounds = GetTransformedBounds(menuSheet, shellRoot, "MenuSheet to ShellRoot");
             Thickness rootMargin = shellRoot.Margin;
             Rect fullWindowSlot = new Rect(0, 0, windowBounds.Width, windowBounds.Height);
@@ -243,6 +246,7 @@ namespace WebKitMiniBrowser
             body.AppendLine("AddressDivider.Visibility: " + FormatVisibility(addressDividerVisibility));
             body.AppendLine("HelloActionButton.ActualWidth/ActualHeight: " + FormatRect(helloActionSize));
             body.AppendLine("HelloActionButton.BoundsInShellRoot: " + FormatRect(helloActionBounds));
+            body.AppendLine("MenuTopDivider.BoundsInShellRoot: " + FormatRect(menuTopDividerBounds));
             body.AppendLine("MenuOpen: " + menuOpen);
             body.AppendLine("MenuSheet.Width: " + menuWidth.ToString("0.###", CultureInfo.InvariantCulture));
             body.AppendLine("MenuSheet.ActualWidth/ActualHeight: " + FormatRect(menuSize));
@@ -313,16 +317,22 @@ namespace WebKitMiniBrowser
                     && chromeBounds.HasValue && HasPositiveSize(chromeBounds.Value)
                     && Near(helloActionBounds.Value.Right, rootSize.Width)
                     && Near(helloActionBounds.Value.Bottom, chromeBounds.Value.Y), ref failures);
+                AppendCheck(body, "12 MenuTopDivider is 1 DIP across the sheet at its top edge",
+                    menuTopDividerBounds.HasValue && HasPositiveSize(menuTopDividerBounds.Value)
+                    && Near(menuTopDividerBounds.Value.X, menuBounds.Value.X)
+                    && Near(menuTopDividerBounds.Value.Y, menuBounds.Value.Y)
+                    && Near(menuTopDividerBounds.Value.Width, menuSize.Width)
+                    && Near(menuTopDividerBounds.Value.Height, 1.0), ref failures);
             }
 
             if (addressEditing)
             {
-                AppendCheck(body, "12 AddressBox spans ShellRoot with 4 DIP left/right margins while editing",
+                AppendCheck(body, "13 AddressBox spans ShellRoot with 4 DIP left/right margins while editing",
                     addressGeometryReady && Near(addressBounds.Value.X, AddressEditingMargin)
                     && Near(addressSize.Width, rootSize.Width - 2.0 * AddressEditingMargin)
                     && Near(addressBounds.Value.Width, rootSize.Width - 2.0 * AddressEditingMargin), ref failures);
                 AppendCheck(body, string.Format(CultureInfo.InvariantCulture,
-                    "13 Editing state: AddressBox focused with {0:0.###} DIP font, menu closed, compact controls collapsed",
+                    "14 Editing state: AddressBox focused with {0:0.###} DIP font, menu closed, compact controls collapsed",
                     AddressEditingFontSize),
                     addressGeometryReady && addressFocusState != FocusState.Unfocused && !menuOpen
                     && addressFontSize == AddressEditingFontSize

@@ -40,7 +40,7 @@ V16 removes the custom status footer row entirely and places the 2-DIP accent pr
 
 V17 removes Windows accent tint from secondary-menu hover/pressed states and uses neutral gray overlay brushes. The v16 status-footer removal/progress-row layout remains; v17 build and deployment evidence follows its package run.
 
-V19 matches the primary strip to the SDK AppBarButton default min-height of 56 DIP, removing the unused 12-DIP gap observed above the address bar. Build and phone validation evidence follows deployment.
+V19 matches the primary strip to the SDK AppBarButton default min-height of 56 DIP, removing the unused 12-DIP gap observed above the address bar. V24 adds a 1-DIP gray line across the top of the secondary menu; the v24 phone report verifies it in menu-open snapshots. V25 adds native PointerDown/PointerUp theme animations to scale menu rows on tap. ARM Release/.NET Native/signature/XAML gates pass, but Device Portal was unavailable before install, so the tap-scale behavior awaits phone verification.
 
 ## Task 8.2 C# MVVM browser controls
 
