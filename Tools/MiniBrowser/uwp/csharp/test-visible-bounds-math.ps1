@@ -2,7 +2,7 @@
 <#
 .SYNOPSIS
 Host-runnable unit check for the visible-bounds margin math (M10 task 8.1).
-Compiles the shipped Tools/MiniBrowser/csharp/VisibleBoundsHelper.cs with the
+Compiles the shipped Tools/MiniBrowser/uwp/csharp/VisibleBoundsHelper.cs with the
 desktop compiler and executes 31 vectors (124 margin assertions).
 #>
 [CmdletBinding()]
@@ -11,8 +11,8 @@ param(
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-$repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..'))
-$helper = Join-Path $repo 'Tools\MiniBrowser\csharp\VisibleBoundsHelper.cs'
+$repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..\..'))
+$helper = Join-Path $repo 'Tools\MiniBrowser\uwp\csharp\VisibleBoundsHelper.cs'
 $csc = Join-Path $MsBuildPath 'Roslyn\csc.exe'
 foreach ($required in @($helper, $csc)) {
     if (-not (Test-Path -LiteralPath $required)) { throw "Required math-check input missing: $required" }

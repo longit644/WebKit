@@ -2,8 +2,8 @@
 //
 // The console harness deliberately proves the failure path, but a UserControl
 // must be constructed by the XAML application runtime on its owning thread. This
-// host follows the composable Application::Start path used by MiniBrowserUWP.cpp
-// and keeps a visible status window open after the checks finish.
+// host follows the composable Application::Start path used by the packaged UWP
+// application shell and keeps a visible status window open after checks finish.
 
 #include <windows.applicationmodel.activation.h>
 #include <windows.storage.h>

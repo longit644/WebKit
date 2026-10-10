@@ -1,6 +1,6 @@
 ---
 name: uwp-code-style
-description: Use when editing or reviewing this repository's Windows UWP port, including Source/WebCore/platform/uwp, Source/WebKit/UIProcess/API/uwp, Tools/MiniBrowser/uwp, Tools/uwp/toolchain, WinRT IDL, or WebKitWebViewComponent.
+description: Use when editing or reviewing this repository's Windows UWP port, including Source/WebCore/platform/uwp, Source/WebKit/UIProcess/API/uwp, Tools/MiniBrowser/uwp/csharp, Tools/uwp/toolchain, WinRT IDL, or WebKitWebViewComponent.
 ---
 
 # WebKit UWP coding conventions
@@ -25,7 +25,7 @@ Use this skill for UWP implementation, toolchain, MiniBrowser, WinRT component, 
 
 ## UI, HTML and application customization
 
-- Do not build the MiniBrowser blocked/error page as an inline C++ HTML string. Use `Tools/MiniBrowser/uwp/blocked.html`, HTML-escape values before token substitution, and keep an embedded fallback only for missing/unreadable files.
+- Do not build the MiniBrowser blocked/error page as an inline HTML string. Use `Tools/MiniBrowser/uwp/csharp/Assets/blocked.html`, HTML-escape values before token substitution, and keep an embedded fallback only for missing/unreadable files.
 - Resolve the blocked page in this order: explicit host path, app `LocalState/blocked.html`, packaged `blocked.html`, embedded fallback. Hosts that use `WebKit.WebKitWebView` may instead handle `NavigationFailed` and load their own page through `NavigateToString`.
 - Include the consented proceed markup only for certificate-verification failures. Do not offer a proceed/bypass action for DNS, connection, policy, or other errors.
 - Keep demo pages and navigation fixtures as clearly identified test content; do not use them as a substitute for application UI or error handling.

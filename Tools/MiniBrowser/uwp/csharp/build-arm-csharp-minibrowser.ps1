@@ -3,8 +3,8 @@
 .SYNOPSIS
 Builds the M10 C# MiniBrowser shell (task 8.1): fresh component metadata into
 TEMP, ARM Release .NET Native app build via Community 2022 MSBuild, signing,
-and all four verification gates. Never builds inside shared build dirs and
-never modifies the legacy WRL shell tree.
+and all four verification gates. Never builds inside shared build dirs or
+modifies the shared native engine/component trees.
 #>
 [CmdletBinding()]
 param(
@@ -17,8 +17,8 @@ param(
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-$repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..'))
-$source = Join-Path $repo 'Tools\MiniBrowser\csharp'
+$repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..\..'))
+$source = Join-Path $repo 'Tools\MiniBrowser\uwp\csharp'
 $OutDir = [IO.Path]::GetFullPath($OutDir)
 if (-not (Test-Path -LiteralPath (Split-Path -Parent $OutDir))) { throw "Output parent does not exist: $OutDir" }
 if (Test-Path -LiteralPath $OutDir) { throw 'Use a fresh -OutDir for matching metadata/XBF/package output' }

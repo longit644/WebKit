@@ -11,7 +11,6 @@ ROOT = Path(__file__).resolve().parents[2]
 SOURCE_DIRECTORIES = (
     ROOT / "Source/WebCore/platform/uwp",
     ROOT / "Source/WebKit/UIProcess/API/uwp",
-    ROOT / "Tools/MiniBrowser/uwp",
     ROOT / "Tools/uwp",
 )
 # Historical MIDL output basenames, excluded only in their generated source homes.

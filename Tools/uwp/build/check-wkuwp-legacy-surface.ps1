@@ -8,8 +8,8 @@
 
       1. The explicit map in Source/WebCore/platform/uwp/LegacyExportMapUWP.h
          compiles clean for ARM32 with both boundary compilers, as C++ on each.
-         Only C++ is exercised because every consumer of this surface - the
-         wrapper, MiniBrowser and the diagnostic hosts - is C++, and the legacy
+          Only C++ is exercised because every consumer of this surface - the
+          component wrapper and native diagnostic payloads - is C++, and the legacy
          header itself uses C++-only declarations. The check translation unit
          assigns each of the 23 declared exports to its recorded signature
          typedef, so any drift fails here instead of silently changing what the
@@ -72,8 +72,8 @@ $script:LegacyExports = @(
     'WKInitializeEngineUWP', 'WKGetPageDocumentStateUWP', 'WKRenderFirstPageUWP'
 )
 
-# Engine restructuring, presentation extraction, the MiniBrowser shell and
-# diagnostic-host migrations intentionally change their files by design.
+# Engine restructuring, presentation extraction, MiniBrowser app-host migration,
+# and diagnostic-host migrations intentionally change their files by design.
 # Frozen PageUWP declarations remain identical. RuntimeSmoke's pure CRT probe
 # stays byte-identical by blob; RuntimeSmoke/FpuProbe/TlsSmoke host migrations
 # have explicit semantic checks below rather than a blanket file-identity gate.

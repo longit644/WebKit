@@ -43,12 +43,12 @@ support.
 
 ### Applications
 
-`Tools/MiniBrowser/csharp/` is the C# application host over the reusable
+`Tools/MiniBrowser/uwp/csharp/` is the C# application host over the reusable
 component WinMD: address bar, toolbar, app navigation policy,
 LocalState/package configuration, blocked-page template and copy, and the
-presentation of failures. The historical WRL shell remains under
-`Tools/MiniBrowser/uwp/` as an engine regression harness. No fixture-suite gate
-or diagnostic navigation sequence belongs in the C# sample startup path.
+presentation of failures. The former WRL shell files were removed during the
+application-host relocation. No fixture-suite gate or diagnostic navigation
+sequence belongs in the C# sample startup path.
 
 `Tools/uwp/diagnostics/RuntimeSmoke/`, `FpuProbe/`, and `TlsSmoke/` are C#
 diagnostic hosts over native payloads. RuntimeSmoke's shared `stage-app.py`

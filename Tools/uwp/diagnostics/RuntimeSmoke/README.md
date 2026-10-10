@@ -105,7 +105,7 @@ python Tools/uwp/diagnostics/RuntimeSmoke/scripts/stage-runtimesmoke.py `
   pack /d $stage /p $appx /o
 ```
 
-The source C# XML documentation follows the `Tools/MiniBrowser/csharp` style:
+The source C# XML documentation follows the `Tools/MiniBrowser/uwp/csharp` style:
 types and members have `<summary>` elements, and documented parameters/return
 values use `<param>`/`<returns>`. MSBuild's ARM Release/.NET Native build is
 the compile check; the source-docs audit covers the newly authored C/C++ files

@@ -10,16 +10,16 @@ Carry from task 6.3: `App` requests `ApplicationViewBoundsMode.UseCoreWindow` be
 
 ```powershell
 # Full gate: fresh component metadata + ARM Release .NET Native + sign + verify
-.\Tools\MiniBrowser\csharp\build-arm-csharp-minibrowser.ps1 `
-  -OutDir "$env:TEMP\opencode\m10-minibrowser-dropbox-appbar-v10" -Version 1.0.0.10 -LayoutDiagnostics
+  .\Tools\MiniBrowser\uwp\csharp\build-arm-csharp-minibrowser.ps1 `
+  -OutDir "$env:TEMP\opencode\m10-minibrowser-relocated-v22" -Version 1.0.0.22 -LayoutDiagnostics
 # Host-runnable pure-math check only
-.\Tools\MiniBrowser\csharp\test-visible-bounds-math.ps1
+  .\Tools\MiniBrowser\uwp\csharp\test-visible-bounds-math.ps1
 ```
 
 Targets 10.0.19041.0 / MinVersion 10.0.15063.0, Publisher `CN=WebKitWebView`,
 `Microsoft.NETCore.UniversalWindowsPlatform` 6.0.15, ARM Release through
 .NET Native, Community 2022 MSBuild. Package `WebKitProbe.MiniBrowser`
-1.0.0.10; app ID `WebKitProbe.MiniBrowser_2932e6rj4m41p!App` once installed
+1.0.0.22; app ID `WebKitProbe.MiniBrowser_2932e6rj4m41p!App` once installed
 (family name varies by signing key hash — confirm via install output).
 Suspension/Close lifetime belongs to task 8.8.
 
@@ -31,14 +31,14 @@ full name. `-LayoutDiagnostics` opts into geometry-only LocalState reports; ordi
 
 ```powershell
 python Tools/uwp/device-portal.py --url https://<portal> --insecure install `
-  "$env:TEMP\opencode\m10-minibrowser-dropbox-appbar-v10\MiniBrowserCSharp-arm.appx"
+  "$env:TEMP\opencode\m10-minibrowser-relocated-v22\MiniBrowserCSharp-arm.appx"
 python Tools/uwp/device-portal.py --url https://<portal> --insecure get /api/app/packagemanager/state
 python Tools/uwp/device-portal.py --url https://<portal> --insecure launch `
   'WebKitProbe.MiniBrowser_2932e6rj4m41p!App' `
-  'WebKitProbe.MiniBrowser_1.0.0.10_arm__2932e6rj4m41p'
+  'WebKitProbe.MiniBrowser_1.0.0.22_arm__2932e6rj4m41p'
 ```
 
-Confirm the browser fills the area above the bottom address bar, with no repeated blank strip above/below chrome and no idle Ready footer. Rotate portrait → landscape → portrait, keep the system navigation bar visible, and confirm there is no content beneath it. Open the app-bar panel in both orientations: full width in portrait, half width aligned right in landscape, Forward/Local demo rows flush above the bottom bar, and the single Hello action with its badge in the primary strip. Check 48-DIP menu rows, 16-DIP text, accent press feedback, Forward disabled state, badge dismissal, outside-tap/system Back dismissal, repeated toggles, keyboard Enter, and light/dark chrome. For address editing, confirm the divider between address and dots in compact mode, the full-width editor and dimmed document while focused, and draft restoration after outside-tap, Escape, or Back. Loading should show a 2-DIP accent progress indicator immediately above the address bar and replace Reload with Stop in the same left control slot. A `-LayoutDiagnostics` build writes `layout-report.txt` with the package version and seven base geometry/control-state checks; two more checks apply while the menu is open or editing. The report records theme and keyboard occlusion, never address text or page URI. Reports retain at most twelve snapshots.
+Confirm the browser fills the area above the bottom address bar, with no repeated blank strip above/below chrome and no custom status footer. Rotate portrait → landscape → portrait, keep the system navigation bar visible, and confirm there is no content beneath it. Open the app-bar panel in both orientations: full width in portrait, half width aligned right in landscape, Forward/Local demo rows flush above the address bar, and the single Hello action immediately above it. Check 48-DIP menu rows, 14-DIP text, gray hover/pressed feedback, Forward disabled state, badge dismissal and system toast, outside-tap/system Back dismissal, repeated toggles, keyboard Enter, and light/dark chrome. For address editing, confirm the divider between address and dots in compact mode, the full-width editor and dimmed document while focused, and draft restoration after outside-tap, Escape, or Back. Loading should show a 2-DIP accent progress line immediately above the address bar and replace Reload with Stop in the same left control slot. A `-LayoutDiagnostics` build records the package version and verifies root/chrome/progress/button geometry, plus three open-menu checks and two address-editing checks. The report records theme and keyboard occlusion, never address text or page URI. Reports retain at most twelve snapshots.
 
 ## Browser policy and certificate-warning run (M10 task 8.3)
 
@@ -89,7 +89,7 @@ On a device, verify the warning run as follows:
 Host-only verification (no WinRT control required):
 
 ```powershell
-.\Tools\MiniBrowser\csharp\test-browser-policy.ps1
+.\Tools\MiniBrowser\uwp\csharp\test-browser-policy.ps1
 ```
 
 ## Address editing and keyboard-safe layout (v1.0.0.7)
@@ -101,3 +101,5 @@ InputPane occlusion is folded into the visible-bounds margin without shrinking t
 Verified ARM package build: `-OutDir "$env:TEMP\opencode\m10-minibrowser-edge-editing-v7" -Version 1.0.0.7 -LayoutDiagnostics`. The Lumia 950 XL installed/launched v7; all collected package-version-matched snapshots in `%TEMP%\opencode\m10-minibrowser-v7-layout.txt` pass, including compact mode, full-width focused editing, and docked keyboard positioning. The report proves measured geometry, not owner screenshot/theme/landscape visual acceptance.
 
 The v9 visual refinement retains `AddressBox.VerticalContentAlignment="Center"` and adds a 4-DIP top-versus-bottom padding difference, shifting the text area down by 2 DIP to compensate for the phone's apparent high glyph placement. Optional layout diagnostics report the actual padding and assert the same optical offset in both compact and editing states.
+
+The relocated `Tools/MiniBrowser/uwp/csharp/` shell builds from its new path. Package 1.0.0.22 built and signed, installed and launched on Lumia 950 XL / Mobile 15254.603; its base layout report passes. The v20 open-menu report verifies the native AppBarButton at 68×56 DIP and menu docking. BrowserPolicy is 23/23 and visible-bounds math 124/124.

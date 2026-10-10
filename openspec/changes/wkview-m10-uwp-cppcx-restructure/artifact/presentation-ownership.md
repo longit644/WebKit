@@ -23,7 +23,7 @@ All state below is per control unless marked process-shared. Every mutating path
 
 Behaviorally, the 6.2 phone oracle completes delayed CSS, scripts, timers and fetches on two pages with **zero** presentation callbacks outstanding, and the scheduler suite fails closed if any DOM result is missing. Terminal outcomes exist only as structured-engineering obligations created before dispatch (5.x), never as rendering observations.
 
-The legacy shell's curl fetch probe (`Tools/MiniBrowser/uwp/MiniBrowserUWP.cpp`, `curl/curl.h`, worker `FetchRequest`, per-frame `consumeFetchResult`) is confined to the sample app and stays owned by task 8.4 for removal. No file under the new control boundary references curl.
+The former native MiniBrowser shell, including its curl fetch probe (`curl/curl.h`, worker `FetchRequest`, per-frame `consumeFetchResult`), was removed when the C# host moved to `Tools/MiniBrowser/uwp/csharp/`. The C# app uses public control/policy calls and contains no downloader or frame-polling path. No file under the control boundary references curl.
 
 ## Partial presentation evidence (6.1–6.5)
 

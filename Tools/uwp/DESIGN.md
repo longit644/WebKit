@@ -121,14 +121,13 @@ Source/WebCore/platform/uwp/
   existing Skia/compositor/drag-image adapters
   PageUWP.cpp (temporary legacy export forwarders)
 
-Tools/MiniBrowser/uwp/
-  App.h / .cpp / .xaml
-  MainPage.h / .cpp / .xaml
-  BrowserViewModel.h / .cpp
-  BrowserPolicy.h / .cpp
-  assets/blocked.html
-  assets/demo/
-  AppxManifest.xml
+Tools/MiniBrowser/uwp/csharp/
+  App.xaml / .xaml.cs
+  MainPage.xaml / .xaml.cs
+  BrowserViewModel.cs
+  BrowserPolicy.cs
+  Assets/blocked.html and demo.html
+  Package.appxmanifest
   README.md
 
 Tools/uwp/
