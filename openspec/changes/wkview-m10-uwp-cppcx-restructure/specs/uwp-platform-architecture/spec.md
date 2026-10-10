@@ -1,7 +1,6 @@
 ## Purpose
 
-Provide reusable UWP browser integration with explicit framework, application,
-test and tooling ownership, and traceable migration from the prototype port.
+Provide reusable UWP browser integration with explicit framework, application, test and tooling ownership, and traceable migration from the prototype port.
 
 ## ADDED Requirements
 

@@ -1,0 +1,317 @@
+<Page
+    x:Class="WebKitMiniBrowser.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:web="using:WebKit"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
+    IsTabStop="True" UseSystemFocusVisuals="False"
+    KeyDown="OnPageKeyDown">
+
+    <Page.Resources>
+        <!-- Edge's document scrim is neutral black at half opacity in either system theme. -->
+        <SolidColorBrush x:Key="BrowserDimOverlayBrush" Color="#80000000" />
+        <SolidColorBrush x:Key="BrowserMenuHoverBrush" Color="#33808080" />
+        <SolidColorBrush x:Key="BrowserMenuPressedBrush" Color="#66808080" />
+        <!-- AppBar commands keep one surface when disabled; only their foreground changes. -->
+        <ControlTemplate x:Key="BrowserCommandTemplate" TargetType="Button">
+            <Grid x:Name="CommandSurface" Background="{TemplateBinding Background}">
+                <VisualStateManager.VisualStateGroups>
+                    <VisualStateGroup x:Name="CommonStates">
+                        <VisualState x:Name="Normal" />
+                        <VisualState x:Name="PointerOver">
+                            <Storyboard>
+                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="CommandSurface"
+                                                               Storyboard.TargetProperty="Background">
+                                    <DiscreteObjectKeyFrame KeyTime="0"
+                                                            Value="{ThemeResource AppBarButtonBackgroundPointerOver}" />
+                                </ObjectAnimationUsingKeyFrames>
+                            </Storyboard>
+                        </VisualState>
+                        <VisualState x:Name="Pressed">
+                            <Storyboard>
+                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="CommandSurface"
+                                                               Storyboard.TargetProperty="Background">
+                                    <DiscreteObjectKeyFrame KeyTime="0"
+                                                            Value="{ThemeResource AppBarButtonBackgroundPressed}" />
+                                </ObjectAnimationUsingKeyFrames>
+                            </Storyboard>
+                        </VisualState>
+                        <VisualState x:Name="Disabled">
+                            <Storyboard>
+                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="CommandContent"
+                                                               Storyboard.TargetProperty="Foreground">
+                                    <DiscreteObjectKeyFrame KeyTime="0"
+                                                            Value="{ThemeResource AppBarButtonForegroundDisabled}" />
+                                </ObjectAnimationUsingKeyFrames>
+                            </Storyboard>
+                        </VisualState>
+                    </VisualStateGroup>
+                </VisualStateManager.VisualStateGroups>
+                <ContentPresenter x:Name="CommandContent"
+                                  Content="{TemplateBinding Content}"
+                                  ContentTemplate="{TemplateBinding ContentTemplate}"
+                                  Padding="{TemplateBinding Padding}"
+                                  Foreground="{TemplateBinding Foreground}"
+                                  HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                  VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+            </Grid>
+        </ControlTemplate>
+        <!-- Theme resources follow Windows light/dark settings without recoloring websites. -->
+        <Style x:Key="BrowserChromeButtonStyle" TargetType="Button">
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="Height" Value="48" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{ThemeResource SystemControlForegroundBaseHighBrush}" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="VerticalAlignment" Value="Stretch" />
+            <Setter Property="AllowFocusOnInteraction" Value="False" />
+            <Setter Property="UseSystemFocusVisuals" Value="False" />
+            <Setter Property="Template" Value="{StaticResource BrowserCommandTemplate}" />
+        </Style>
+        <!-- Overflow rows use a broad touch target and light accent feedback. -->
+        <ControlTemplate x:Key="BrowserMenuCommandTemplate" TargetType="Button">
+            <Grid x:Name="MenuCommandSurface" Background="{TemplateBinding Background}">
+                <VisualStateManager.VisualStateGroups>
+                    <VisualStateGroup x:Name="CommonStates">
+                        <VisualState x:Name="Normal" />
+                        <VisualState x:Name="PointerOver">
+                            <Storyboard>
+                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="MenuCommandSurface"
+                                                               Storyboard.TargetProperty="Background">
+                                    <DiscreteObjectKeyFrame KeyTime="0"
+                                                            Value="{StaticResource BrowserMenuHoverBrush}" />
+                                </ObjectAnimationUsingKeyFrames>
+                            </Storyboard>
+                        </VisualState>
+                        <VisualState x:Name="Pressed">
+                            <Storyboard>
+                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="MenuCommandSurface"
+                                                               Storyboard.TargetProperty="Background">
+                                    <DiscreteObjectKeyFrame KeyTime="0"
+                                                            Value="{StaticResource BrowserMenuPressedBrush}" />
+                                </ObjectAnimationUsingKeyFrames>
+                            </Storyboard>
+                        </VisualState>
+                        <VisualState x:Name="Disabled">
+                            <Storyboard>
+                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="MenuCommandContent"
+                                                               Storyboard.TargetProperty="Foreground">
+                                    <DiscreteObjectKeyFrame KeyTime="0"
+                                                            Value="{ThemeResource AppBarButtonForegroundDisabled}" />
+                                </ObjectAnimationUsingKeyFrames>
+                            </Storyboard>
+                        </VisualState>
+                    </VisualStateGroup>
+                </VisualStateManager.VisualStateGroups>
+                <ContentPresenter x:Name="MenuCommandContent"
+                                  Content="{TemplateBinding Content}"
+                                  ContentTemplate="{TemplateBinding ContentTemplate}"
+                                  Padding="{TemplateBinding Padding}"
+                                  Foreground="{TemplateBinding Foreground}"
+                                  HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                  VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+            </Grid>
+        </ControlTemplate>
+        <!-- App-bar rows use icons and text in one full-width touch target. -->
+        <Style x:Key="BrowserMenuItemStyle" TargetType="Button">
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="Height" Value="48" />
+            <Setter Property="Padding" Value="16,0" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{ThemeResource SystemControlForegroundBaseHighBrush}" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="AllowFocusOnInteraction" Value="False" />
+            <Setter Property="UseSystemFocusVisuals" Value="False" />
+            <Setter Property="Template" Value="{StaticResource BrowserMenuCommandTemplate}" />
+        </Style>
+    </Page.Resources>
+
+    <Grid x:Name="ShellRoot" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+          SizeChanged="OnShellRootSizeChanged">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="AddressStates">
+                <VisualState x:Name="CompactAddress" />
+                <VisualState x:Name="EditingAddress">
+                    <VisualState.Setters>
+                        <Setter Target="BrowserChrome.Height" Value="44" />
+                        <Setter Target="AddressBox.(Grid.Column)" Value="0" />
+                        <Setter Target="AddressBox.(Grid.ColumnSpan)" Value="3" />
+                        <Setter Target="AddressBox.Margin" Value="4" />
+                        <!-- Optical adjustment: UWP font metrics render high with symmetric padding. -->
+                        <Setter Target="AddressBox.Padding" Value="6,6,6,2" />
+                        <Setter Target="AddressBox.FontSize" Value="14" />
+                        <Setter Target="AddressBox.Background"
+                                Value="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- The single public control owns the content area; startup performs no navigation. -->
+        <web:WebKitWebView x:Name="Browser" Grid.Row="0"
+                           Background="White"
+                           HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+
+        <!-- The loading indicator occupies the full width immediately above browser chrome. -->
+        <ProgressBar x:Name="LoadingProgress" Grid.Row="1" Height="2" MinHeight="2"
+                     VerticalAlignment="Bottom" Foreground="{ThemeResource SystemControlHighlightAccentBrush}"
+                     Background="Transparent" IsIndeterminate="True"
+                     Visibility="{Binding LoadingVisibility}" />
+
+        <!-- Address focus dims the document without covering the full-width editor. -->
+        <Button x:Name="AddressEditingOverlay" Grid.RowSpan="2" Canvas.ZIndex="10"
+                Visibility="{Binding AddressEditingVisibility}"
+                MinWidth="0" MinHeight="0" Padding="0" BorderThickness="0"
+                HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                IsTabStop="False" AllowFocusOnInteraction="False" UseSystemFocusVisuals="False"
+                Command="{Binding CancelAddressEditingCommand}"
+                AutomationProperties.Name="Dismiss address editing">
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{StaticResource BrowserDimOverlayBrush}" />
+                </ControlTemplate>
+            </Button.Template>
+        </Button>
+
+        <!-- This panel is part of the app bar, not a detached context-menu popup. -->
+        <Grid x:Name="MenuOverlay" Grid.RowSpan="3" Canvas.ZIndex="10" Visibility="Collapsed">
+            <Grid.Clip>
+                <RectangleGeometry x:Name="MenuOverlayClip" />
+            </Grid.Clip>
+            <Button Margin="0,0,0,48" MinWidth="0" MinHeight="0" Padding="0"
+                    BorderThickness="0" Background="Transparent" IsTabStop="False"
+                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                    Command="{Binding CloseMenuCommand}" AutomationProperties.Name="Dismiss actions">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{StaticResource BrowserDimOverlayBrush}" />
+                    </ControlTemplate>
+                </Button.Template>
+            </Button>
+            <Border x:Name="MenuSheet" Margin="0,0,0,48"
+                    HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                    Background="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}"
+                    AutomationProperties.Name="Browser actions">
+                <Border.RenderTransform>
+                    <TranslateTransform x:Name="MenuSheetTranslation" />
+                </Border.RenderTransform>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="56" />
+                    </Grid.RowDefinitions>
+                    <!-- Secondary actions are above the primary icon/label strip. -->
+                    <ScrollViewer x:Name="MenuScroll" Grid.Row="0" Padding="0,8"
+                                  VerticalScrollMode="Auto"
+                                  VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Disabled"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
+                            <Button x:Name="ForwardMenuButton" Style="{StaticResource BrowserMenuItemStyle}"
+                                    Command="{Binding ForwardCommand}" AutomationProperties.Name="Forward">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="20" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Viewbox Width="20" Height="20">
+                                        <SymbolIcon Symbol="Forward" />
+                                    </Viewbox>
+                                    <TextBlock Grid.Column="1" Text="Forward" FontSize="14"
+                                               Margin="16,0,0,0" VerticalAlignment="Center" />
+                                </Grid>
+                            </Button>
+                            <Button x:Name="DemoMenuButton" Style="{StaticResource BrowserMenuItemStyle}"
+                                    Command="{Binding LoadDemoCommand}" AutomationProperties.Name="Local demo">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="20" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Viewbox Width="20" Height="20">
+                                        <SymbolIcon Symbol="Home" />
+                                    </Viewbox>
+                                    <TextBlock Grid.Column="1" Text="Local demo" FontSize="14"
+                                               Margin="16,0,0,0" VerticalAlignment="Center" />
+                                </Grid>
+                            </Button>
+                        </StackPanel>
+                    </ScrollViewer>
+                    <!-- One sample primary action demonstrates an in-app notification badge. -->
+                    <Grid Grid.Row="1" Background="{ThemeResource AppBarBackground}">
+                        <Grid x:Name="HelloActionHost" Width="68" HorizontalAlignment="Right">
+                            <AppBarButton x:Name="HelloActionButton" Icon="Contact" Label="Hello"
+                                          IsCompact="False" UseSystemFocusVisuals="False"
+                                          Command="{Binding HelloCommand}" />
+                            <Border Width="16" Height="16" Margin="0,3,4,0"
+                                    HorizontalAlignment="Right" VerticalAlignment="Top"
+                                    CornerRadius="8" Background="{ThemeResource SystemControlHighlightAccentBrush}"
+                                    Visibility="{Binding HelloNotificationVisibility}"
+                                    IsHitTestVisible="False" AutomationProperties.Name="One new notification">
+                                <TextBlock Text="1" FontSize="10" FontWeight="SemiBold"
+                                           Foreground="White" HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Border>
+                        </Grid>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Phone Edge-inspired bottom address bar; additional actions live in overflow. -->
+        <Grid x:Name="BrowserChrome" Grid.Row="2" Height="48" Canvas.ZIndex="20"
+              Background="{ThemeResource AppBarBackground}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="48" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="48" />
+            </Grid.ColumnDefinitions>
+            <Button x:Name="ReloadButton" Grid.Column="0" Style="{StaticResource BrowserChromeButtonStyle}"
+                    Visibility="{Binding ReloadButtonVisibility}"
+                    AutomationProperties.Name="Reload" ToolTipService.ToolTip="Reload"
+                    Command="{Binding ReloadCommand}">
+                <SymbolIcon Symbol="Refresh" />
+            </Button>
+            <Button x:Name="StopButton" Grid.Column="0" Style="{StaticResource BrowserChromeButtonStyle}"
+                    Visibility="{Binding StopButtonVisibility}"
+                    AutomationProperties.Name="Stop loading" ToolTipService.ToolTip="Stop loading"
+                    Command="{Binding StopCommand}">
+                <SymbolIcon Symbol="Cancel" />
+            </Button>
+            <TextBox x:Name="AddressBox" Grid.Column="1" Margin="0,5" MinWidth="0"
+                      Padding="3,8,6,4" FontSize="15" HorizontalAlignment="Stretch"
+                      VerticalContentAlignment="Center"
+                     Background="Transparent" BorderThickness="0"
+                     Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"
+                     Text="{Binding Address, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                     PlaceholderText="Enter web address" InputScope="Url"
+                     IsSpellCheckEnabled="False" IsTextPredictionEnabled="False"
+                     ToolTipService.ToolTip="{Binding DocumentTitle}"
+                     AutomationProperties.Name="Web address"
+                      KeyDown="OnAddressKeyDown" GotFocus="OnAddressGotFocus"
+                      LostFocus="OnAddressLostFocus" />
+            <Button x:Name="MoreButton" Grid.Column="2" Style="{StaticResource BrowserChromeButtonStyle}"
+                    Visibility="{Binding CompactChromeVisibility}"
+                    AutomationProperties.Name="{Binding MenuButtonLabel}"
+                    ToolTipService.ToolTip="{Binding MenuButtonLabel}"
+                    Command="{Binding ToggleMenuCommand}">
+                <SymbolIcon Symbol="More" />
+            </Button>
+            <!-- Phone Edge separates the idle address field from its three-dot touch target. -->
+            <Border x:Name="AddressDivider" Grid.Column="2" Width="1" Height="28"
+                    HorizontalAlignment="Left" VerticalAlignment="Center" Canvas.ZIndex="1"
+                    Visibility="{Binding CompactChromeVisibility}" IsHitTestVisible="False"
+                    Background="{ThemeResource SystemControlForegroundBaseMediumLowBrush}" />
+        </Grid>
+    </Grid>
+</Page>

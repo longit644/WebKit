@@ -1,0 +1,11 @@
+<!--
+  Runtime directives for the .NET Native optimizer. The smoke host performs
+  no reflection-driven invocation beyond its static P/Invoke surface, so the
+  default application directives apply; this file exists to describe that
+  explicitly and to silence the ILT0027 informational warning.
+-->
+<Directives xmlns="http://schemas.microsoft.com/netfx/2013/01/metadata">
+  <Application>
+    <Assembly Name="*Application*" Dynamic="Required All" />
+  </Application>
+</Directives>

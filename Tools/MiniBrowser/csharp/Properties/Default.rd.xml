@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Runtime directives for the .NET Native optimizer (standard UWP template).
+  The shell performs no reflection-driven serialization beyond the default
+  application closure; this file satisfies the ILT0027 gate.
+-->
+<Directives xmlns="http://schemas.microsoft.com/netfx/2013/01/metadata">
+  <Application>
+    <!--
+      An Assembly element with Name="*Application*" applies to all assemblies
+      in the application package. Dynamic="Required All" and
+      DataContractSerializer="All" preserve the default serialization closure.
+    -->
+    <Assembly Name="*Application*" Dynamic="Required All" DataContractSerializer="All" />
+  </Application>
+</Directives>

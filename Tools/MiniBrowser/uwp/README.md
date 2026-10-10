@@ -1,5 +1,11 @@
 # MiniBrowser UWP
 
+> Historical WRL engine regression shell. The owner-selected application shell
+> is C# over the public WinMD at `Tools/MiniBrowser/csharp/`; section 8 migrates
+> that application and retains this tree for native engine/presentation
+> regressions. Its build instructions and device records below describe this
+> legacy shell, not the C# product-facing application.
+
 Native XAML test shell for `WebKitWebViewUWP`, built for ARM32-UWP with the same toolchain as WebCore. The shell has Back, Reload, an editable address box, Go, and a diagnostic status line. It embeds the native C++ wrapper's XAML UserControl/SwapChainPanel element. Version 1.0.0.8 attempts WebKit TextureMapper layer composition through ANGLE/D3D11, with Cairo tile rasterization and cached layer backing stores. The Cairo full-viewport/D3D11 presenter is the fallback.
 
 ## Current scope

@@ -1,7 +1,6 @@
 ## Purpose
 
-Provide reproducible ARM32 component/application builds and matching packages
-with explicit compiler, metadata, runtime, engine and asset dependency identity.
+Provide reproducible ARM32 component/application builds and matching packages with explicit compiler, metadata, runtime, engine and asset dependency identity.
 
 ## ADDED Requirements
 

@@ -1,7 +1,6 @@
 ## Purpose
 
-Provide normal document navigation with stable identities, engine-owned history,
-accurate source/title changes, explicit failures and isolated host-supplied HTML.
+Provide normal document navigation with stable identities, engine-owned history, accurate source/title changes, explicit failures and isolated host-supplied HTML.
 
 ## ADDED Requirements
 

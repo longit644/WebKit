@@ -1,16 +1,10 @@
 # M10 - UWP C++/CX architecture and restructuring
 
-Author: Sol. Status: planning artifacts; implementation not started by this change.
-M10 supersedes unfinished M9 architecture/requirements while preserving its
-implementation and historical device evidence. No milestone completion is implied.
+Author: Sol. Status: implementation in progress. M10 supersedes unfinished M9 architecture/requirements while preserving its implementation and historical device evidence. Sections 5-7 are complete; section 8 is in progress and uses C# application shells over the existing C++/CX component. No milestone completion is implied.
 
 ## Authority and source placement
 
-Public type remains WebKit.WebKitWebView. Authored files stay directly in
-Source/WebKit/UIProcess/API/uwp/WebKitWebView.h/.cpp. All UWP application/component/
-OS projections use C++/CX; engine/native helpers and third-party code keep native
-types and build settings. The primary developer design is
-[Tools/uwp/DESIGN.md](../../../Tools/uwp/DESIGN.md).
+Public type remains WebKit.WebKitWebView. Authored component files stay directly in Source/WebKit/UIProcess/API/uwp/WebKitWebView.h/.cpp. The C++/CX component and OS projections remain C++/CX; MiniBrowser and diagnostic application hosts are C# over the generated WebKit.winmd. Engine/native helpers and third-party code keep native types and build settings. The primary developer design is [Tools/uwp/DESIGN.md](../../../Tools/uwp/DESIGN.md).
 
 ## Artifacts
 
@@ -23,8 +17,10 @@ types and build settings. The primary developer design is
 - [artifact/build-and-packaging.md](artifact/build-and-packaging.md): compiler domains, metadata and runtime gates.
 - [artifact/acceptance-matrix.md](artifact/acceptance-matrix.md): host/device evidence, review resolutions and reference event traces.
 - [artifact/implementation-handoff.md](artifact/implementation-handoff.md): starting state and rules for the implementing model.
+- [artifact/csharp-toolchain.md](artifact/csharp-toolchain.md): C# UWP toolchain decision and Lumia proof gate.
+- [artifact/csharp-app-hosts.md](artifact/csharp-app-hosts.md): section-8 C# shell/payload migrations and current evidence.
 - specs/: nine normative capability deltas with testable scenarios.
-- tasks.md: dependency-ordered implementation work, initially all unchecked.
+- tasks.md: dependency-ordered implementation work with evidence recorded per completed task.
 
 ## Commands
 
@@ -34,17 +30,8 @@ openspec validate wkview-m10-uwp-cppcx-restructure --strict
 openspec instructions apply --change wkview-m10-uwp-cppcx-restructure
 ```
 
-`design.md` remains at the root; the six supporting documents live in `artifact/`.
-Read the handoff before applying. Complete linked/packaged/compiled-XAML phone
-feasibility before broad migration; an ARM probe object is insufficient. Mark
-tasks complete only with evidence; archive only after owner acceptance.
+`design.md` remains at the root; the six supporting documents live in `artifact/`. Read the handoff before applying. Complete linked/packaged/compiled-XAML phone feasibility before broad migration; an ARM probe object is insufficient. Mark tasks complete only with evidence; archive only after owner acceptance.
 
 ## Independent-review corrections
 
-The original review found contract gaps, not architectural rejection. Revised
-contracts specify cross-instance opaque consent tokens, explicit warning HTML/null
-Source semantics, notification transactions, distinct initialization actions,
-immutable per-session trust/global-font conflicts, precise ABI conformance and
-runtime-owned process-pinned shutdown. G4 depends on both rendering and OS services.
-The resolution ledger records required verification; all implementation tasks remain
-unchecked and no review correction claims device/runtime support.
+The original review found contract gaps, not architectural rejection. Revised contracts specify cross-instance opaque consent tokens, explicit warning HTML/null Source semantics, notification transactions, distinct initialization actions, immutable per-session trust/global-font conflicts, precise ABI conformance and runtime-owned process-pinned shutdown. G4 depends on both rendering and OS services. The resolution ledger records required verification; all implementation tasks remain unchecked and no review correction claims device/runtime support.

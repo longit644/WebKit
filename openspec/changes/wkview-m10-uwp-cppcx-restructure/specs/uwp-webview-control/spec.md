@@ -1,7 +1,6 @@
 ## Purpose
 
-Provide a reusable declarative browser control with observable navigation state,
-shared initialization and instance-safe visual, input and page lifecycle.
+Provide a reusable declarative browser control with observable navigation state, shared initialization and instance-safe visual, input and page lifecycle.
 
 ## ADDED Requirements
 

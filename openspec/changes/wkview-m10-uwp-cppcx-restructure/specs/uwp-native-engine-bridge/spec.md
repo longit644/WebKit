@@ -1,7 +1,6 @@
 ## Purpose
 
-Provide a versioned engine boundary with typed per-page notifications and
-explicit data lifetime, threading and cancellation for independently built consumers.
+Provide a versioned engine boundary with typed per-page notifications and explicit data lifetime, threading and cancellation for independently built consumers.
 
 ## ADDED Requirements
 

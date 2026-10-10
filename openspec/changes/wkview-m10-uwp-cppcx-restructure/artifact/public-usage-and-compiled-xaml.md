@@ -2,47 +2,21 @@
 
 ## Public documentation and contract gates
 
-`Source/WebKit/UIProcess/API/uwp/USAGE.md` documents declarative embedding,
-programmatic copied options/package defaults, independent SDK initialization
-observations, Source/null/restore semantics, engine history/reload/Stop, typed
-events/synchronous cancellation, reentrant transactions, opaque warning/retry
-flow, exact HRESULTs, ordinary Close and deferred capabilities. It identifies
-Unsupported production page forwarding rather than claiming a completed browser.
+`Source/WebKit/UIProcess/API/uwp/USAGE.md` documents declarative embedding, programmatic copied options/package defaults, independent SDK initialization observations, Source/null/restore semantics, engine history/reload/Stop, typed events/synchronous cancellation, reentrant transactions, opaque warning/retry flow, exact HRESULTs, ordinary Close and deferred capabilities. It identifies Unsupported production page forwarding rather than claiming a completed browser.
 
-`Tools/uwp/build/check-public-control-contract.py` audits the **actual compiler
-source manifest** emitted by `build-arm32-cx-component.ps1`. It requires authored
-public/event/token/callback/controller inputs, rejects historical wrapper/prototype
-compiler sources and generated prototype header authority, and verifies the
-WKUWPPageEvent/table/copied-field route without legacy log types, fixture content
-or diagnostic-string event inference. The build invokes this gate after writing
-its Sources manifest. Four tests accept the structured baseline and detect legacy
-logging, prototype input and framework fixture contamination.
+`Tools/uwp/build/check-public-control-contract.py` audits the **actual compiler source manifest** emitted by `build-arm32-cx-component.ps1`. It requires authored public/event/token/callback/controller inputs, rejects historical wrapper/prototype compiler sources and generated prototype header authority, and verifies the WKUWPPageEvent/table/copied-field route without legacy log types, fixture content or diagnostic-string event inference. The build invokes this gate after writing its Sources manifest. Four tests accept the structured baseline and detect legacy logging, prototype input and framework fixture contamination.
 
-The existing WinMD-only consumer verifies every public operation/overload/event/
-static member, exact signatures/enums, read-only state, nonconstructible tokens/
-arguments and distinct interface identity. No historical MIDL prototype metadata
-is input to the new component.
+The existing WinMD-only consumer verifies every public operation/overload/event/ static member, exact signatures/enums, read-only state, nonconstructible tokens/ arguments and distinct interface identity. No historical MIDL prototype metadata is input to the new component.
 
 ## Compiled consumer
 
-`Tools/uwp/CXWebViewCompiledProbe/` is separate from the preserved G1 XamlProbe.
-Its app imports only **WebKit.winmd**, declares WebKitWebView controls using
-`using:WebKit`, and loads generated XBF/type-provider code with real public
-getters/setters. The same production DLL/WinMD pair is packaged; no private
-implementation .cpp or diagnostic component export is consumed by the app.
+`Tools/uwp/CXWebViewCompiledProbe/` is separate from the preserved G1 XamlProbe. Its app imports only **WebKit.winmd**, declares WebKitWebView controls using `using:WebKit`, and loads generated XBF/type-provider code with real public getters/setters. The same production DLL/WinMD pair is packaged; no private implementation .cpp or diagnostic component export is consumed by the app.
 
-One element declares null Source; another declares an absolute URI. The actual
-URI setter result is captured immediately after InitializeComponent, before the
-intentionally Unsupported lazy page forward runs; that control is then closed.
-The page checks compiled read-only bindings, inherited interfaces, measured layout,
-remove/reinsert, option projection, Close/errors and weak release of sixteen
-temporary public controls. Matching SDK XAML passes/local app metadata, generated
-provider compilation, XBF-only staging and package-matched PRI are audited.
+One element declares null Source; another declares an absolute URI. The actual URI setter result is captured immediately after InitializeComponent, before the intentionally Unsupported lazy page forward runs; that control is then closed. The page checks compiled read-only bindings, inherited interfaces, measured layout, remove/reinsert, option projection, Close/errors and weak release of sixteen temporary public controls. Matching SDK XAML passes/local app metadata, generated provider compilation, XBF-only staging and package-matched PRI are audited.
 
 ## Verification
 
-On 2026-10-08, PowerShell 7.6.6, MSVC 14.44.35207, SDK 10.0.19041.0,
-UWP framework references 6.2.14 / ref/uap10.0.15138:
+On 2026-10-08, PowerShell 7.6.6, MSVC 14.44.35207, SDK 10.0.19041.0, UWP framework references 6.2.14 / ref/uap10.0.15138:
 
 ```powershell
 .\Tools\uwp\build\build-cx-webview-compiled-probe.ps1 `
@@ -55,24 +29,15 @@ python -m unittest Tools/uwp/build/test_public_control_contract.py -v
   -OutDir "$env:TEMP\opencode\m10-public-58-production-v1"
 ```
 
-- Both XAML passes, generated provider/app sources, full ARM DLL/EXE/WinMD
-  links, generated member checks, XBF/PRI identity and signing: pass.
+- Both XAML passes, generated provider/app sources, full ARM DLL/EXE/WinMD links, generated member checks, XBF/PRI identity and signing: pass.
 - ARMNT/AppContainer/import inspection and actual source-manifest contract gate: pass.
 - Source-boundary regression tests: **4/4**.
-- Host factory/WinMD-only consumer: **20/20**, plus four intended forbidden
-  construction/read-only setter compile rejections.
-- Documentation audit: **zero candidates**; authored methods/functions,
-  constants/enums/types/fields have comments. Generated output remains outside
-  source and is not manually edited.
+- Host factory/WinMD-only consumer: **20/20**, plus four intended forbidden construction/read-only setter compile rejections.
+- Documentation audit: **zero candidates**; authored methods/functions, constants/enums/types/fields have comments. Generated output remains outside source and is not manually edited.
 
 ## Lumia acceptance
 
-Lumia 950 XL, `MobileCoreProd`, OS
-`15254.603.armfre.feature2_rs3svc.200106-1633`, portal `https://192.168.1.52`.
-Package `WebKitProbe.WebKitCompiledHost_1.0.0.1_arm__2932e6rj4m41p`;
-App ID `WebKitProbe.WebKitCompiledHost_2932e6rj4m41p!App`.
-Install Code=0/Success=true, launch HTTP 200. After one 30-second poll and
-portal reconnection the LocalState result was fetched HTTP 200:
+Lumia 950 XL, `MobileCoreProd`, OS `15254.603.armfre.feature2_rs3svc.200106-1633`, portal `https://192.168.1.52`. Package `WebKitProbe.WebKitCompiledHost_1.0.0.1_arm__2932e6rj4m41p`; App ID `WebKitProbe.WebKitCompiledHost_2932e6rj4m41p!App`. Install Code=0/Success=true, launch HTTP 200. After one 30-second poll and portal reconnection the LocalState result was fetched HTTP 200:
 
 ```text
 version=1.0.0.1
@@ -81,11 +46,7 @@ checks=13
 failures=0
 ```
 
-All compiled type/base, new writable URI Source, readonly member metadata,
-actual URI markup setter, initial state, title/history/loading bindings,
-inherited interfaces, layout/reinsert, defaults, Close/RO_E_CLOSED and
-16-control weak-release assertions passed. Full result:
-`$env:TEMP/opencode/m10-webkit-compiled-v1-result.txt`, 972 bytes.
+All compiled type/base, new writable URI Source, readonly member metadata, actual URI markup setter, initial state, title/history/loading bindings, inherited interfaces, layout/reinsert, defaults, Close/RO_E_CLOSED and 16-control weak-release assertions passed. Full result: `$env:TEMP/opencode/m10-webkit-compiled-v1-result.txt`, 972 bytes.
 
 SHA256 identities:
 
@@ -99,6 +60,4 @@ SHA256 identities:
 - Fresh gated production DLL: `8764E4DA976223B7FFFA587648104019DAEA578322D715CECDC200083831DE36`
 - Fresh gated production WinMD: `E8B8D293A21A55C3024608D7F4A451BE3EB1731AB936B05ED2BA63FEBF3CB661`
 
-Compiled-XAML public contract acceptance is complete for this row. Production
-WebCore forwarding/renderer/services, broader notification traces and combined
-G3/G4/G6 retain their separate gates; this is not universal website evidence.
+Compiled-XAML public contract acceptance is complete for this row. Production WebCore forwarding/renderer/services, broader notification traces and combined G3/G4/G6 retain their separate gates; this is not universal website evidence.

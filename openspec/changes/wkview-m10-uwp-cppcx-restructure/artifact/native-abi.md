@@ -2,31 +2,15 @@
 
 Companion to [../design.md](../design.md) and [public-api.md](public-api.md).
 
-Revision: independent-review corrections. This is a proposed frozen schema,
-not an existing export. Implement task 3.0 schema/layout conformance before either
-producer or consumer. Do not choose different signatures/packing while coding.
-If both ARM compilers cannot honor this schema, revise the design before proceeding.
+Revision: independent-review corrections. This is a proposed frozen schema, not an existing export. Implement task 3.0 schema/layout conformance before either producer or consumer. Do not choose different signatures/packing while coding. If both ARM compilers cannot honor this schema, revise the design before proceeding.
 
 ## Headers and layout rules
 
-Headers live in Source/WebKit/Shared/uwp: WKUWPEngine.h (discovery/services),
-WKUWPPage.h (page/config/state), WKUWPNavigation.h (request/events/tokens),
-WKUWPInput.h (input), WKUWPRendering.h (CPU/GPU interop).
+Headers live in Source/WebKit/Shared/uwp: WKUWPEngine.h (discovery/services), WKUWPPage.h (page/config/state), WKUWPNavigation.h (request/events/tokens), WKUWPInput.h (input), WKUWPRendering.h (CPU/GPU interop).
 
-V1 targets little-endian ARM32 only: sizeof(void*)=4, stdint fixed-width integers,
-`#pragma pack(push, 4)` / pop around ABI structures, no bool/enum layout, no
-STL/CX/WebCore type. Every callback/function pointer uses __stdcall. The single
-discovery export uses extern "C" with the exact unmangled name below. Preserve
-SDK COM ABI only at the documented graphics interface; it does not grant general
-permission to exchange implementation pointers. No cross-compiler malloc/free.
+V1 targets little-endian ARM32 only: sizeof(void*)=4, stdint fixed-width integers, `#pragma pack(push, 4)` / pop around ABI structures, no bool/enum layout, no STL/CX/WebCore type. Every callback/function pointer uses __stdcall. The single discovery export uses extern "C" with the exact unmangled name below. Preserve SDK COM ABI only at the documented graphics interface; it does not grant general permission to exchange implementation pointers. No cross-compiler malloc/free.
 
-Declarations in this document are the required schema (typedefs named here may
-be split among the headers without changing layout). All reserved/absent members
-are zero. Embedded NUL is rejected in paths/URI; text HTML may contain it by length.
-Span data with nonzero length must be nonnull. Paths use uint16_t code units;
-never assume wchar_t size implicitly. Input spans are copied before callback
-dispatch or asynchronous use. Unknown structure tails are ignored only on a
-compatible major/version, not interpreted as existing fields.
+Declarations in this document are the required schema (typedefs named here may be split among the headers without changing layout). All reserved/absent members are zero. Embedded NUL is rejected in paths/URI; text HTML may contain it by length. Span data with nonzero length must be nonnull. Paths use uint16_t code units; never assume wchar_t size implicitly. Input spans are copied before callback dispatch or asynchronous use. Unknown structure tails are ignored only on a compatible major/version, not interpreted as existing fields.
 
 ```c
 typedef int32_t WKUWPResult;
@@ -37,11 +21,7 @@ typedef struct { const uint16_t* data; uint32_t length; } WKUWPPath;
 typedef struct { uint64_t issuer, decision; } WKUWPCertificateToken;
 ```
 
-Header version=1; size is the actual caller/producer byte extent. Token issuer is
-the process-unique page/session handle; decision is its monotonic failure revision.
-Neither value is exported through the public CX token. Engine checks both plus
-current eligible failure; page-handle generations are never reused. Zero pair means
-absent. Tokens are capabilities for trusted native host use, not web-content data.
+Header version=1; size is the actual caller/producer byte extent. Token issuer is the process-unique page/session handle; decision is its monotonic failure revision. Neither value is exported through the public CX token. Engine checks both plus current eligible failure; page-handle generations are never reused. Zero pair means absent. Tokens are capabilities for trusted native host use, not web-content data.
 
 ## Results and capabilities
 
@@ -72,16 +52,7 @@ absent. Tokens are capabilities for trusted native host use, not web-content dat
 | 27 | NotInitialized / E_ILLEGAL_METHOD_CALL |
 | 28 | DispatcherUnavailable / HRESULT_FROM_WIN32(ERROR_INVALID_STATE) |
 
-These are operation results, not navigation errors. Legacy exports retain old
-signatures/layouts/numerics and map new results explicitly; never reinterpret a
-legacy state struct. Navigation error domain/outcome values match public-api.md.
-Negative WKUWPResult values carry an originating failed HRESULT unchanged; positive
-values use the table mapping. A Starting callback error therefore preserves a
-negative handler HRESULT as Platform/ErrorCode, or maps a positive result before
-building that terminal event. Success is exactly zero, not any nonnegative value.
-Network values 1..12 retain existing adapter meaning; add BufferBudgetExceeded=13
-and RequestQueueExceeded=14. Initialization returns originating platform failure
-separately in its diagnostic/async mapping, not invented CURLcode.
+These are operation results, not navigation errors. Legacy exports retain old signatures/layouts/numerics and map new results explicitly; never reinterpret a legacy state struct. Navigation error domain/outcome values match public-api.md. Negative WKUWPResult values carry an originating failed HRESULT unchanged; positive values use the table mapping. A Starting callback error therefore preserves a negative handler HRESULT as Platform/ErrorCode, or maps a positive result before building that terminal event. Success is exactly zero, not any nonnegative value. Network values 1..12 retain existing adapter meaning; add BufferBudgetExceeded=13 and RequestQueueExceeded=14. Initialization returns originating platform failure separately in its diagnostic/async mapping, not invented CURLcode.
 
 | Capability uint64 bit | Meaning |
 |---|---|
@@ -96,9 +67,7 @@ separately in its diagnostic/async mapping, not invented CURLcode.
 | 0x100 | Immutable per-session CA-file-only trust policy |
 | 0x200 | Process-global canonical font configuration/conflict checking |
 
-Public control requires 0x001/002/004/040/080/100/200 and at least CPU or GPU.
-Clipboard/GPU may be absent with explicit unsupported behavior. All V1 table
-slots exist; absent optional features return Unsupported rather than a null call.
+Public control requires 0x001/002/004/040/080/100/200 and at least CPU or GPU. Clipboard/GPU may be absent with explicit unsupported behavior. All V1 table slots exist; absent optional features return Unsupported rather than a null call.
 
 ## Page configuration and snapshot schema
 
@@ -137,27 +106,11 @@ typedef struct {
 } WKUWPNavigationRequest;
 ```
 
-Engine verifies the CA fingerprint and copies bundle bytes; no singleton mutation.
-Font fingerprint is computed over sorted canonical font files/content, checked
-before page creation; conflicting process-global font config returns 25. Options
-are immutable; ranges/counters/deadlines are exactly public-api.md's policy.
-initialize is idempotent only for identical frozen font configuration and platform
-service identity; joining initialization does not retain the services context twice.
-Successful module/engine initialization is process-lifetime; after beginShutdown
-new initialize/page creation fails ShuttingDown, not a new global setup attempt.
+Engine verifies the CA fingerprint and copies bundle bytes; no singleton mutation. Font fingerprint is computed over sorted canonical font files/content, checked before page creation; conflicting process-global font config returns 25. Options are immutable; ranges/counters/deadlines are exactly public-api.md's policy. initialize is idempotent only for identical frozen font configuration and platform service identity; joining initialization does not retain the services context twice. Successful module/engine initialization is process-lifetime; after beginShutdown new initialize/page creation fails ShuttingDown, not a new global setup attempt.
 
-getState uses caller-owned string storage. It first computes needed bytes; on
-BufferTooSmall only requiredBytes is written, state/storage untouched. On success
-uri/title spans point into that caller buffer, valid until caller changes/frees it.
-No hidden borrowed title that expires on the next engine change. Other failed
-operations leave out objects untouched; requiredBytes is the stated exception.
+getState uses caller-owned string storage. It first computes needed bytes; on BufferTooSmall only requiredBytes is written, state/storage untouched. On success uri/title spans point into that caller buffer, valid until caller changes/frees it. No hidden borrowed title that expires on the next engine change. Other failed operations leave out objects untouched; requiredBytes is the stated exception.
 
-navigate requires Remote, valid URI, empty html/zero warningToken. loadHtml requires
-HostHtml, empty URI (engine selects about:blank), text span, and either zero token
-(invalidate current decision) or validated exact warning token (preserve). Accepted
-commands return Ok and allocated ID, even if subsequent synchronous policy produces
-a terminal cancellation; argument/pre-admission failures allocate no ID. IDs do
-not wrap/reuse; exhaustion returns InvalidState before Starting.
+navigate requires Remote, valid URI, empty html/zero warningToken. loadHtml requires HostHtml, empty URI (engine selects about:blank), text span, and either zero token (invalidate current decision) or validated exact warning token (preserve). Accepted commands return Ok and allocated ID, even if subsequent synchronous policy produces a terminal cancellation; argument/pre-admission failures allocate no ID. IDs do not wrap/reuse; exhaustion returns InvalidState before Starting.
 
 ## Callback schema and context ownership
 
@@ -186,29 +139,11 @@ typedef struct {
 } WKUWPPageCallbacks;
 ```
 
-eventKind: Starting=0, SourceChanged=1, HistoryChanged=2, TitleChanged=3,
-Completed=4, RepaintRequested=5. Inapplicable fields/spans/token are zero. Starting
-sets input cancel=0; callback returns Ok plus Boolean, or failure converted to
-Failed/Platform unless cancellation/closing already wins. For handler-originated
-HRESULT diagnostics the host records the exact HRESULT; no exception crosses ABI.
-Source/title/repaint with no started navigation use navigationId=0 and a document
-generation. Completed includes contentKind/outcome/domain/status/token. Spans last
-only for callback duration. Token belongs to the issuing page/session/revision,
-not the numeric navigation ID. Callback sequence is strictly increasing per page.
+eventKind: Starting=0, SourceChanged=1, HistoryChanged=2, TitleChanged=3, Completed=4, RepaintRequested=5. Inapplicable fields/spans/token are zero. Starting sets input cancel=0; callback returns Ok plus Boolean, or failure converted to Failed/Platform unless cancellation/closing already wins. For handler-originated HRESULT diagnostics the host records the exact HRESULT; no exception crosses ABI. Source/title/repaint with no started navigation use navigationId=0 and a document generation. Completed includes contentKind/outcome/domain/status/token. Spans last only for callback duration. Token belongs to the issuing page/session/revision, not the numeric navigation ID. Callback sequence is strictly increasing per page.
 
-setCallbacks copies table, calls retainContext once on owner thread before install,
-and rejects replacing an attachment until detach acknowledgment. Engine maintains
-one attachment reference plus dispatch guards. Detach marks inactive immediately;
-queued work stores page/generation, never a bare host pointer. It returns Ok when
-fully detached or Pending if called in a dispatch. After active dispatch unwinds,
-releaseContext is called exactly once; that callback is the acknowledgment that
-host storage can be released, with no future calls to that context. Caller releases
-its own setup reference separately. closePage follows the same deferred safe release.
+setCallbacks copies table, calls retainContext once on owner thread before install, and rejects replacing an attachment until detach acknowledgment. Engine maintains one attachment reference plus dispatch guards. Detach marks inactive immediately; queued work stores page/generation, never a bare host pointer. It returns Ok when fully detached or Pending if called in a dispatch. After active dispatch unwinds, releaseContext is called exactly once; that callback is the acknowledgment that host storage can be released, with no future calls to that context. Caller releases its own setup reference separately. closePage follows the same deferred safe release.
 
-Navigation engine callbacks execute only on owner thread. Public notification
-transactions/command queue follow public-api.md; payload invalidation must not
-drop an already-owed public terminal event. Native code never invokes dead public
-objects. Logging is observational and outside this mandatory semantic table.
+Navigation engine callbacks execute only on owner thread. Public notification transactions/command queue follow public-api.md; payload invalidation must not drop an already-owed public terminal event. Native code never invokes dead public objects. Logging is observational and outside this mandatory semantic table.
 
 ## Platform service and completion schema
 
@@ -228,20 +163,9 @@ struct WKUWPPlatformServices {
 };
 ```
 
-Clipboard kind Read=0/Write=1. All functions/completions except postWake's enqueue
-request execute on owner thread; postWake may be requested by worker and returns
-an enqueue result without invoking page/XAML operations. Services context retained
-once on successful initialize and released only after shutdown quiescence.
+Clipboard kind Read=0/Write=1. All functions/completions except postWake's enqueue request execute on owner thread; postWake may be requested by worker and returns an enqueue result without invoking page/XAML operations. Services context retained once on successful initialize and released only after shutdown quiescence.
 
-Accepted requestClipboard (Ok) must complete exactly once, including cancellation;
-rejected request has no later completion. Host copies Write text on acceptance.
-Engine retains its completionContext until completion returns; host cannot call it
-again afterward. Read span is borrowed during completion and engine copies it.
-cancelClipboard causes an accepted operation's canceled completion before releasing
-its host reference; it may complete synchronously. Close invalidates page deliveries
-but operation ownership remains until acknowledgment. Failed dispatcher enqueue
-enters the shutdown protocol, not an unowned delayed callback. Service table absence
-means Clipboard capability is absent; no fake successful clipboard operation.
+Accepted requestClipboard (Ok) must complete exactly once, including cancellation; rejected request has no later completion. Host copies Write text on acceptance. Engine retains its completionContext until completion returns; host cannot call it again afterward. Read span is borrowed during completion and engine copies it. cancelClipboard causes an accepted operation's canceled completion before releasing its host reference; it may complete synchronously. Close invalidates page deliveries but operation ownership remains until acknowledgment. Failed dispatcher enqueue enters the shutdown protocol, not an unowned delayed callback. Service table absence means Clipboard capability is absent; no fake successful clipboard operation.
 
 ## Input and rendering schema
 
@@ -265,22 +189,9 @@ typedef struct {
 } WKUWPCompositorOptions;
 ```
 
-Input kinds Press=0/Move=1/Release=2/Wheel=3/Cancel=4/KeyDown=5/KeyUp=6/Character=7;
-modifiers Shift=1/Control=2/Alt=4. Points are CSS page-viewport coordinates.
-Wheel deltas use Win32 wheel units (120 per detent). Unicode scalar validates
-0..0x10ffff excluding surrogate code points; unused members zero.
+Input kinds Press=0/Move=1/Release=2/Wheel=3/Cancel=4/KeyDown=5/KeyUp=6/Character=7; modifiers Shift=1/Control=2/Alt=4. Points are CSS page-viewport coordinates. Wheel deltas use Win32 wheel units (120 per detent). Unicode scalar validates 0..0x10ffff excluding surrogate code points; unused members zero.
 
-CPU mode: presenter owns D3D swap chain/upload resources; paint writes premultiplied
-BGRA8 into caller data for the call only, checked stride/capacity/extent. Engine
-retains no pixel pointer. GPU mode: engine owns ANGLE/Skia compositor and its
-swap-chain buffers; host owns the SwapChainPanel visual, NOT a second swap chain.
-attachCompositor borrows an IInspectable ABI pointer for the call and engine QIs/
-AddRefs any retained interfaces. It releases them on detach/close on owner thread;
-success means engine attached the only swap chain. renderCompositor presents that
-engine surface. Switch modes by detach/release before CPU presenter attaches;
-lost-device recovery never attaches both. M10 does not migrate ANGLE ownership by
-renaming the native presenter. Scale finite 0<scale<=8; physical buffer edges<=4096,
-CSS viewport edges<=2048, BGRA stride<=16384; invalid ranges fail before allocation.
+CPU mode: presenter owns D3D swap chain/upload resources; paint writes premultiplied BGRA8 into caller data for the call only, checked stride/capacity/extent. Engine retains no pixel pointer. GPU mode: engine owns ANGLE/Skia compositor and its swap-chain buffers; host owns the SwapChainPanel visual, NOT a second swap chain. attachCompositor borrows an IInspectable ABI pointer for the call and engine QIs/ AddRefs any retained interfaces. It releases them on detach/close on owner thread; success means engine attached the only swap chain. renderCompositor presents that engine surface. Switch modes by detach/release before CPU presenter attaches; lost-device recovery never attaches both. M10 does not migrate ANGLE ownership by renaming the native presenter. Scale finite 0<scale<=8; physical buffer edges<=4096, CSS viewport edges<=2048, BGRA stride<=16384; invalid ranges fail before allocation.
 
 ## Exact engine function table
 
@@ -323,14 +234,7 @@ WKUWPResult __stdcall WKUWPGetEngineAPI(uint32_t minimumMajor,
     uint32_t minimumMinor, uint64_t requiredCapabilities, WKUWPEngineAPI* outAPI);
 ```
 
-Discovery reads caller header size/version, requires version1/size>=128,
-minimumMajor=1 and provider minor>=minimumMinor (V1 minor=0). It checks all required
-bits, writes no output on rejection and zeroes supported caller extent on success
-before filling the known prefix. header.structureSize is bytes actually filled;
-unknown future caller tails stay zero. Provider may append slots in future minor
-versions; consumer must check filled extent before reading them. No truncation of
-required slots or partial initialization. No function call before successful init
-except discovery; shutdown operations are idempotent and available after init.
+Discovery reads caller header size/version, requires version1/size>=128, minimumMajor=1 and provider minor>=minimumMinor (V1 minor=0). It checks all required bits, writes no output on rejection and zeroes supported caller extent on success before filling the known prefix. header.structureSize is bytes actually filled; unknown future caller tails stay zero. Provider may append slots in future minor versions; consumer must check filled extent before reading them. No truncation of required slots or partial initialization. No function call before successful init except discovery; shutdown operations are idempotent and available after init.
 
 ## ARM32 expected offsets/sizes (pack 4)
 
@@ -350,43 +254,18 @@ except discovery; shutdown operations are idempotent and available after init.
 | CompositorOptions | 28 | panel8, scaleX12, scaleY20 |
 | EngineAPI | 128 | major8, minor12, capabilities16, buildId24, initialize32; slot n at32+4n, pollShutdown124 |
 
-Check ALL members with static_assert/offsetof on both ARM compilers, including
-unaligned-under-pack4 scalar accesses. No compiler output may silently redefine
-the documented contract. Per-struct incoming minimum equals V1 size; callbacks
-check payload header before reading. Invalid span/handle/version errors precede
-side effects. Engine/host serializers are unnecessary; this is in-process ABI.
+Check ALL members with static_assert/offsetof on both ARM compilers, including unaligned-under-pack4 scalar accesses. No compiler output may silently redefine the documented contract. Per-struct incoming minimum equals V1 size; callbacks check payload header before reading. Invalid span/handle/version errors precede side effects. Engine/host serializers are unnecessary; this is in-process ABI.
 
 ## Shutdown, dispatcher loss and module pinning
 
-An owner-thread runtime registry, independent of any control, owns page cleanup,
-platform completions and the service pump. Closing a view does not FreeLibrary.
-After successful binding/initialization, WebCore.dll remains pinned for PROCESS
-LIFETIME in M10; hot-unload/global-engine reinitialization is deferred. Per-page
-resources must still release; process pinning is not permission to retain views.
+An owner-thread runtime registry, independent of any control, owns page cleanup, platform completions and the service pump. Closing a view does not FreeLibrary. After successful binding/initialization, WebCore.dll remains pinned for PROCESS LIFETIME in M10; hot-unload/global-engine reinitialization is deferred. Per-page resources must still release; process pinning is not permission to retain views.
 
-Normal final release enqueues a native cleanup ticket (no strong CX control cycle).
-Registry owns ticket before enqueue; failure cannot drop its page/context. If wake
-posting fails or dispatcher stops, mark registry shutting down, suppress public
-notifications and invoke controlled owner-thread shutdown while still available.
-App host shutdown hooks drain this protocol before destroying the dispatcher.
+Normal final release enqueues a native cleanup ticket (no strong CX control cycle). Registry owns ticket before enqueue; failure cannot drop its page/context. If wake posting fails or dispatcher stops, mark registry shutting down, suppress public notifications and invoke controlled owner-thread shutdown while still available. App host shutdown hooks drain this protocol before destroying the dispatcher.
 
-beginShutdown rejects new pages/commands, invalidates decision tokens, cancels
-workers, detaches page callbacks, cancels/acknowledges platform requests and revokes
-global wake/clipboard hooks. pollShutdown returns Pending until dispatch, worker,
-platform and cleanup-ticket counts reach zero; then releases page/GPU/service
-contexts and returns Ok. Do not block the UI waiting for its own queued callbacks.
+beginShutdown rejects new pages/commands, invalidates decision tokens, cancels workers, detaches page callbacks, cancels/acknowledges platform requests and revokes global wake/clipboard hooks. pollShutdown returns Pending until dispatch, worker, platform and cleanup-ticket counts reach zero; then releases page/GPU/service contexts and returns Ok. Do not block the UI waiting for its own queued callbacks.
 
-If the OS has irreversibly destroyed the owner thread before shutdown can run,
-retain orphan native tickets in the process runtime registry, suppress all app
-dispatch and keep module pinned until process termination. Never execute wrong-
-thread XAML teardown or reuse orphan contexts. This explicit terminal-shutdown
-fallback is not a normal Close path; report it in diagnostics. During ordinary
-close/recreate while dispatcher lives, all ticket/page counts return to baseline.
+If the OS has irreversibly destroyed the owner thread before shutdown can run, retain orphan native tickets in the process runtime registry, suppress all app dispatch and keep module pinned until process termination. Never execute wrong- thread XAML teardown or reuse orphan contexts. This explicit terminal-shutdown fallback is not a normal Close path; report it in diagnostics. During ordinary close/recreate while dispatcher lives, all ticket/page counts return to baseline.
 
 ## Conformance before implementation
 
-Task 3.0 freezes the complete schema with ARM compiler layout probes and review
-of all function/ownership annotations before producing/consuming headers. Verify
-table negotiation, stale handle/token, strings after dispatch, reentrant detach,
-exactly-once platform completion, CPU/GPU exclusive attachment, failed wake and
-controlled shutdown. Public event delivery traces follow public-api.md, not logs.
+Task 3.0 freezes the complete schema with ARM compiler layout probes and review of all function/ownership annotations before producing/consuming headers. Verify table negotiation, stale handle/token, strings after dispatch, reentrant detach, exactly-once platform completion, CPU/GPU exclusive attachment, failed wake and controlled shutdown. Public event delivery traces follow public-api.md, not logs.

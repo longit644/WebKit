@@ -31,7 +31,7 @@ Core only: `WTF + JSC CLoop + WebCore`. No browser chrome here.
 - `WebKitLibraries/triplets|toolchains/` — vcpkg triplet + cmake toolchain.
 - `Source/WebKit/UIProcess/API/uwp/` — current native wrapper; M10 places the
   C++/CX public control and decomposed native/input/rendering/platform services here.
-- `Tools/MiniBrowser/uwp/` — sample browser; M10 consumes the reusable component.
+- `Tools/MiniBrowser/csharp/` — current C# sample-browser application over `WebKit.winmd`; the historical WRL engine regression shell remains under `Tools/MiniBrowser/uwp/`.
 - Patches generated via `git diff upstream...HEAD -- Source/`.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the ownership boundary between the

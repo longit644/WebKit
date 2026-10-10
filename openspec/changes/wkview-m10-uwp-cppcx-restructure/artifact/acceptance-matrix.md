@@ -1,12 +1,8 @@
 # M10 acceptance and evidence matrix
 
-Requirements live under [../specs/](../specs/); implementation work is tracked in
-[../tasks.md](../tasks.md). Supporting contracts are siblings in `artifact/`.
+Requirements live under [../specs/](../specs/); implementation work is tracked in [../tasks.md](../tasks.md). Supporting contracts are siblings in `artifact/`.
 
-All rows are pending. Each record includes task/scenario, source/build identity,
-compiler/SDK/ABI/metadata versions, package/version, server fixture version,
-device build, run ID, commands/exit status, observations and result. Historical
-M9 records inform regression selection but do not pass an M10 row.
+All rows are pending. Each record includes task/scenario, source/build identity, compiler/SDK/ABI/metadata versions, package/version, server fixture version, device build, run ID, commands/exit status, observations and result. Historical M9 records inform regression selection but do not pass an M10 row.
 
 | Gate | Required evidence | Failure means |
 |---|---|---|
@@ -20,44 +16,27 @@ M9 records inform regression selection but do not pass an M10 row.
 
 ## Navigation and state cases
 
-- Requested Source before init, latest-request replacement, invalid URI DP rollback,
-  every null-state transition, commit/redirect and pre-commit Source restoration.
-- Separate concurrent IAsyncAction handlers, one caller Cancel/Close without
-  canceling others, control Close, readiness-before-first-network-result and retry.
-- Same URL Reload -> new document lifecycle/ID; fragment/push/replace/history ->
-  engine same-document classification; history branch truncation and scroll restoration.
-- Policy veto, slow replacement, Stop before/after commit, committed failure, HTTP
-  404 HTML, failed image: exactly-once IDs and domain/status attribution.
-- Navigation from PropertyChanged/Starting/Completed, Close from each handler, callbacks
-  queued after detach, two instances with interleaved completions and one closing.
-- NavigateToString cancellable HostHtml lifecycle, about:blank, absent HTTP status,
-  no remote privilege and unchanged engine history cursor/items; Back/Forward/Reload
-  exact transient-document semantics; no hidden remote HTML injection.
+- Requested Source before init, latest-request replacement, invalid URI DP rollback, every null-state transition, commit/redirect and pre-commit Source restoration.
+- Separate concurrent IAsyncAction handlers, one caller Cancel/Close without canceling others, control Close, readiness-before-first-network-result and retry.
+- Same URL Reload -> new document lifecycle/ID; fragment/push/replace/history -> engine same-document classification; history branch truncation and scroll restoration.
+- Policy veto, slow replacement, Stop before/after commit, committed failure, HTTP 404 HTML, failed image: exactly-once IDs and domain/status attribution.
+- Navigation from PropertyChanged/Starting/Completed, Close from each handler, callbacks queued after detach, two instances with interleaved completions and one closing.
+- NavigateToString cancellable HostHtml lifecycle, about:blank, absent HTTP status, no remote privilege and unchanged engine history cursor/items; Back/Forward/Reload exact transient-document semantics; no hidden remote HTML injection.
 
 ## Resource/security cases
 
-- External CSS screenshot/computed-style oracle, ordered scripts, PNG decode,
-  font appearance plus internal renderer-private font test.
+- External CSS screenshot/computed-style oracle, ordered scripts, PNG decode, font appearance plus internal renderer-private font test.
 - Same-origin fetch/XHR, CORS allow/deny, CSP inline/image block, HTTPS mixed content.
 - Cookie pass/fail structural report and two-session isolation; no cookie value logs.
-- MIME/charset fidelity, relative resources, redirect limits, HTML main-document
-  budget route, distinct octet-stream unsupported/download route, concurrency/
-  buffer exhaustion and timeout without UI blocking.
-- Valid/invalid TLS, no automatic bypass, explicit eligible consent, stale/used/
-  cross-control token rejection, session close, cross-host/port redirect isolation.
-- A and B both fail at local ID 1: A's opaque token must fail on B. Warning HTML
-  preserving overload must retain A's token; generic HTML/remote/Stop/null/Close
-  must invalidate; invalid rejected args must not mutate token state.
-- Concurrent different CA bundles must produce correct independent trust outcomes;
-  native store must not augment bundle, shared TLS/connection reuse disabled.
-  Conflicting canonical font path/content must fail without changing another page.
-- Compressed/deferred response bounds, queued-request cap, immutable options ranges,
-  redirect deadline inclusion and suspension-versus-unload deadline behavior.
+- MIME/charset fidelity, relative resources, redirect limits, HTML main-document budget route, distinct octet-stream unsupported/download route, concurrency/ buffer exhaustion and timeout without UI blocking.
+- Valid/invalid TLS, no automatic bypass, explicit eligible consent, stale/used/ cross-control token rejection, session close, cross-host/port redirect isolation.
+- A and B both fail at local ID 1: A's opaque token must fail on B. Warning HTML preserving overload must retain A's token; generic HTML/remote/Stop/null/Close must invalidate; invalid rejected args must not mutate token state.
+- Concurrent different CA bundles must produce correct independent trust outcomes; native store must not augment bundle, shared TLS/connection reuse disabled. Conflicting canonical font path/content must fail without changing another page.
+- Compressed/deferred response bounds, queued-request cap, immutable options ranges, redirect deadline inclusion and suspension-versus-unload deadline behavior.
 
 ## Required notification trace oracles
 
-Event ledger includes property notifications, content kind, page/local ID, outcome
-and control state. Assert order/count, not merely final URI:
+Event ledger includes property notifications, content kind, page/local ID, outcome and control state. Assert order/count, not merely final URI:
 
 | Trigger | Required trace |
 |---|---|
@@ -86,14 +65,6 @@ These entries resolve design choices; none claim implementation/test completion.
 
 ## Fixture extraction protocol
 
-Carry every row/phase in M9 fixture-extraction-plan.md into the new result ledger.
-Host fixture reports use run ID + scenario/assertion IDs and Boolean/structural
-results. Server and device runner independently verify expected requests/events;
-timeouts, missing reports or malformed payloads fail aggregate results. Old and
-new suites run against the same fixture revision before old engine probes are
-removed. CSS text presence does not prove styling; server response alone does
-not prove CORS response exposure; renderer-private checks are internal tests.
+Carry every row/phase in M9 fixture-extraction-plan.md into the new result ledger. Host fixture reports use run ID + scenario/assertion IDs and Boolean/structural results. Server and device runner independently verify expected requests/events; timeouts, missing reports or malformed payloads fail aggregate results. Old and new suites run against the same fixture revision before old engine probes are removed. CSS text presence does not prove styling; server response alone does not prove CORS response exposure; renderer-private checks are internal tests.
 
-Run Wikipedia Main_Page and the owner's GitHub repository with exact URLs,
-interaction/failed-resource records and owner visual observations after controlled
-tests. Unsupported site features remain documented, not converted into a pass.
+Run Wikipedia Main_Page and the owner's GitHub repository with exact URLs, interaction/failed-resource records and owner visual observations after controlled tests. Unsupported site features remain documented, not converted into a pass.

@@ -43,15 +43,18 @@ support.
 
 ### Applications
 
-`Tools/MiniBrowser/uwp/` owns the sample browser experience: address bar,
-toolbar, app navigation policy, LocalState/package configuration, blocked-page
-template and copy, and the presentation of failures. It consumes the reusable
-control and decides what the user sees. No fixture-suite gate or diagnostic
-navigation sequence belongs in the shipping/sample browser startup path.
+`Tools/MiniBrowser/csharp/` is the C# application host over the reusable
+component WinMD: address bar, toolbar, app navigation policy,
+LocalState/package configuration, blocked-page template and copy, and the
+presentation of failures. The historical WRL shell remains under
+`Tools/MiniBrowser/uwp/` as an engine regression harness. No fixture-suite gate
+or diagnostic navigation sequence belongs in the C# sample startup path.
 
-`Tools/uwp/RuntimeSmoke/`, `FpuProbe/`, and `TlsSmoke/` are diagnostic
-applications. Their startup, logging, probe order and expected values stay with
-those apps rather than becoming framework behavior. If `FirstPageUWP.cpp` is
+`Tools/uwp/diagnostics/RuntimeSmoke/`, `FpuProbe/`, and `TlsSmoke/` are C#
+diagnostic hosts over native payloads. RuntimeSmoke's shared `stage-app.py`
+remains at `Tools/uwp/RuntimeSmoke/`. Their startup, logging, probe order and
+expected values stay with those apps rather than becoming framework behavior.
+If `FirstPageUWP.cpp` is
 only used by RuntimeSmoke, its one-frame demo page/export belongs with that
 smoke app; generic page creation and rendering remain framework operations.
 

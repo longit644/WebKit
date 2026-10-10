@@ -25,9 +25,10 @@
          legacy WK*UWP identifier may appear in the new consumer sources at
          all. The map header and its check file are the map, not consumers,
          and are excluded by name.
-      4. Frozen PageUWP.h and the diagnostic application sources remain
-         byte-identical to HEAD. Engine restructuring and task-6.1 wrapper/
-         presenter extraction have explicit independent build/behavior gates.
+      4. Frozen PageUWP.h remains byte-identical to HEAD. Migrated native
+         diagnostic payloads are verified by their explicit semantic proofs;
+         engine restructuring and presentation extraction have independent
+         build/behavior gates.
 
 .PARAMETER OutDir
     Directory receiving the throwaway objects.
@@ -71,18 +72,26 @@ $script:LegacyExports = @(
     'WKInitializeEngineUWP', 'WKGetPageDocumentStateUWP', 'WKRenderFirstPageUWP'
 )
 
-# Smoke surface this slice must leave byte-identical to prove retained semantics.
-# Engine restructuring (4.1/4.2), wrapper presenter/metrics extraction (6.1) and
-# the MiniBrowser visible-bounds shell evolution (6.3) intentionally change their
-# files by design. The frozen engine declarations and diagnostic application
-# sources remain byte-identical; presenter/input ownership is checked by the
-# rendering/input contract tests plus the MiniBrowser ARM build and device logs.
+# Engine restructuring, presentation extraction, the MiniBrowser shell and
+# diagnostic-host migrations intentionally change their files by design.
+# Frozen PageUWP declarations remain identical. RuntimeSmoke's pure CRT probe
+# stays byte-identical by blob; RuntimeSmoke/FpuProbe/TlsSmoke host migrations
+# have explicit semantic checks below rather than a blanket file-identity gate.
 $script:SmokeSurface = @(
-    'Source/WebCore/platform/uwp/PageUWP.h',
-    'Tools/uwp/RuntimeSmoke/SmokeHost.cpp',
-    'Tools/uwp/FpuProbe/FpuProbe.cpp',
-    'Tools/uwp/TlsSmoke/TlsSmoke.cpp'
+    'Source/WebCore/platform/uwp/PageUWP.h'
 )
+
+# CRT probe moved byte-identical in task 8.5: its old HEAD path plus its new
+# path. Their git blob SHAs must agree exactly.
+$script:SmokePayloadMove = @(
+    'Tools/uwp/RuntimeSmoke/RuntimeSmoke.cpp',
+    'Tools/uwp/diagnostics/RuntimeSmoke/payload/RuntimeSmoke.cpp'
+)
+
+# Host-side proof that the migrated payload kept every native result.
+$script:SmokeSemantics = 'Tools\uwp\diagnostics\RuntimeSmoke\scripts\compare-runtimesmoke-semantics.py'
+$script:FpuSemantics = 'Tools\uwp\diagnostics\FpuProbe\scripts\check-fpuprobe-expectations.ps1'
+$script:TlsSemantics = 'Tools\uwp\diagnostics\TlsSmoke\verify-tls-smoke-host.ps1'
 
 function Get-ToolchainSetting {
     # Reads one `set(NAME value)` definition out of the CMake toolchain file so
@@ -328,7 +337,50 @@ finally {
 if ($smokeExit -ne 0) {
     throw "The smoke surface differs from the committed HEAD; semantics cannot be claimed retained"
 }
-Write-Host '    PageUWP declarations and diagnostic hosts: identical to HEAD'
+Write-Host '    PageUWP declarations: identical to HEAD'
+
+Write-Host ''
+Write-Host '--- moved CRT probe identical by blob ---'
+$oldSha = (& git rev-parse "HEAD:$($script:SmokePayloadMove[0])" 2>&1).Trim()
+$newSha = (& git hash-object $script:SmokePayloadMove[1] 2>&1).Trim()
+if ($oldSha -ne $newSha) {
+    throw "The moved CRT probe differs from its HEAD blob: $oldSha vs $newSha"
+}
+Write-Host '    RuntimeSmoke.cpp: HEAD blob matches new path'
+
+Write-Host ''
+Write-Host '--- task 8.5 payload semantics (host-side proof) ---'
+$python = $null
+foreach ($candidate in @('python', 'python3')) {
+    $found = Get-Command $candidate -ErrorAction SilentlyContinue
+    if ($found) { $python = $found.Source; break }
+}
+if (-not $python) {
+    throw 'python is required for the task 8.5 semantic comparison'
+}
+& $python (Join-Path $script:RepoRoot $script:SmokeSemantics)
+if ($LASTEXITCODE -ne 0) {
+    throw 'Task 8.5 semantic comparison reported mismatches'
+}
+Write-Host '    migrated payload results match pre-migration sources'
+
+Write-Host ''
+Write-Host '--- task 8.6 FpuProbe native expectations (host proof) ---'
+$fpuProofOut = Join-Path $OutDir 'task-8.6-fpuprobe-proof'
+& (Join-Path $script:RepoRoot $script:FpuSemantics) -OutDir $fpuProofOut
+if ($LASTEXITCODE -ne 0) {
+    throw 'Task 8.6 FpuProbe expectation proof reported mismatches'
+}
+Write-Host '    FPU arithmetic/ABI inventory matches the migrated payload'
+
+Write-Host ''
+Write-Host '--- task 8.7 TlsSmoke native expectations (host proof) ---'
+$tlsProofOut = Join-Path $OutDir 'task-8.7-tlssmoke-proof'
+& (Join-Path $script:RepoRoot $script:TlsSemantics) -OutDir $tlsProofOut
+if ($LASTEXITCODE -ne 0) {
+    throw 'Task 8.7 TLS marker/fail-closed proof reported mismatches'
+}
+Write-Host '    TLS markers, order, failure behavior and independent warning policy match the migrated payload'
 
 Write-Host ''
 Write-Host 'Task 3.6 legacy surface verification passed.'

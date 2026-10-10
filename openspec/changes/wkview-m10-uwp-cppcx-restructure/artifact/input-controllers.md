@@ -2,46 +2,19 @@
 
 ## Implemented ownership
 
-`input/InputAdapterUWP.h/.cpp` owns per-control gesture classification: press
-tracking, tap-slop drag detection (10 CSS pixels), tap synthesis at release
-coordinates offset above held overscroll, and pointer-capture-cancel abort.
-It drives the caller's `ScrollControllerUWP` for deltas/velocity and the
-caller's `TapEngineUWP` for press/release pairs. Capture itself stays with the
-XAML owner; no XAML event types cross the boundary, so host tests drive plain
-coordinates and timestamps.
+`input/InputAdapterUWP.h/.cpp` owns per-control gesture classification: press tracking, tap-slop drag detection (10 CSS pixels), tap synthesis at release coordinates offset above held overscroll, and pointer-capture-cancel abort. It drives the caller's `ScrollControllerUWP` for deltas/velocity and the caller's `TapEngineUWP` for press/release pairs. Capture itself stays with the XAML owner; no XAML event types cross the boundary, so host tests drive plain coordinates and timestamps.
 
-`input/ScrollControllerUWP.h/.cpp` owns per-control kinetic/edge physics with
-the inherited constants and formulas: 0.2 s velocity window, 5000 px/s sample
-clamp, 0.035 s blend, 60 px/s fling floor with 0.1 s recency, 1.12 boost clamped
-at 5500, 4.2 friction with 20 px/s stop, 256/32 edge spring on 1/120 s substeps,
-0.4/(1+|over|/36) static and 0.2 kinetic resistance with a 56 px clamp, and a
-0.2 kinetic spring transfer. Wheel deltas queue plain motion without elastic
-arming. Visual unload never pauses physics; explicit suspension is diagnosed by
-the stall reset. Timestamps are caller-supplied monotonic seconds, so tests own
-time exactly. The report sink must not throw (native no-exception domain).
+`input/ScrollControllerUWP.h/.cpp` owns per-control kinetic/edge physics with the inherited constants and formulas: 0.2 s velocity window, 5000 px/s sample clamp, 0.035 s blend, 60 px/s fling floor with 0.1 s recency, 1.12 boost clamped at 5500, 4.2 friction with 20 px/s stop, 256/32 edge spring on 1/120 s substeps, 0.4/(1+|over|/36) static and 0.2 kinetic resistance with a 56 px clamp, and a 0.2 kinetic spring transfer. Wheel deltas queue plain motion without elastic arming. Visual unload never pauses physics; explicit suspension is diagnosed by the stall reset. Timestamps are caller-supplied monotonic seconds, so tests own time exactly. The report sink must not throw (native no-exception domain).
 
-Both classes capture their constructing owner thread and reject workers with
-`RPC_E_WRONG_THREAD` before any state or engine access. Neither allocates per
-frame; both are non-copyable with exactly one release owner.
+Both classes capture their constructing owner thread and reject workers with `RPC_E_WRONG_THREAD` before any state or engine access. Neither allocates per frame; both are non-copyable with exactly one release owner.
 
-`native/PageControllerUWP` gains `sendInput(const WKUWPInputEvent&)` and
-`setFocused(bool)`. Validation follows the frozen header: table prefix, kind
-range (six frozen kinds; the header has no Cancel/Character kinds), the four
-defined modifier bits, finite pointer/wheel coordinates, nonzero virtual key
-for key events, and scalar range excluding surrogates when nonzero. Focus and
-input delivery require the `Input` capability; the real engine delivers neither,
-so those paths return explicit `E_NOTIMPL` instead of a silent no-op. Missing
-slots report revision mismatch; originating negative HRESULTs pass through.
+`native/PageControllerUWP` gains `sendInput(const WKUWPInputEvent&)` and `setFocused(bool)`. Validation follows the frozen header: table prefix, kind range (six frozen kinds; the header has no Cancel/Character kinds), the four defined modifier bits, finite pointer/wheel coordinates, nonzero virtual key for key events, and scalar range excluding surrogates when nonzero. Focus and input delivery require the `Input` capability; the real engine delivers neither, so those paths return explicit `E_NOTIMPL` instead of a silent no-op. Missing slots report revision mismatch; originating negative HRESULTs pass through.
 
-The native wrapper delegates press/move/release/cancel/wheel and per-frame
-motion to the two classes through narrow engine ports, keeping every diagnostic
-stage byte-identical (`control-pointer-pressed/released`, `ptr-*`,
-`control-inertia-start/stop`, `control-edge-hit/returned`, `control-scroll-y`).
+The native wrapper delegates press/move/release/cancel/wheel and per-frame motion to the two classes through narrow engine ports, keeping every diagnostic stage byte-identical (`control-pointer-pressed/released`, `ptr-*`, `control-inertia-start/stop`, `control-edge-hit/returned`, `control-scroll-y`).
 
 ## Checks and commands
 
-On 2026-10-10/11, PowerShell 7.6.6, MSVC 14.44.35207, SDK 10.0.19041.0,
-native ARM clang-cl 19.1.5:
+On 2026-10-10/11, PowerShell 7.6.6, MSVC 14.44.35207, SDK 10.0.19041.0, native ARM clang-cl 19.1.5:
 
 ```powershell
 .\Tools\uwp\build\test-input-controller.ps1 `
@@ -58,12 +31,7 @@ $env:CCACHE_DISABLE = '1'
 cmake --build "$env:TEMP\opencode\m10-rendering-61-mini" --target MiniBrowserUWP --parallel 8
 ```
 
-- Native input laws: **54/54** — tap at release coordinates, overscroll-offset
-  taps, drag classification/slop, single engine delivery per frame, fling arm/
-  coast/stop, stale-release refusal, cancel abort, wheel mapping and edge
-  clamping without overscroll, edge stretch/settle stages, invalid rejection,
-  two-control isolation, worker rejection, navigation reset, unbound/validation/
-  capability/slot/mapping coverage for V1 input and focus.
+- Native input laws: **54/54** — tap at release coordinates, overscroll-offset taps, drag classification/slop, single engine delivery per frame, fling arm/ coast/stop, stale-release refusal, cancel abort, wheel mapping and edge clamping without overscroll, edge stretch/settle stages, invalid rejection, two-control isolation, worker rejection, navigation reset, unbound/validation/ capability/slot/mapping coverage for V1 input and focus.
 - Both ARM compilers at `/W4 /WX` without `/ZW` (native no-exception ABI).
 - Authored ARM DLL/WinMD link with unchanged public metadata/source manifest.
 - External WinMD/factory consumer **20/20** plus four negative modes.
@@ -71,20 +39,11 @@ cmake --build "$env:TEMP\opencode\m10-rendering-61-mini" --target MiniBrowserUWP
 - Fresh native MiniBrowser/prototype targets link with eight jobs.
 - Documentation audit zero candidates; whitespace checks pass.
 
-Two test bugs found during authoring were fixed on the test side: scroll
-direction (finger-up scrolls down) and tap coordinates (release point, per the
-inherited behavior). One implementation bug was caught the same way:
-`armRelease` computed but never stored the armed state.
+Two test bugs found during authoring were fixed on the test side: scroll direction (finger-up scrolls down) and tap coordinates (release point, per the inherited behavior). One implementation bug was caught the same way: `armRelease` computed but never stored the armed state.
 
 ## Phone interaction (v42)
 
-Package `WebKitProbe.EngineBrowser_1.0.0.42_arm__2932e6rj4m41p`, App ID
-`WebKitProbe.EngineBrowser_2932e6rj4m41p!App`. Install Code=0/Success=true.
-The first launch exposed a real pre-existing race: portal launch raises both
-`OnLaunched` and `OnActivated`, and both threads ran first-time creation, so
-the loser tripped the process owner gate (`control-initialize: RPC_E_WRONG_THREAD`).
-v42 serializes first-time creation with an `SRWLOCK` double-checked guard; the
-loser then activates the created window. Launch HTTP 200, `control-initialize: 0`.
+Package `WebKitProbe.EngineBrowser_1.0.0.42_arm__2932e6rj4m41p`, App ID `WebKitProbe.EngineBrowser_2932e6rj4m41p!App`. Install Code=0/Success=true. The first launch exposed a real pre-existing race: portal launch raises both `OnLaunched` and `OnActivated`, and both threads ran first-time creation, so the loser tripped the process owner gate (`control-initialize: RPC_E_WRONG_THREAD`). v42 serializes first-time creation with an `SRWLOCK` double-checked guard; the loser then activates the created window. Launch HTTP 200, `control-initialize: 0`.
 
 Owner tapped the demo button and swiped the long document on `about:demo`:
 
@@ -94,9 +53,7 @@ control-pointer-released / ptr-down=1 / ptr-dragging=0 + engine tap stages, scro
 control-pointer-released / ptr-dragging=1 + control-inertia-start, control-scroll-y advancing
 ```
 
-Taps dispatch press/release pairs with no document motion; drags scroll and
-fling through the extracted classes with identical stages. Counter increments
-and scrolling repaint were owner-confirmed.
+Taps dispatch press/release pairs with no document motion; drags scroll and fling through the extracted classes with identical stages. Counter increments and scrolling repaint were owner-confirmed.
 
 SHA256:
 
@@ -112,11 +69,7 @@ SHA256:
 
 ## Scope notes
 
-- Keyboard/focus verified as explicit `E_NOTIMPL` against the real engine, with
-  full validation/threading/slot coverage; real key delivery needs engine slots
-  plus public-control handlers and stays a later gate.
-- The header/ABI prose disagrees on input kind ordinals and modifier bits; code
-  follows the frozen headers (the dual-compiler-checked authority).
-- One deliberate micro-fix versus the legacy wrapper: capture-cancel also clears
-  the dragging flag (a press resets it either way, so no observable path changes).
+- Keyboard/focus verified as explicit `E_NOTIMPL` against the real engine, with full validation/threading/slot coverage; real key delivery needs engine slots plus public-control handlers and stays a later gate.
+- The header/ABI prose disagrees on input kind ordinals and modifier bits; code follows the frozen headers (the dual-compiler-checked authority).
+- One deliberate micro-fix versus the legacy wrapper: capture-cancel also clears the dragging flag (a press resets it either way, so no observable path changes).
 - Full G4 remains open; 6.3 overlay/lost-device items are untouched by this slice.

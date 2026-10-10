@@ -24,6 +24,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--kind", choices=("runtime", "mini"), required=True)
     parser.add_argument("--build", type=Path, required=True)
+    parser.add_argument("--host-appx", type=Path,
+                        help="C# RuntimeSmoke MSBuild appx (required for --kind runtime)")
+    parser.add_argument("--payload-build", type=Path,
+                        help="Native RuntimeSmoke CMake build (required for --kind runtime)")
     parser.add_argument("--engine", type=Path, required=True)
     parser.add_argument("--baseline", type=Path, required=True)
     parser.add_argument("--component", type=Path, help="Freshly built matching legacy DLL/WinMD for presenter regression")
@@ -35,17 +39,25 @@ def main():
     if args.stage.exists():
         parser.error("Use a new staging directory for each package build")
 
-    relative = "Tools/uwp/RuntimeSmoke" if args.kind == "runtime" else "Tools/MiniBrowser/uwp"
-    manifest = REPO / relative / "AppxManifest.xml"
-    host = "WebKitRuntimeSmokeHost.exe" if args.kind == "runtime" else "MiniBrowserUWP.exe"
-    command = [sys.executable, str(REPO / "Tools/uwp/RuntimeSmoke/stage-app.py"),
-               "--build", str(args.build), "--engine", str(args.engine),
-               "--prefix", str(args.prefix), "--stage", str(args.stage),
-               "--manifest", str(manifest), "--host", host, "--reader", args.reader,
-               "--override", str(args.baseline)]
-    if args.kind == "mini":
-        command.append("--no-probe")
-    subprocess.run(command, check=True)
+    if args.kind == "runtime":
+        if not args.host_appx or not args.payload_build:
+            parser.error("--kind runtime requires --host-appx and --payload-build")
+        command = [sys.executable,
+                   str(REPO / "Tools/uwp/diagnostics/RuntimeSmoke/scripts/stage-runtimesmoke.py"),
+                   "--host-appx", str(args.host_appx),
+                   "--payload-build", str(args.payload_build),
+                   "--engine", str(args.engine), "--prefix", str(args.prefix),
+                   "--stage", str(args.stage), "--reader", args.reader,
+                   "--override", str(args.baseline)]
+        subprocess.run(command, check=True)
+    else:
+        manifest = REPO / "Tools/MiniBrowser/uwp/AppxManifest.xml"
+        command = [sys.executable, str(REPO / "Tools/uwp/RuntimeSmoke/stage-app.py"),
+                   "--build", str(args.build), "--engine", str(args.engine),
+                   "--prefix", str(args.prefix), "--stage", str(args.stage),
+                   "--manifest", str(manifest), "--host", "MiniBrowserUWP.exe",
+                   "--reader", args.reader, "--override", str(args.baseline), "--no-probe"]
+        subprocess.run(command, check=True)
     if args.kind == "mini":
         # Runtime activation is not a static import: retain the baseline component
         # and its matching metadata for this legacy-shell regression.

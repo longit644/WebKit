@@ -1,13 +1,8 @@
 # M10 migration map and M9 transfer ledger
 
-Companion to [../design.md](../design.md); supporting contract files are siblings
-in this `artifact/` directory. Proposal, specs and tasks remain at the change root.
+Companion to [../design.md](../design.md); supporting contract files are siblings in this `artifact/` directory. Proposal, specs and tasks remain at the change root.
 
-This manifest is the move/rename authority. Existing implementation is retained
-until its replacement gate passes. Destination trees/naming are fixed in
-`Tools/uwp/DESIGN.md`; record every additional discovered symbol under these
-rules rather than making opportunistic renames. Implementation must expand
-family rows into exact symbols/files and record consumers before changing them.
+This manifest is the move/rename authority. Existing implementation is retained until its replacement gate passes. Destination trees/naming are fixed in `Tools/uwp/DESIGN.md`; record every additional discovered symbol under these rules rather than making opportunistic renames. Implementation must expand family rows into exact symbols/files and record consumers before changing them.
 
 ## Source/symbol map
 
@@ -49,25 +44,13 @@ family rows into exact symbols/files and record consumers before changing them.
 
 ## Symbol-family rules
 
-- Public type/member names follow `public-api.md`; never reuse changed prototype
-  interface IIDs. Keep outcome numbers 0/1/2 and separately version native ABI.
-- Native private fields use m_lowerCamelCase; functions use lowerCamelCase;
-  upstream override methods keep mandated names. One declared field per documented
-  state responsibility, not compressed groups of unrelated Boolean flags.
-- Internal enum values are scoped PascalCase. Existing UWPResourceErrorCode values
-  1..12 and legacy result codes keep numerics until compatibility is retired;
-  rename via explicit mappings, never reinterpret domain-less integers.
-- Public enum values and non-obvious constants require individual documentation.
-  Rename kFrameProfileSampleCountUWP to frameProfileSampleCount, profile time/capacity
-  families to unit-bearing names, and remove constants for ordinary syntax zeros.
-- Do not rename SDK, curl, upstream WebKit enums, methods, types, third-party files
-  or assembly-required exports. Document each retained native/ABI name.
-- Acronym spelling is `UWP`, not `Uwp`: native classes/files use the `UWP` suffix;
-  shared C ABI uses `WKUWP`; lowercase directory `uwp/` stays unchanged.
-- Build target names: WebKitUWPComponent (emits WebKit.dll and WebKit.winmd to
-  match the public WebKit namespace), MiniBrowserUWP,
-  NavigationTestsUWP, XamlIdentityProbeUWP, RuntimeSmoke, FpuProbe, TlsSmoke; engine
-  WebCore/JavaScriptCore targets remain unchanged. Package runtime class stays WebKit.
+- Public type/member names follow `public-api.md`; never reuse changed prototype interface IIDs. Keep outcome numbers 0/1/2 and separately version native ABI.
+- Native private fields use m_lowerCamelCase; functions use lowerCamelCase; upstream override methods keep mandated names. One declared field per documented state responsibility, not compressed groups of unrelated Boolean flags.
+- Internal enum values are scoped PascalCase. Existing UWPResourceErrorCode values 1..12 and legacy result codes keep numerics until compatibility is retired; rename via explicit mappings, never reinterpret domain-less integers.
+- Public enum values and non-obvious constants require individual documentation. Rename kFrameProfileSampleCountUWP to frameProfileSampleCount, profile time/capacity families to unit-bearing names, and remove constants for ordinary syntax zeros.
+- Do not rename SDK, curl, upstream WebKit enums, methods, types, third-party files or assembly-required exports. Document each retained native/ABI name.
+- Acronym spelling is `UWP`, not `Uwp`: native classes/files use the `UWP` suffix; shared C ABI uses `WKUWP`; lowercase directory `uwp/` stays unchanged.
+- Build target names: WebKitUWPComponent (emits WebKit.dll and WebKit.winmd to match the public WebKit namespace), MiniBrowserUWP, NavigationTestsUWP, XamlIdentityProbeUWP, RuntimeSmoke, FpuProbe, TlsSmoke; engine WebCore/JavaScriptCore targets remain unchanged. Package runtime class stays WebKit.
 
 ## M9 requirement disposition
 
@@ -84,9 +67,7 @@ family rows into exact symbols/files and record consumers before changing them.
 | 6.1-6.3 shell migration | Application spec; Phase 5 | Preserve Skia staging/demo/blocked UX, repeat app checks |
 | 7.1-7.6 packaging/device/sites/acceptance | Build/device specs; Phase 7 | Exact build/package identity and owner observations required |
 
-M7 fonts/clipboard and M8 rendering retain their own history and requirements;
-M10 migrates integration and reruns affected regressions, not silently cancels them.
-Their specific dependencies are listed under "M7/M8 regression dependencies".
+M7 fonts/clipboard and M8 rendering retain their own history and requirements; M10 migrates integration and reruns affected regressions, not silently cancels them. Their specific dependencies are listed under "M7/M8 regression dependencies".
 
 ## M7/M8 regression dependencies
 
@@ -98,9 +79,7 @@ Their specific dependencies are listed under "M7/M8 regression dependencies".
 
 ## Exact symbol inventory: framework API and engine
 
-Read-only inventory measured 2026-10-05 (task 1.2). Line numbers refer to the
-working tree; the five locally modified/untracked paths are inventoried in their
-modified state, not at HEAD.
+Read-only inventory measured 2026-10-05 (task 1.2). Line numbers refer to the working tree; the five locally modified/untracked paths are inventoried in their modified state, not at HEAD.
 
 ### Source/WebKit/UIProcess/API/uwp
 
@@ -259,8 +238,4 @@ Third-party conditionals to keep patched and not rename: `ThirdParty/ANGLE/src/l
 
 ## Per-slice record format
 
-For each touched symbol/file record old path/name, new path/name, language/owner,
-all include/export/project/script/doc consumers, compatibility rule, task ID,
-verification command/result, and device evidence when applicable. Mark retained
-and generated families explicitly. No area is complete until its manifest has
-zero unaccounted authored UWP symbols; remaining legacy compatibility is listed.
+For each touched symbol/file record old path/name, new path/name, language/owner, all include/export/project/script/doc consumers, compatibility rule, task ID, verification command/result, and device evidence when applicable. Mark retained and generated families explicitly. No area is complete until its manifest has zero unaccounted authored UWP symbols; remaining legacy compatibility is listed.

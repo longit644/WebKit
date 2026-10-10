@@ -2,66 +2,28 @@
 
 ## Ownership and routing contract
 
-`platform/ClipboardRouteUWP.h/.cpp` is the owner-side clipboard router over the
-caller-owned neutral 7.1 service. Each copy/cut/paste issues one service
-operation with a retained token as its completion context. The token lives from
-acceptance until the single completion returns, on the owner thread only. The
-token is erased before delivery, so a completion may close the route or issue
-new operations, but must not destroy the route: a close-driven completion runs
-inside close()'s cancellation loop. Operation IDs are route-monotonic and never
-reused. Cut publishes like copy with the completion marked cut; selection
-deletion belongs to the engine. Engine-driven operations through the same
-borrowed table keep their own contexts and are unaffected by route Close.
-Capability mask remains **0**; table wiring stays 7.5.
+`platform/ClipboardRouteUWP.h/.cpp` is the owner-side clipboard router over the caller-owned neutral 7.1 service. Each copy/cut/paste issues one service operation with a retained token as its completion context. The token lives from acceptance until the single completion returns, on the owner thread only. The token is erased before delivery, so a completion may close the route or issue new operations, but must not destroy the route: a close-driven completion runs inside close()'s cancellation loop. Operation IDs are route-monotonic and never reused. Cut publishes like copy with the completion marked cut; selection deletion belongs to the engine. Engine-driven operations through the same borrowed table keep their own contexts and are unaffected by route Close. Capability mask remains **0**; table wiring stays 7.5.
 
-Close cancels every pending route operation; each completes Closed exactly
-once, the latch is set before cancellation so reentry returns at once, and
-later copy/cut/paste fail Closed without completing. Destruction closes first.
-A transport completion arriving after Close finds no service record and is
-ignored. With a real dispatcher, the route must be drained to zero pending
-before destruction, because a queued dispatcher task cannot be recalled here;
-dispatcher-loss/quiescence cleanup belongs to 7.5. Transports must never invoke
-a held completion after their owner is gone, which is the transport contract.
+Close cancels every pending route operation; each completes Closed exactly once, the latch is set before cancellation so reentry returns at once, and later copy/cut/paste fail Closed without completing. Destruction closes first. A transport completion arriving after Close finds no service record and is ignored. With a real dispatcher, the route must be drained to zero pending before destruction, because a queued dispatcher task cannot be recalled here; dispatcher-loss/quiescence cleanup belongs to 7.5. Transports must never invoke a held completion after their owner is gone, which is the transport contract.
 
 ## Host checks and commands
 
-On 2026-10-10, PowerShell 7.6.6, MSVC 14.44.35207, SDK 10.0.19041.0,
-native ARM clang-cl 19.1.5:
+On 2026-10-10, PowerShell 7.6.6, MSVC 14.44.35207, SDK 10.0.19041.0, native ARM clang-cl 19.1.5:
 
 ```powershell
 .\Tools\uwp\build\test-wkuwp-clipboard-route.ps1
 ```
 
-- ARM32 compile of the route and service with the native engine compiler,
-  toolchain-exact flags at `/W4 /WX`: pass with no warnings. No `/EHsc` is
-  appended, per the task 7.1 LLVM 19.1.5 backend finding these units share.
-- ARM32 compile of both with the MSVC ARM32 compiler at `/W4 /WX` without
-  `/ZW`: pass with no warnings, extending the neutrality proof to the router.
+- ARM32 compile of the route and service with the native engine compiler, toolchain-exact flags at `/W4 /WX`: pass with no warnings. No `/EHsc` is appended, per the task 7.1 LLVM 19.1.5 backend finding these units share.
+- ARM32 compile of both with the MSVC ARM32 compiler at `/W4 /WX` without `/ZW`: pass with no warnings, extending the neutrality proof to the router.
 - Route header neutrality audit plus no engine header reaching for it: pass.
-- ARM32 module link of both objects: `COFF-ARM`, `IMAGE_FILE_MACHINE_ARMNT`,
-  `APPCONTAINER`.
-- Host behaviour from x64 copies: **89/89**, covering copy/cut/paste exactness
-  with kind/cut reporting, failed-write origin preservation, validation before
-  any token exists, orphan-service rejection, two-pending Close with
-  exactly-once Closed delivery, idempotent relatch, post-close Closed
-  rejection, late-transport suppression, destruction-during-close delivery,
-  reentrant close, destruction inside an ordinary completion, foreign-thread
-  rejection of all four entry points, and borrowed-table coexistence with an
-  engine-issued write.
-- Task 7.1 service gate rerun unchanged: **83/83**. No shared source is
-  modified by this task, so the service proof is a regression by construction.
+- ARM32 module link of both objects: `COFF-ARM`, `IMAGE_FILE_MACHINE_ARMNT`, `APPCONTAINER`.
+- Host behaviour from x64 copies: **89/89**, covering copy/cut/paste exactness with kind/cut reporting, failed-write origin preservation, validation before any token exists, orphan-service rejection, two-pending Close with exactly-once Closed delivery, idempotent relatch, post-close Closed rejection, late-transport suppression, destruction-during-close delivery, reentrant close, destruction inside an ordinary completion, foreign-thread rejection of all four entry points, and borrowed-table coexistence with an engine-issued write.
+- Task 7.1 service gate rerun unchanged: **83/83**. No shared source is modified by this task, so the service proof is a regression by construction.
 
 ## Device checks and commands
 
-The diagnostic component compiles the routing layer with its consumer under a
-new `-ClipboardTests` flavor (`DispatcherUWP.cpp`/`ClipboardPlatformUWP.cpp`
-with `/ZW`, service plus route without), exports `WKUWPTestClipboard`, and the
-probe app runs it on the XAML owner thread writing `clipboard-result.txt`. The
-7.5 runtime owner promotes these sources to the unconditional production lists.
-Async WinRT reads complete through `RunAsync` tasks, so the suite pumps the
-owner dispatcher with `ProcessEvents` in a bounded drain instead of blocking.
-The run saves the existing clipboard text first and restores it at the end;
-only the version-tagged round-trip strings are asserted.
+The diagnostic component compiles the routing layer with its consumer under a new `-ClipboardTests` flavor (`DispatcherUWP.cpp`/`ClipboardPlatformUWP.cpp` with `/ZW`, service plus route without), exports `WKUWPTestClipboard`, and the probe app runs it on the XAML owner thread writing `clipboard-result.txt`. The 7.5 runtime owner promotes these sources to the unconditional production lists. Async WinRT reads complete through `RunAsync` tasks, so the suite pumps the owner dispatcher with `ProcessEvents` in a bounded drain instead of blocking. The run saves the existing clipboard text first and restores it at the end; only the version-tagged round-trip strings are asserted.
 
 ```powershell
 .\Tools\uwp\build\build-cx-source-state-probe.ps1 `
@@ -74,13 +36,7 @@ only the version-tagged round-trip strings are asserted.
   -SignThumbprint 18FD65CF5E103CF96F04C2A451DC49C94788A40D
 ```
 
-Lumia 950 XL, `mc-001173b46c8b`, `MobileCoreProd`, OS
-`15254.603.armfre.feature2_rs3svc.200106-1633`, portal `https://192.168.1.52`.
-Fixture server `http://192.168.1.69:8002` served the scheduler oracle during
-the run. Package `WebKitProbe.SourceStateHost_1.0.0.44_arm__2932e6rj4m41p`,
-App ID `WebKitProbe.SourceStateHost_2932e6rj4m41p!App`. Installation completed
-Code=0/Success=true; launch returned HTTP 200. One visible 30-second poll was
-run before fetching. All eight reports match version **1.0.0.44**:
+Lumia 950 XL, `mc-001173b46c8b`, `MobileCoreProd`, OS `15254.603.armfre.feature2_rs3svc.200106-1633`, portal `https://192.168.1.52`. Fixture server `http://192.168.1.69:8002` served the scheduler oracle during the run. Package `WebKitProbe.SourceStateHost_1.0.0.44_arm__2932e6rj4m41p`, App ID `WebKitProbe.SourceStateHost_2932e6rj4m41p!App`. Installation completed Code=0/Success=true; launch returned HTTP 200. One visible 30-second poll was run before fetching. All eight reports match version **1.0.0.44**:
 
 ```text
 clipboard-result.txt:      result=PASS checks=27 failures=0
@@ -93,11 +49,7 @@ initialization-result.txt: result=PASS checks=33 failures=0
 source-state-result.txt:   result=PASS checks=42 failures=0
 ```
 
-Total **247/247 phone assertions**. The 27 clipboard assertions cover real
-copy/paste and cut/paste round trips with exact bytes, worker-thread
-copy/paste/close rejection, a close-while-in-flight race completing exactly
-once as OK or Closed, post-close Closed rejection, engine-table interop and
-clipboard save/restore without fault.
+Total **247/247 phone assertions**. The 27 clipboard assertions cover real copy/paste and cut/paste round trips with exact bytes, worker-thread copy/paste/close rejection, a close-while-in-flight race completing exactly once as OK or Closed, post-close Closed rejection, engine-table interop and clipboard save/restore without fault.
 
 SHA256:
 
@@ -118,20 +70,12 @@ SHA256:
 | Native 89-check report | `ADFA78EC972184368F42DBFD2537DEF2F207A4BBB111FB64E2C90A4F350978FE` |
 | Native 83-check report | `322CE6E12B2C236257F06E0D195DBB61EE8952768E76B89C38D74D06B36F4902` |
 
-Full reports remain under `$env:TEMP/opencode/v44-*.txt`; the package root
-remains under `$env:TEMP/opencode/m10-clipboard-phone-v44`.
+Full reports remain under `$env:TEMP/opencode/v44-*.txt`; the package root remains under `$env:TEMP/opencode/m10-clipboard-phone-v44`.
 
 ## Defects found during the run
 
-The device suite first passed the route completion (six parameters) where the
-borrowed engine table requires the engine completion (four parameters); the
-ARM compiler rejected it and the suite now records through a dedicated
-engine-side completion. An unused version-token local tripped `/WX` and was
-removed. Both were caught by the diagnostic component build before packaging.
+The device suite first passed the route completion (six parameters) where the borrowed engine table requires the engine completion (four parameters); the ARM compiler rejected it and the suite now records through a dedicated engine-side completion. An unused version-token local tripped `/WX` and was removed. Both were caught by the diagnostic component build before packaging.
 
 ## Remaining gates
 
-This accepts routed copy/cut/paste, cross-thread rejection and delayed
-completion after Close on the host and the phone. Runtime-owner wiring,
-`postWake`, cleanup-ticket accounting, dispatcher-loss/quiescence and shutdown
-hooks retain the 7.5 gate. Full G4 stays pending on 6.3 and 7.3-7.5.
+This accepts routed copy/cut/paste, cross-thread rejection and delayed completion after Close on the host and the phone. Runtime-owner wiring, `postWake`, cleanup-ticket accounting, dispatcher-loss/quiescence and shutdown hooks retain the 7.5 gate. Full G4 stays pending on 6.3 and 7.3-7.5.

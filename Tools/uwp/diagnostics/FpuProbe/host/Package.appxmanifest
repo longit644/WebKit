@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  FpuProbe C# host manifest (M10 task 8.6). Lessons reused verbatim from the
+  proven C# proof project: PhoneIdentity element, TargetDeviceFamily
+  MinVersion 10.0.15063.0 with MaxVersionTested 10.0.19041.0, Publisher
+  CN=WebKitWebView matching the development certificate, the
+  Microsoft.VCLibs.140.00 framework dependency, and exact-size logos
+  (50/150/44 px, carried over from the native host's Assets).
+  Identity name WebKitWebView.FpuProbe is retained; version is bumped to
+  1.0.0.12 for the migrated host. EntryPoint is the C# App class; the retired
+  WebKitFpuProbe.ViewSource native entry point no longer exists.
+-->
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" IgnorableNamespaces="uap mp">
+  <Identity Name="WebKitWebView.FpuProbe" Publisher="CN=WebKitWebView" Version="1.0.0.12" ProcessorArchitecture="arm" />
+  <mp:PhoneIdentity PhoneProductId="0D41449B-18C0-463D-86EF-83B541F549DF" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
+  <Properties>
+    <DisplayName>WebKit FPU Probe</DisplayName>
+    <PublisherDisplayName>WebKitWebView</PublisherDisplayName>
+    <Logo>Assets\Logo50.png</Logo>
+  </Properties>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.15063.0" MaxVersionTested="10.0.19041.0" />
+    <PackageDependency Name="Microsoft.VCLibs.140.00" MinVersion="14.0.0.0" Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US" />
+  </Dependencies>
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+  <Applications>
+    <Application Id="App" Executable="WebKitFpuProbe.exe" EntryPoint="WebKitFpuProbe.App">
+      <uap:VisualElements DisplayName="WebKit FPU Probe" Description="ARM32 setjmp/longjmp FPU-state isolation probe" BackgroundColor="#2060a0" Square150x150Logo="Assets\Logo150.png" Square44x44Logo="Assets\Logo44.png" />
+    </Application>
+  </Applications>
+</Package>

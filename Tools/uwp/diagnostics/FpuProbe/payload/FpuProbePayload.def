@@ -1,0 +1,9 @@
+; Exported native payload surface (M10 task 8.6). WKFpuProbeRun is the C#
+; host's P/Invoke entry; the wkProbe* names keep the retained CRT frame
+; probe ABI visible exactly as the pre-migration sources named them.
+LIBRARY FpuProbePayload
+EXPORTS
+    WKFpuProbeRun
+    wkProbeSetjmpSp
+    wkProbeSetjmpR11
+    wkProbeCrtSetjmp DATA

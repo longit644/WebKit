@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Runtime Directives for the .NET Native toolchain (M10 task 8.6). This host
+  uses no reflection beyond compiled XAML, so the default application
+  directives suffice; the file exists to keep the ARM Release build
+  warning-free (warning ILT0027 otherwise).
+-->
+<Directives xmlns="http://schemas.microsoft.com/netfx/2013/01/metadata">
+  <Application>
+    <!--
+      An Assembly element with Name="*Application*" applies to all assemblies
+      in the application package. Dynamic="Required All" preserves code the
+      XAML compiler references at runtime.
+    -->
+    <Assembly Name="*Application*" Dynamic="Required All" />
+  </Application>
+</Directives>

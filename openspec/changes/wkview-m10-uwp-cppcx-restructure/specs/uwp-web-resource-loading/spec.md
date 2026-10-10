@@ -1,7 +1,6 @@
 ## Purpose
 
-Provide asynchronous engine-managed resource loading with isolated sessions,
-bounded policies, security enforcement and explicit application certificate consent.
+Provide asynchronous engine-managed resource loading with isolated sessions, bounded policies, security enforcement and explicit application certificate consent.
 
 ## ADDED Requirements
 

@@ -42,7 +42,8 @@ def main():
     parser.add_argument("--override", action="append", default=[], type=Path, help="Prefer rebuilt dependency DLLs from this directory")
     parser.add_argument("--host", default="WebKitRuntimeSmokeHost.exe")
     parser.add_argument("--no-probe", action="store_true")
-    parser.add_argument("--manifest", type=Path, default=Path(__file__).with_name("AppxManifest.xml"))
+    parser.add_argument("--manifest", type=Path, required=True,
+                        help="Explicit host manifest; application manifests are owned by each host project")
     args = parser.parse_args()
     if args.host.lower() == "minibrowseruwp.exe":
         engine_cache = args.engine.parent / "CMakeCache.txt"

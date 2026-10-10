@@ -1,12 +1,8 @@
 # Tasks - M10 UWP C++/CX restructuring
 
-All implementation tasks start unchecked. Planning-file existence is not task
-completion. Each checkbox includes its acceptance proof; record full command
-results and device identity where applicable. Subdivide a task if it exceeds a
-working session, keeping its requirements and gate prerequisites intact.
+All implementation tasks start unchecked. Planning-file existence is not task completion. Each checkbox includes its acceptance proof; record full command results and device identity where applicable. Subdivide a task if it exceeds a working session, keeping its requirements and gate prerequisites intact.
 
-Supporting-document basenames in this checklist resolve under `artifact/`;
-`design.md`, `proposal.md`, `tasks.md` and `specs/` remain at the change root.
+Supporting-document basenames in this checklist resolve under `artifact/`; `design.md`, `proposal.md`, `tasks.md` and `specs/` remain at the change root.
 
 ## 1. Baseline and migration accounting (G0)
 
@@ -185,23 +181,33 @@ Supporting-document basenames in this checklist resolve under `artifact/`;
 
 ## 8. MiniBrowser and diagnostic application migration
 
-Application hosts and shells are C#: the owner controls the application layer
-in C#/XAML over the C++/CX component (`WebKit.winmd`), while engine, component,
-OS service projections and native diagnostic payloads stay C++/CX and native.
-Toolchain gate (proven before any §8 implementation): UWP tools plus .NET
-Native on Community 2022, blank ARM Release app installing and launching on
-the Lumia (proof package 1.0.0.1, 4/4 assertions, see
-`artifact/csharp-toolchain.md`). Every app targets 10.0.19041.0 with MinVersion
-10.0.15063.0 and restores `Microsoft.NETCore.UniversalWindowsPlatform` 6.0.x
-or older; the cached 6.2.10 cannot install on the phone.
+Application hosts and shells are C#: the owner controls the application layer in C#/XAML over the C++/CX component (`WebKit.winmd`), while engine, component, OS service projections and native diagnostic payloads stay C++/CX and native. Toolchain gate (proven before any §8 implementation): UWP tools plus .NET Native on Community 2022, blank ARM Release app installing and launching on the Lumia (proof package 1.0.0.1, 4/4 assertions, see `artifact/csharp-toolchain.md`). Every app targets 10.0.19041.0 with MinVersion 10.0.15063.0 and restores `Microsoft.NETCore.UniversalWindowsPlatform` 6.0.x or older; the cached 6.2.10 cannot install on the phone.
 
 - [ ] 8.1 Add C# App/MainPage XAML with a component WinMD reference; verify no private framework .cpp is compiled into MiniBrowser and compiled markup constructs the public `WebKitWebView`. Carry from 6.3: subscribe VisibleBoundsChanged in C# code-behind and lay out inside the visible bounds so the landscape system nav bar no longer covers page content (engine output already proven correct).
+  - Progress/evidence: `artifact/csharp-app-hosts.md` records ARM Release/.NET Native, compiled XAML→WinMD activation, no native framework compilation and 28/28 visible-bounds math cases. The owner rejected v1.0.0.3's spacing and cramped toolbar. V1.0.0.4 adopts phone Edge-style bottom chrome, system light/dark themes and one safe-area owner (`UseCoreWindow` before Frame navigation plus explicit visible-bounds margins). Ordinary/optional geometry-report builds pass; owner rotation/theme acceptance remains pending.
+  - V5 refinement: the owner requested a Windows Phone app-bar expansion rather than v4's context menu. V1.0.0.5 implements a bottom-up icon/text panel, full width portrait and half width right-aligned landscape, theme inheritance, MVVM expansion/dismissal commands, and measured menu geometry in the optional report. ARM Release/signature gates pass; deployment timed out before upload and visual acceptance is pending.
+  - V6 refinement: after v5 installed/launched, the owner clarified Microsoft Edge's address-bar + primary icon/label strip + secondary-list composition. `artifact/phone-edge-chrome.md` records the Microsoft guidance review, native AppBarButton primary layer, compact icon/text secondary rows, corrected disabled/background/focus styling, and document dimming. ARM Release/source/signature gates pass; v6 installed with Code=0/Success=true and launched with HTTP 200. Visual acceptance remains open.
+  - V7 refinement: the latest screenshot requests a splitter between the address field and dots, and full-width editing on focus. V7 adds the divider, 44-DIP full-width edit mode, document scrim, MVVM cancellation/commit flow, and docked-keyboard safe-area adjustment. ARM Release/.NET Native/signature/XAML gates pass; 31 bounds/keyboard vectors pass 124/124 assertions. The Lumia installed/launched v7; the version-matched report proves the idle splitter-visible layout, focused full-width editor with controls collapsed, and keyboard-safe root while Frame/Page stay full-window (all checks pass). Screenshot API returned 404; portrait/landscape/system-theme visual acceptance remains open.
+  - V8 text-alignment refinement set `VerticalContentAlignment=Center`; owner confirmation showed the result remained visibly high. V9 adds a two-DIP downward content-box adjustment using asymmetric padding, with diagnostic assertions in both compact/editing states. ARM Release/.NET Native/signature/XAML gates pass; v9 installed/launched on Lumia and both compact snapshots pass all layout checks. Request a fresh owner comparison and capture editing-state diagnostics before accepting alignment.
+  - V10 applies the owner's Dropbox menu and toolbar feedback: 48-DIP menu rows/16-DIP text/accent press state; Forward (command-disabled when unavailable) and Local demo; one Hello notification-demo primary item; system Back event only; loading-swapped Stop/Reload and progress immediately above chrome; address prompt inset shifted left 3 DIP. ARM Release/.NET Native/signature/XAML gates pass with zero warnings, math 124/124 and policy 23/23; v10 installed/launched and eight version-matched snapshots pass (base 7/7, edit 9/9). Capture/compare the open menu and loading state visually before accepting Dropbox sizing/tap parity.
+  - V11 follows the owner's typography feedback and reduces menu labels to 14 DIP. Fresh signed ARM package installed/launched; all six fetched layout snapshots pass (base 7/7, edit 9/9). Ask the owner to compare menu font size against Dropbox; open-menu screenshot evidence remains pending.
+  - V13 restores capitalized `Hello`, `Forward`, and `Local demo` per the owner's clarification. ARM Release/.NET Native/XAML/signature and 124/124 math checks pass. Phone Device Portal timed out before install; deploy/runtime verification remains pending reconnection.
+  - V14 follows the Files-app comparison by removing the Hello button's custom width/height and returning to the SDK AppBarButton's 68-DIP width and native icon/label sizing. ARM Release/.NET Native/signature gates pass; the package installs/launches and both version-matched reports pass seven checks. Owner visual comparison remains open.
+  - V15 changes the Hello demo from custom status text to a native Windows toast; tapping Hello clears the badge and requests the system notification. Package builds/signs/installs/launches; two base snapshots pass 7/7 and one menu-open snapshot passes 9/9. Owner confirmation of the actual toast banner/action-center result remains open.
+  - V16 removes the custom status-footer XAML row and docks the 2-DIP blue accent progress line immediately above the address bar per the owner's screenshot. Hello remains a native Windows toast. Verify build and package deployment before recording the new evidence.
+  - V17 changes menu hover/pressed feedback to neutral gray overlays instead of the Windows accent color, per the owner's Edge comparison. Rebuild and deploy for visual review.
+  - V19 reduces the primary strip from 68 to the native AppBarButton 56-DIP height to close the blank gap between Hello and the address bar, per the latest screenshot. Verify the fresh package and visual docking on-device.
 - [ ] 8.2 Implement BrowserViewModel toolbar/address/title/history/loading binding in C#; verify engine event changes drive UI and back/forward/reload use public methods.
+  - Progress/evidence: `artifact/csharp-app-hosts.md` records MVVM state/commands, bottom address/overflow bindings, keyboard Enter/system Back command delegation, collapsed idle status and a system-themed ARM Release/.NET Native build. Engine-signal/readiness behavior remains fail-closed because production page forwarding is unsupported; keep this task open until a controlled/native page signal can drive the C# ViewModel.
 - [ ] 8.3 Implement BrowserPolicy and assets/blocked.html/demo migration in C#; verify escaping/override order, separate remote token versus HostHtml IDs, explicit warning-token overload and successful consent after warning commit without generic-navigation preservation.
+  - Progress/evidence: `artifact/csharp-app-hosts.md` records BrowserPolicy integration, blocked/demo assets, and the 23/23 host rule suite. Real HTTPS warning/consent through the production control cannot be device-proven while engine page initialization remains E_NOTIMPL; keep this task open for provider-backed or production forwarding verification.
 - [ ] 8.4 Remove MiniBrowser downloader/shadow history/completion polling after replacement checks; verify no curl-to-loadHTML worker, URL vector or log-derived completion remains in ordinary app paths.
-- [ ] 8.5 Migrate RuntimeSmoke application host to C# under diagnostics/ and move smoke-only first-page payload; verify the unchanged native payload results and update source/script/project references.
-- [ ] 8.6 Migrate FpuProbe application host to C#, retaining native FPU/ARM payload; verify prior expected arithmetic/ABI results and documented launch commands.
-- [ ] 8.7 Migrate TlsSmoke application host to C#, retaining native transport probe; verify fail-closed TLS results and independent warning policy.
+- [x] 8.5 Migrate RuntimeSmoke application host to C# under diagnostics/ and move smoke-only first-page payload; verify the unchanged native payload results and update source/script/project references.
+  - Evidence: `artifact/csharp-app-hosts.md` records warning-free ARM native payload + C#/.NET Native host builds, the 0-failure semantic comparison (including JavaScript 4950 and unchanged CRT failure bits/markers), and a staged 28-ARM-image signable package layout. Engine first-page/startup sources remain unchanged.
+- [x] 8.6 Migrate FpuProbe application host to C#, retaining native FPU/ARM payload; verify prior expected arithmetic/ABI results and documented launch commands.
+  - Evidence: `artifact/csharp-app-hosts.md` records warning-free ARM payload + C#/.NET Native build, host arithmetic 7/7, source expectation/ABI checks, ARMNT/AppContainer image with all four exports, signed AppX and updated diagnostic runbook. No phone run is claimed.
+- [x] 8.7 Migrate TlsSmoke application host to C#, retaining native transport probe; verify fail-closed TLS results and independent warning policy.
+  - Evidence: `artifact/csharp-app-hosts.md` records warning-free ARM payload + C#/.NET Native build, host proof passing all marker/order/fail-closed checks (absent-bundle verified phase failed with zero bytes/status; warning policy remains independent), ARM dependency-closure staging and AppX output. No phone run is claimed.
 - [ ] 8.8 Document sample embedding/configuration/lifecycle, the C# toolchain commands and diagnostic commands; verify normal MiniBrowser startup runs no test navigation and suspension/Close respects shared engine lifetime.
 
 ## 9. Replacement device tests and fixture extraction (G5)

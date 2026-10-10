@@ -2,55 +2,25 @@
 
 ## Implemented ownership
 
-`rendering/SwapChainPresenterUWP.h/.cpp` owns the CPU D3D11 device, immediate
-context, retained upload and flip-sequential BGRA swap chain. Panel QI ownership
-is explicit and released after successful detach. Physical dimensions, V1 buffer
-header/alignment/stride/capacity and finite bounded scale validate before use.
-Pixels remain caller-owned and borrowed only during upload. The compatibility
-header aliases the former `WebKitWebViewPresenterUWP` name and nested FrameTiming.
+`rendering/SwapChainPresenterUWP.h/.cpp` owns the CPU D3D11 device, immediate context, retained upload and flip-sequential BGRA swap chain. Panel QI ownership is explicit and released after successful detach. Physical dimensions, V1 buffer header/alignment/stride/capacity and finite bounded scale validate before use. Pixels remain caller-owned and borrowed only during upload. The compatibility header aliases the former `WebKitWebViewPresenterUWP` name and nested FrameTiming.
 
-The native helper's GPU path consumes the actual frozen negotiated table with
-the explicit page handle, retains the host Inspectable and leaves its rendering
-QI/AddRef and ANGLE/Skia objects to the engine. It creates no second CPU chain.
-Active CPU/GPU modes cannot replace each other. Failed detach preserves ownership;
-Pending detach blocks render/reattachment and is issued once. Runtime release
-acknowledgement must match the monotonic attachment cookie before host ownership
-ends. A late previous-cookie acknowledgement cannot release a newer attachment.
+The native helper's GPU path consumes the actual frozen negotiated table with the explicit page handle, retains the host Inspectable and leaves its rendering QI/AddRef and ANGLE/Skia objects to the engine. It creates no second CPU chain. Active CPU/GPU modes cannot replace each other. Failed detach preserves ownership; Pending detach blocks render/reattachment and is issued once. Runtime release acknowledgement must match the monotonic attachment cookie before host ownership ends. A late previous-cookie acknowledgement cannot release a newer attachment.
 
-Owner-thread checks precede argument/native/COM mutation. Positive engine results
-use the extracted shared `native/EngineResultUWP.h` mapping, preserving the existing
-PageController semantics and originating negative HRESULTs.
+Owner-thread checks precede argument/native/COM mutation. Positive engine results use the extracted shared `native/EngineResultUWP.h` mapping, preserving the existing PageController semantics and originating negative HRESULTs.
 
-`rendering/FrameMetricsUWP.h/.cpp` owns the wrapper's bounded pacing/paint windows,
-FrameTimingUWP POD and `frameProfileSampleCount=64`. Measurements use monotonic
-seconds as input, milliseconds in value types, and microseconds/milli-Hertz in
-the preserved text protocol. Eight submitted callbacks warm up; nearest-rank p95
-is calculated on copied samples. Only consecutive submitted intervals below
-250 ms enter cadence. CPU paint windows require eight paints and one second.
-Navigation resets now clear both old work samples and stage totals together,
-correcting the old remote-navigation partial reset. Callback cadence is not scan-out.
+`rendering/FrameMetricsUWP.h/.cpp` owns the wrapper's bounded pacing/paint windows, FrameTimingUWP POD and `frameProfileSampleCount=64`. Measurements use monotonic seconds as input, milliseconds in value types, and microseconds/milli-Hertz in the preserved text protocol. Eight submitted callbacks warm up; nearest-rank p95 is calculated on copied samples. Only consecutive submitted intervals below 250 ms enter cadence. CPU paint windows require eight paints and one second. Navigation resets now clear both old work samples and stage totals together, correcting the old remote-navigation partial reset. Callback cadence is not scan-out.
 
 ## Source/build integration
 
-- Authored CX component driver compiles both rendering sources as native C++
-  without `/ZW` and links the required D3D11/DXGI imports.
-- Native MiniBrowser, prototype component and RuntimeSmoke targets compile the
-  extracted presenter; the wrapper delegates its reports to FrameMetricsUWP.
-- Prototype MIDLRT output is generated only under the binary directory with a
-  unique `LegacyWebKitWebView.h` basename. The sample's historical include shim
-  is build-only, so native compilation cannot accidentally select the authored
-  CX WebKitWebView.h. DLL and legacy WinMD are freshly rebuilt together.
-- MIDLRT uses SDK 19041, its discovered preprocessor and native Windows paths;
-  `/ns_prefix` is omitted to preserve the prototype's original C++ namespace.
-- PC_APP-hidden GetModuleHandleExW/flags are declared with exact SDK semantics
-  in the existing native compatibility header for unchanged sample fault logging.
+- Authored CX component driver compiles both rendering sources as native C++ without `/ZW` and links the required D3D11/DXGI imports.
+- Native MiniBrowser, prototype component and RuntimeSmoke targets compile the extracted presenter; the wrapper delegates its reports to FrameMetricsUWP.
+- Prototype MIDLRT output is generated only under the binary directory with a unique `LegacyWebKitWebView.h` basename. The sample's historical include shim is build-only, so native compilation cannot accidentally select the authored CX WebKitWebView.h. DLL and legacy WinMD are freshly rebuilt together.
+- MIDLRT uses SDK 19041, its discovered preprocessor and native Windows paths; `/ns_prefix` is omitted to preserve the prototype's original C++ namespace.
+- PC_APP-hidden GetModuleHandleExW/flags are declared with exact SDK semantics in the existing native compatibility header for unchanged sample fault logging.
 - Stage tooling accepts `--component` to package the freshly built legacy pair.
-- The legacy gate continues freezing engine declarations/export signatures and
-  diagnostic app source bytes; presenter/wrapper extraction has its own tests.
+- The legacy gate continues freezing engine declarations/export signatures and diagnostic app source bytes; presenter/wrapper extraction has its own tests.
 
-Existing native build caches still contained removed SDK 22621/msvcurt inputs;
-fresh temporary native output roots use the discovered SDK 19041 recipe. The
-pristine Skia rollback engine/package is preserved. No WebCore behavior was changed.
+Existing native build caches still contained removed SDK 22621/msvcurt inputs; fresh temporary native output roots use the discovered SDK 19041 recipe. The pristine Skia rollback engine/package is preserved. No WebCore behavior was changed.
 
 ## Commands and host results
 
@@ -78,36 +48,19 @@ cmake --build "$env:TEMP\opencode\m10-rendering-61-runtime" `
   --target WebKitRuntimeSmokeHost WebKitRuntimeSmoke --parallel 8
 ```
 
-- **49/49** host checks: real WARP CPU allocation/upload/copy/Present/resize,
-  format/matrix, observed panel QI/reference ownership, failed CPU/GPU attachment/
-  detach, exclusive switches, Pending acknowledgement/cookie, copied table,
-  two-page routing, nine actual worker mutations and independent metrics oracles.
-- Both ARM MSVC and native clang compile the extracted sources at `/W4 /WX`
-  without `/ZW`. Native ARM clang uses the production no-exception ABI; enabling
-  `/EHsc` in the initial test command exposed its unsupported cleanupret backend.
-- Authored ARM DLL/WinMD links and production architecture/metadata/source/export
-  gates pass. External factory/WinMD consumer passes **20/20** plus all four
-  expected negative compilation modes.
-- Fresh native MiniBrowser/prototype and RuntimeSmoke targets link with eight
-  jobs. Their historical generated SDK code retains existing macro/extern warnings;
-  no warning-free claim is made for those prototype inputs.
-- Frozen legacy ARM signatures/exports and unchanged diagnostic application
-  sources pass. Source-contract and documentation-audit regressions pass **4/4**
-  each; new authored declaration audit has **zero candidates**.
+- **49/49** host checks: real WARP CPU allocation/upload/copy/Present/resize, format/matrix, observed panel QI/reference ownership, failed CPU/GPU attachment/ detach, exclusive switches, Pending acknowledgement/cookie, copied table, two-page routing, nine actual worker mutations and independent metrics oracles.
+- Both ARM MSVC and native clang compile the extracted sources at `/W4 /WX` without `/ZW`. Native ARM clang uses the production no-exception ABI; enabling `/EHsc` in the initial test command exposed its unsupported cleanupret backend.
+- Authored ARM DLL/WinMD links and production architecture/metadata/source/export gates pass. External factory/WinMD consumer passes **20/20** plus all four expected negative compilation modes.
+- Fresh native MiniBrowser/prototype and RuntimeSmoke targets link with eight jobs. Their historical generated SDK code retains existing macro/extern warnings; no warning-free claim is made for those prototype inputs.
+- Frozen legacy ARM signatures/exports and unchanged diagnostic application sources pass. Source-contract and documentation-audit regressions pass **4/4** each; new authored declaration audit has **zero candidates**.
 
 ## Phone regression
 
-Lumia 950 XL, `mc-001173b46c8b`, `MobileCoreProd`, OS
-`15254.603.armfre.feature2_rs3svc.200106-1633`, portal `https://192.168.1.52`.
-Staging inspected the ARMNT/import closure; SDK 19041 MakeAppx validated both
-packages. Existing certificate
-`18FD65CF5E103CF96F04C2A451DC49C94788A40D` signed them. Each installation completed
-Code=0/Success=true before launch HTTP 200, followed by one visible 30-second poll.
+Lumia 950 XL, `mc-001173b46c8b`, `MobileCoreProd`, OS `15254.603.armfre.feature2_rs3svc.200106-1633`, portal `https://192.168.1.52`. Staging inspected the ARMNT/import closure; SDK 19041 MakeAppx validated both packages. Existing certificate `18FD65CF5E103CF96F04C2A451DC49C94788A40D` signed them. Each installation completed Code=0/Success=true before launch HTTP 200, followed by one visible 30-second poll.
 
 ### CPU/CoreWindow
 
-Package `WebKitProbe.EngineRuntime_1.0.0.2_arm__2932e6rj4m41p`, App ID
-`WebKitProbe.EngineRuntime_2932e6rj4m41p!App`:
+Package `WebKitProbe.EngineRuntime_1.0.0.2_arm__2932e6rj4m41p`, App ID `WebKitProbe.EngineRuntime_2932e6rj4m41p!App`:
 
 ```text
 runtime-smoke-failure-mask: 0x00000000
@@ -123,10 +76,7 @@ page-d3d11-present:       0x00000000
 
 ### Skia/ANGLE baseline
 
-Package `WebKitProbe.EngineBrowser_1.0.0.34_arm__2932e6rj4m41p`, App ID
-`WebKitProbe.EngineBrowser_2932e6rj4m41p!App`, contains the freshly rebuilt native
-prototype/wrapper/presenter plus the accepted v33 engine. Fixture servers use
-`192.168.1.69:8002`, `:8003`, HTTPS `:8004`.
+Package `WebKitProbe.EngineBrowser_1.0.0.34_arm__2932e6rj4m41p`, App ID `WebKitProbe.EngineBrowser_2932e6rj4m41p!App`, contains the freshly rebuilt native prototype/wrapper/presenter plus the accepted v33 engine. Fixture servers use `192.168.1.69:8002`, `:8003`, HTTPS `:8004`.
 
 Initial 216329-byte log establishes:
 
@@ -135,24 +85,13 @@ Initial 216329-byte log establishes:
 - Actual GPU-paint/submit samples, `cpu-paint=0`, manual `upload-us=0`.
 - Extracted `frame-profile n=64` reporting retains its microsecond/milli-Hertz units.
 - No CPU fallback or control frame/render failure marker in that sample.
-- Retained `fixture-suite-completed: 1`; this marker is a regression observation,
-  not a replacement fail-closed fixture-assertion acceptance claim.
+- Retained `fixture-suite-completed: 1`; this marker is a regression observation, not a replacement fail-closed fixture-assertion acceptance claim.
 
-Owner confirmed about:demo rendering, JavaScript counter and scrolling repaint.
-Owner also reported an override-navigation-failed banner and rotation clipping/
-scaling. Their subsequent correction is explicit: **horizontal rendering is still
-incorrect**. No landscape/resize visual acceptance is inferred from this run.
+Owner confirmed about:demo rendering, JavaScript counter and scrolling repaint. Owner also reported an override-navigation-failed banner and rotation clipping/ scaling. Their subsequent correction is explicit: **horizontal rendering is still incorrect**. No landscape/resize visual acceptance is inferred from this run.
 
-The 274950-byte interaction log records repeated successful resize return codes
-between CSS **411x663** / backing **1439x2321** and CSS **731x343** / backing
-**2559x1201**, with scale **3.5**. These host extent reports do not prove the
-engine EGL/native surface, compositor clip or cached layer geometry matches.
-Task **6.3 remains unchecked** and must compare those actual surface/layer extents
-through rotation and verify the resulting picture. The override banner belongs
-to the preserved diagnostic BrowserPolicy/template work in 8.3/9.7.
+The 274950-byte interaction log records repeated successful resize return codes between CSS **411x663** / backing **1439x2321** and CSS **731x343** / backing **2559x1201**, with scale **3.5**. These host extent reports do not prove the engine EGL/native surface, compositor clip or cached layer geometry matches. Task **6.3 remains unchecked** and must compare those actual surface/layer extents through rotation and verify the resulting picture. The override banner belongs to the preserved diagnostic BrowserPolicy/template work in 8.3/9.7.
 
-The two pre-engine `native-fault-code: 0xe06d7363` entries persist from the prior
-baseline; their root cause is not established. App execution/rendering continues.
+The two pre-engine `native-fault-code: 0xe06d7363` entries persist from the prior baseline; their root cause is not established. App execution/rendering continues.
 
 ## Payload and report identities
 
@@ -172,15 +111,8 @@ SHA256:
 | Authored production WebKit.dll | `A5A9064032DF88DAB1218F9B0C2742699D75073D3BE2D8EEA74C19E6678D5600` |
 | Authored production WebKit.winmd | `9781BB7FAD61100567E69A6673BB904ACA5EBB807AF334A25A3B5A6DA6F8B9BC` |
 
-Files remain under `$env:TEMP/opencode/` with the `m10-rendering-61-` prefix:
-`runtime-v2-result.txt`, `mini-v34-result.log`, `mini-v34-interaction.log`, signed
-APPXs, `tests-v4/rendering-results.txt`, fresh build roots and staging identity JSONs.
+Files remain under `$env:TEMP/opencode/` with the `m10-rendering-61-` prefix: `runtime-v2-result.txt`, `mini-v34-result.log`, `mini-v34-interaction.log`, signed APPXs, `tests-v4/rendering-results.txt`, fresh build roots and staging identity JSONs.
 
 ## Gate scope
 
-This accepts native presenter/metrics extraction, tested COM/mode ownership,
-CPU phone presentation and retained Skia rendering/counter/scrolling baseline.
-GPU slot behavior in the native ownership matrix is a controlled provider;
-the phone uses the retained legacy engine path. Production negotiated forwarding,
-new-control visual ownership, shared scheduling, correct rotation/device-loss and
-runtime cleanup retain tasks 6.2/6.3/7.5 and later integration gates. Full G4 stays open.
+This accepts native presenter/metrics extraction, tested COM/mode ownership, CPU phone presentation and retained Skia rendering/counter/scrolling baseline. GPU slot behavior in the native ownership matrix is a controlled provider; the phone uses the retained legacy engine path. Production negotiated forwarding, new-control visual ownership, shared scheduling, correct rotation/device-loss and runtime cleanup retain tasks 6.2/6.3/7.5 and later integration gates. Full G4 stays open.
