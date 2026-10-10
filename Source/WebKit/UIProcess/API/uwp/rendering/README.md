@@ -23,6 +23,17 @@ arguments, the panel or provider. Ordinary explicit detach is idempotent. Caller
 must keep a Pending attachment alive through acknowledgement; dispatcher-loss/
 last-release cleanup belongs to RuntimeOwnerUWP task 7.5.
 
+Lost-device recovery rebuilds CPU device-dependent resources on the retained
+panel, geometry and composition scale: the dead chain leaves the panel before
+its replacement is created, so one visual never owns two chains, and any
+rebuild failure lands Detached with nothing attached. `deviceRemovedReason()`
+reports the D3D removal reason (S_OK healthy); `recoverDevice()` rebuilds even
+when healthy and counts each rebuild in `deviceRecoveries()`. Detached,
+engine-owned and CoreWindow modes have no reattachable host device. Shells
+call recovery after `DXGI_ERROR_DEVICE_REMOVED`/`DEVICE_RESET` from present,
+cached-present or resize, then retry once; real removal events are not
+triggerable on WARP or the phone, so the rebuild path itself is what is proven.
+
 `FrameMetricsUWP` owns bounded, allocation-free pacing and CPU paint windows.
 Input timestamps are monotonic seconds. `FrameTimingUWP`, distribution and stage
 summary fields use **milliseconds**. Text reports retain **microseconds** and
@@ -44,9 +55,12 @@ without `/ZW`. MSVC CX and native ARM clang remain separate domains.
 
 Run `Tools/uwp/build/test-rendering-contract.ps1 -ComponentDirectory <built-component>
 -OutDir <fresh-output>` for real WARP CPU resources, observed COM lifetime,
-controlled V1 GPU mode transitions and independently calculated metrics. M10
-`artifact/swap-chain-presenter.md` records 49 checks, both native ARM compilers,
-phone CPU presentation, Skia regression and the open landscape failure in 6.3.
+controlled V1 GPU mode transitions, device-loss detection/rebuilds and
+independently calculated metrics. M10 `artifact/swap-chain-presenter.md`
+records the ownership baseline; `artifact/resize-recovery.md` records 67
+checks, both native ARM compilers, phone rotation/scale/pinned-layer behavior,
+single attachment and the v49 real-driver rebuild, completing G4. The
+landscape system-bar overlay stays shell chrome for task 8.1.
 
 ## Shared owner scheduling
 

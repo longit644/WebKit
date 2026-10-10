@@ -51,6 +51,16 @@ public:
     HRESULT present(const unsigned char* bgra, unsigned stride);
     // Rebuild CPU buffers at a checked physical pixel extent, dropping the upload texture.
     HRESULT resize(unsigned width, unsigned height);
+    // Query the underlying D3D device removal reason; S_OK when healthy.
+    // Detached and engine-owned modes have no host device to query.
+    HRESULT deviceRemovedReason();
+    // Tear down device-dependent resources and rebuild them on the retained
+    // panel and geometry, reattaching exactly once. Rebuilds even when healthy;
+    // shells call it after DXGI_ERROR_DEVICE_REMOVED/RESET or to reassert a
+    // known-good device. CoreWindow mode has no reattachable panel.
+    HRESULT recoverDevice();
+    // Completed device rebuilds over this presenter's lifetime; never reset.
+    unsigned deviceRecoveries() const { return m_recoveries; }
     // Apply finite positive CSS-to-device scale, bounded by the V1 contract.
     HRESULT setCompositionScale(float scaleX, float scaleY);
     // Apply finite CSS-space overscroll without repainting.
@@ -107,6 +117,8 @@ private:
     uint64_t m_gpuAttachment { 0 };
     // CPU swap-chain physical width and height.
     unsigned m_width { 0 }, m_height { 0 };
+    // Completed device rebuilds; a lifetime diagnostic, never reset by detach.
+    unsigned m_recoveries { 0 };
     // CSS-to-device scale stored for inverse CPU composition transforms.
     float m_compositionScaleX { 1 }, m_compositionScaleY { 1 };
     // Performance-counter ticks per second.

@@ -387,6 +387,64 @@ void runMetrics()
         "invalid CPU durations cannot contaminate subsequent metric windows");
 }
 
+// Verify device-loss detection and single-owner rebuilds on real WARP objects.
+void runRecovery()
+{
+    ComPtr<Panel> panel(new Panel);
+    auto unknown = static_cast<IInspectable*>(panel.Get());
+    SwapChainPresenterUWP presenter { D3D_DRIVER_TYPE_WARP };
+    check(presenter.deviceRemovedReason() == E_ILLEGAL_METHOD_CALL, "detached presenter has no device removal reason");
+    check(presenter.recoverDevice() == E_ILLEGAL_METHOD_CALL && presenter.deviceRecoveries() == 0,
+        "detached presenter cannot rebuild a device");
+    HRESULT threadReason = S_OK, threadRecover = S_OK;
+    unsigned recoveriesBefore = presenter.deviceRecoveries();
+    std::thread stranger([&] {
+        threadReason = presenter.deviceRemovedReason();
+        threadRecover = presenter.recoverDevice();
+    });
+    stranger.join();
+    check(threadReason == RPC_E_WRONG_THREAD && threadRecover == RPC_E_WRONG_THREAD
+        && presenter.deviceRecoveries() == recoveriesBefore, "worker device queries reject before touching DirectX");
+    check(presenter.initializeForSwapChainPanel(unknown, cpuExtent, cpuExtent) == S_OK
+        && presenter.mode() == PresentationModeUWP::CPU, "recovery fixture attaches a real WARP chain");
+    check(presenter.deviceRemovedReason() == S_OK, "healthy WARP device reports S_OK removal reason");
+    alignas(16) unsigned char pixels[cpuStride * cpuExtent] { };
+    WKUWPPaintBuffer buffer { { sizeof(buffer), WKUWP_STRUCTURE_VERSION }, pixels, sizeof(pixels), cpuStride, cpuExtent, cpuExtent };
+    check(SUCCEEDED(presenter.present(buffer)), "fixture frame presents before rebuild");
+    check(presenter.setCompositionScale(2, 2) == S_OK, "fixture scale stages matrix retention");
+    unsigned attachments = panel->attachments, detachments = panel->detachments;
+    check(presenter.recoverDevice() == S_OK && presenter.deviceRecoveries() == 1,
+        "healthy device rebuilds on demand and counts the recovery");
+    check(presenter.mode() == PresentationModeUWP::CPU && panel->chain
+        && panel->attachments == attachments + 1 && panel->detachments == detachments + 1
+        && panel->references == 2, "rebuild detaches the dead chain before attaching exactly one replacement");
+    ComPtr<IDXGISwapChain1> chain;
+    panel->chain.As(&chain);
+    ComPtr<IDXGISwapChain2> chain2;
+    chain.As(&chain2);
+    DXGI_MATRIX_3X2_F matrix { };
+    chain2->GetMatrixTransform(&matrix);
+    check(closeTo(matrix._11, 0.5) && closeTo(matrix._22, 0.5), "rebuild retains the staged composition scale");
+    chain2.Reset(); chain.Reset();
+    check(SUCCEEDED(presenter.present(buffer)) && presenter.presentCachedFrame() == S_OK,
+        "presentation resumes on the rebuilt device with a lazily recreated upload");
+    check(presenter.recoverDevice() == S_OK && presenter.deviceRecoveries() == 2
+        && panel->attachments == attachments + 2 && panel->detachments == detachments + 2,
+        "second rebuild counts again with exactly one live attachment");
+    check(presenter.resize(32, 16) == S_OK && presenter.presentCachedFrame() == S_FALSE,
+        "resize after recovery rebuilds buffers at the new extent");
+    check(presenter.detach() == S_OK && presenter.mode() == PresentationModeUWP::Detached && !panel->chain,
+        "detach after recovery returns the panel to baseline");
+    GPUProvider gpu(201);
+    check(presenter.initializeForCompositor(&gpu.api, gpu.page, unknown, 2, 2) == S_OK
+        && presenter.mode() == PresentationModeUWP::GPU, "engine surface attaches for mode-gated recovery checks");
+    check(presenter.deviceRemovedReason() == E_ILLEGAL_METHOD_CALL, "engine-owned mode has no host device reason");
+    check(presenter.recoverDevice() == E_ILLEGAL_METHOD_CALL && presenter.deviceRecoveries() == 2,
+        "engine-owned mode cannot rebuild and counts nothing");
+    check(presenter.detach() == S_OK && presenter.mode() == PresentationModeUWP::Detached,
+        "engine detach after recovery checks returns to baseline");
+}
+
 } // namespace
 
 // Run native host ownership checks without pretending to construct a XAML control.
@@ -394,7 +452,7 @@ int main()
 {
     auto apartment = RoInitialize(RO_INIT_MULTITHREADED);
     check(SUCCEEDED(apartment), "native COM test apartment initialized");
-    if (SUCCEEDED(apartment)) { runOwnership(); runMetrics(); RoUninitialize(); }
+    if (SUCCEEDED(apartment)) { runOwnership(); runRecovery(); runMetrics(); RoUninitialize(); }
     std::printf("M10 rendering contract: %u checks, %u failures\n", checks, failures);
     return failures ? 1 : 0;
 }

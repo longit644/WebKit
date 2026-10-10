@@ -179,6 +179,18 @@ tap/scroll/fling interaction. The v42 shell also serializes first-time window
 creation after portal launch exposed an OnLaunched/OnActivated race tripping the
 process owner gate. See M10 `artifact/input-controllers.md`.
 
+Task 6.3 adds presenter lost-device recovery with one rendering-child owner:
+`deviceRemovedReason()` plus `recoverDevice()`, which rebuilds device,
+context, chain and upload on the retained panel, geometry and scale after
+releasing the dead chain first; any rebuild failure lands Detached. The
+wrapper maps removed/reset failures from present, cached-present and resize
+into one rebuild plus a single retry, with a diagnostic drill and shell
+Recover button proving a real-driver rebuild on device. Host checks pass
+67/67; Lumia v1.0.0.49 passes rotation/scale/pinned-layer behavior with a
+single attachment and exactly one counted recovery. The landscape system-bar
+overlay stays shell chrome for task 8.1. See M10
+`artifact/resize-recovery.md`; G4 is complete.
+
 Task 7.1 adds `platform/DispatcherUWP`, `platform/ClipboardServiceUWP` and
 `platform/ClipboardPlatformUWP`: an internal owner-thread dispatcher hop, a
 neutral host-side V1 clipboard service with exactly-once completion/cancel

@@ -62,6 +62,11 @@ public:
     // Writes the last presented pixels to a file for on-device diagnosis.
     HRESULT savePNG(const wchar_t* filename);
 
+    // Forces CPU fallback, presents, rebuilds the D3D device and presents
+    // again; diagnostic-only lost-device drill reporting each stage. Leaves
+    // the compositor disabled; rotation/matrix checks must run first.
+    HRESULT recoverPresenterForDiagnostics();
+
 private:
     // Rebuilds the backing store and clip when the control size changes.
     HRESULT resize(unsigned width, unsigned height);

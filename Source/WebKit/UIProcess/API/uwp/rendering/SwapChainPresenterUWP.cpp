@@ -317,6 +317,70 @@ double SwapChainPresenterUWP::now() const
     return static_cast<double>(counter.QuadPart) / m_frequency;
 }
 
+// Query the underlying D3D device removal reason; S_OK when healthy.
+HRESULT SwapChainPresenterUWP::deviceRemovedReason()
+{
+    auto owner = checkThread();
+    if (FAILED(owner)) return owner;
+    if (m_mode != PresentationModeUWP::CPU || !m_device) return E_ILLEGAL_METHOD_CALL;
+    return m_device->GetDeviceRemovedReason();
+}
+
+// Tear down device-dependent resources and rebuild them on the retained panel
+// and geometry. The dead chain leaves the panel before its replacement is
+// created, so the visual never owns two chains; any rebuild failure lands
+// Detached with nothing attached.
+HRESULT SwapChainPresenterUWP::recoverDevice()
+{
+    auto owner = checkThread();
+    if (FAILED(owner)) return owner;
+    if (m_mode != PresentationModeUWP::CPU || !m_nativePanel || !validExtent(m_width, m_height))
+        return E_ILLEGAL_METHOD_CALL;
+    HRESULT result = m_nativePanel->SetSwapChain(nullptr);
+    if (FAILED(result)) {
+        releaseResources();
+        return result;
+    }
+    m_upload.Reset();
+    m_swapChain.Reset();
+    m_context.Reset();
+    m_device.Reset();
+    result = initializeDevice();
+    if (FAILED(result)) {
+        releaseResources();
+        return result;
+    }
+    ComPtr<IDXGIDevice> device;
+    ComPtr<IDXGIAdapter> adapter;
+    ComPtr<IDXGIFactory2> factory;
+    if (FAILED(result = m_device.As(&device)) || FAILED(result = device->GetAdapter(&adapter))
+        || FAILED(result = adapter->GetParent(IID_PPV_ARGS(&factory)))) {
+        releaseResources();
+        return result;
+    }
+    auto desc = description(m_width, m_height);
+    desc.AlphaMode = DXGI_ALPHA_MODE_PREMULTIPLIED;
+    ComPtr<IDXGISwapChain1> chain;
+    result = factory->CreateSwapChainForComposition(m_device.Get(), &desc, nullptr, &chain);
+    if (FAILED(result)) {
+        releaseResources();
+        return result;
+    }
+    result = m_nativePanel->SetSwapChain(chain.Get());
+    if (FAILED(result)) {
+        releaseResources();
+        return result;
+    }
+    m_swapChain = chain;
+    result = setCompositionScale(m_compositionScaleX, m_compositionScaleY);
+    if (FAILED(result)) {
+        releaseResources();
+        return result;
+    }
+    ++m_recoveries;
+    return S_OK;
+}
+
 // Resizes swap-chain buffers and drops the old staging texture.
 HRESULT SwapChainPresenterUWP::resize(unsigned width, unsigned height)
 {

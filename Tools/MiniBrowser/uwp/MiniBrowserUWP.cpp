@@ -983,7 +983,7 @@ private:
         hr = RoGetActivationFactory(HStringReference(RuntimeClass_Windows_UI_Xaml_Markup_XamlReader).Get(), IID_PPV_ARGS(&reader));
         const wchar_t* markup = LR"(<Grid xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Background="#EDF3FA" RequestedTheme="Light">
 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-<StackPanel Orientation="Horizontal"><Button x:Name="Back" Content="Back"/><Button x:Name="Forward" Content="Forward"/><Button x:Name="Reload" Content="Reload"/><TextBox x:Name="Address" Width="140"/><Button x:Name="Go" Content="Go"/><Button x:Name="Capture" Content="Capture"/></StackPanel>
+<StackPanel Orientation="Horizontal"><Button x:Name="Back" Content="Back"/><Button x:Name="Forward" Content="Forward"/><Button x:Name="Reload" Content="Reload"/><TextBox x:Name="Address" Width="140"/><Button x:Name="Go" Content="Go"/><Button x:Name="Capture" Content="Capture"/><Button x:Name="Recover" Content="Recover"/></StackPanel>
 <ContentControl x:Name="Browser" Grid.Row="1" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"/>
 <TextBlock x:Name="Status" Grid.Row="2" TextWrapping="Wrap" Margin="8" Text="Initializing WebKitWebViewUWP..."/>
 </Grid>)";
@@ -1061,8 +1061,16 @@ private:
             status(SUCCEEDED(hr) ? L"Page image saved to LocalState/page.png" : L"Capture failed; see minibrowser.log", hr);
             return S_OK;
         });
+        // Diagnostic-only lost-device drill: forces CPU fallback, presents,
+        // rebuilds the D3D device and presents again, logging each stage. The
+        // compositor stays disabled after this runs; tap it last.
+        auto recover = Callback<Xaml::IRoutedEventHandler>([this](IInspectable*, Xaml::IRoutedEventArgs*) -> HRESULT {
+            HRESULT hr = m_view->recoverPresenterForDiagnostics();
+            status(SUCCEEDED(hr) ? L"Presenter recovered; see minibrowser.log" : L"Recovery failed; see minibrowser.log", hr);
+            return S_OK;
+        });
         if (FAILED(hr = hookButton(L"Go", go.Get())) || FAILED(hr = hookButton(L"Reload", reload.Get()))
-            || FAILED(hr = hookButton(L"Back", back.Get())) || FAILED(hr = hookButton(L"Forward", forward.Get())) || FAILED(hr = hookButton(L"Capture", capture.Get())))
+            || FAILED(hr = hookButton(L"Back", back.Get())) || FAILED(hr = hookButton(L"Forward", forward.Get())) || FAILED(hr = hookButton(L"Capture", capture.Get())) || FAILED(hr = hookButton(L"Recover", recover.Get())))
             return hr;
         // Poll completed remote fetches on the UI thread each frame.
         ComPtr<Media::ICompositionTargetStatics> composition;

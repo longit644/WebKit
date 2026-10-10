@@ -384,6 +384,12 @@ HRESULT WebKitWebViewUWP::useFallbackPresenter()
         hr = m_presenter.resize(m_pixelWidth, m_pixelHeight);
     else
         hr = m_presenter.initializeForSwapChainPanel(m_panelElement.Get(), m_pixelWidth, m_pixelHeight);
+    if ((hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET) && m_presenterReady) {
+        // A retained dead chain reports removal on resize; rebuild it on the
+        // retained panel and geometry, then continue with scale setup below.
+        hr = m_presenter.recoverDevice();
+        report("control-presenter-recover", hr);
+    }
     if (SUCCEEDED(hr))
         hr = m_presenter.setCompositionScale(m_scaleX, m_scaleY);
     if (SUCCEEDED(hr))
@@ -531,6 +537,17 @@ HRESULT WebKitWebViewUWP::repaint()
     double paintMS = (now() - start) * millisecondsPerSecondUWP;
     if (SUCCEEDED(hr))
         hr = m_presenter.present(m_pixels.get(), m_pixelWidth * UWPBytesPerBGRA);
+    if ((hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET) && m_presenterReady) {
+        // The device died between frames; rebuild it once and re-present the
+        // already-painted pixels instead of dropping the frame.
+        HRESULT recovered = m_presenter.recoverDevice();
+        report("control-presenter-recover", recovered);
+        if (SUCCEEDED(recovered))
+            hr = m_presenter.present(m_pixels.get(), m_pixelWidth * UWPBytesPerBGRA);
+        else
+            hr = recovered;
+        report("control-presenter-recovered", hr);
+    }
     if (SUCCEEDED(hr))
         m_redrawPending = false;
     if (SUCCEEDED(hr))
@@ -578,6 +595,54 @@ HRESULT WebKitWebViewUWP::savePNG(const wchar_t* filename)
         || FAILED(hr = frame->Commit()))
         return hr;
     return encoder->Commit();
+}
+
+// Forces CPU fallback, presents, rebuilds the D3D device and presents again;
+// diagnostic-only lost-device drill reporting each stage. Leaves the
+// compositor disabled; rotation/matrix checks must run first.
+HRESULT WebKitWebViewUWP::recoverPresenterForDiagnostics()
+{
+    if (GetCurrentThreadId() != m_owner)
+        return RPC_E_WRONG_THREAD;
+    if (!m_surfaceReady)
+        return E_ILLEGAL_METHOD_CALL;
+    report("control-presenter-reason-before", m_presenter.deviceRemovedReason());
+    HRESULT hr = S_OK;
+    if (m_compositorActive) {
+        hr = bridgeResult(m_api.disableCompositor(m_page));
+        report("control-presenter-fallback-disable", hr);
+        if (FAILED(hr))
+            return hr;
+        m_compositorActive = false;
+    }
+    if (!m_presenterReady) {
+        hr = useFallbackPresenter();
+        report("control-presenter-fallback-setup", hr);
+        if (FAILED(hr))
+            return hr;
+    }
+    double start = now();
+    hr = bridgeResult(m_api.paintScaled(m_page, m_pixels.get(), static_cast<size_t>(m_pixelWidth) * m_pixelHeight * UWPBytesPerBGRA, m_pixelWidth * UWPBytesPerBGRA, m_scaleX, m_scaleY));
+    if (SUCCEEDED(hr))
+        hr = m_presenter.present(m_pixels.get(), m_pixelWidth * UWPBytesPerBGRA);
+    report("control-presenter-before", hr);
+    if (FAILED(hr))
+        return hr;
+    hr = m_presenter.recoverDevice();
+    report("control-presenter-recover", hr);
+    report("control-presenter-recoveries", m_presenter.deviceRecoveries());
+    if (FAILED(hr))
+        return hr;
+    start = now();
+    hr = bridgeResult(m_api.paintScaled(m_page, m_pixels.get(), static_cast<size_t>(m_pixelWidth) * m_pixelHeight * UWPBytesPerBGRA, m_pixelWidth * UWPBytesPerBGRA, m_scaleX, m_scaleY));
+    if (SUCCEEDED(hr))
+        hr = m_presenter.present(m_pixels.get(), m_pixelWidth * UWPBytesPerBGRA);
+    double paintMS = (now() - start) * millisecondsPerSecondUWP;
+    if (SUCCEEDED(hr))
+        recordFrame(paintMS);
+    report("control-presenter-after", hr);
+    report("control-presenter-reason-after", m_presenter.deviceRemovedReason());
+    return hr;
 }
 
 // Routes a XAML pointer event to press/move/release handling and the engine tap path.
@@ -689,6 +754,15 @@ HRESULT WebKitWebViewUWP::advanceFrame()
     } else if (SUCCEEDED(hr) && offsetChanged && m_presenterReady) {
         submitted = true;
         hr = m_presenter.presentCachedFrame();
+        if ((hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET)) {
+            HRESULT recovered = m_presenter.recoverDevice();
+            report("control-presenter-recover", recovered);
+            if (SUCCEEDED(recovered))
+                hr = m_presenter.presentCachedFrame();
+            else
+                hr = recovered;
+            report("control-presenter-recovered", hr);
+        }
     }
     recordFramePacing(time, scrollFinished, engineFinished, submitted && SUCCEEDED(hr));
     return hr;

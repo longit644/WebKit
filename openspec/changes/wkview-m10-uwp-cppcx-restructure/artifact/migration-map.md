@@ -93,7 +93,7 @@ Their specific dependencies are listed under "M7/M8 regression dependencies".
 | Origin | Scope M10 must not regress | Why M10 touches it |
 |---|---|---|
 | M7 | FreeType/fontconfig font stack, packaged `Fonts` directory, WinRT text clipboard, native drag-image previews | Canonical fingerprint replaces first-init font config (4.11); host clipboard service plus retained-token router are device-proven (7.1-7.2, v44 round trip) while the engine self-serves clipboard internally (7.3); drag images are no-op stubs; runtime-owner wiring stays 7.5; no M7 behavior is regressed, only re-homed with fail-closed gaps explicit |
-| M8 | Skia Ganesh GPU tile painting, `USE_SKIA=ON` staging guard, compositing/readback diagnostics, resize/DPI behavior | Tasks 6.1-6.3 split presenter/scheduler/metrics and change CPU-vs-GPU surface ownership |
+| M8 | Skia Ganesh GPU tile painting, `USE_SKIA=ON` staging guard, compositing/readback diagnostics, resize/DPI behavior | Tasks 6.1-6.3 split presenter/scheduler/metrics and change CPU-vs-GPU surface ownership; 6.3 adds single-owner device recovery with v49 rotation/pinned-layer/rebuild proof in resize-recovery.md, completing G4 |
 | M7/M8 device records | `Tools/uwp/RUNTIME-AUDIT.md`, `SKIA-PORT.md`, `ARM-WALLS.md` remain the accepted-baseline references | Task 11.3 compares new measurements against them |
 
 ## Exact symbol inventory: framework API and engine
