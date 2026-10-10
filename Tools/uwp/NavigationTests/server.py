@@ -126,6 +126,27 @@ class FixtureHandler(BaseHTTPRequestHandler):
             self.server.requests.append(path)
         if path in ('/', '/index.html'):
             self.respond(INDEX, 'text/html; charset=utf-8')
+        elif path == '/scheduler.html':
+            # Final DOM height is an oracle requiring CSS, delayed JavaScript and fetch.
+            identity = 2 if args.get('page', ['A'])[0] == 'B' else 1
+            html = (f'<!doctype html><html><head><title>Owner service {identity}</title>'
+                    '<link rel="stylesheet" href="/scheduler.css"></head><body>'
+                    f'<div id="result" data-identity="{identity}"></div>'
+                    '<script src="/scheduler.js"></script></body></html>')
+            self.respond(html.encode(), 'text/html; charset=utf-8')
+        elif path == '/scheduler.css':
+            # The script checks the computed style rather than static HTML text.
+            time.sleep(0.15)
+            self.respond(b'html,body{margin:0}#result{height:101px}', 'text/css; charset=utf-8')
+        elif path == '/scheduler.js':
+            # Only a timer plus a successful JSON fetch can create the expected height.
+            time.sleep(0.15)
+            script = (b'setTimeout(function(){var e=document.getElementById("result");'
+                      b'var css=parseInt(getComputedStyle(e).height,10)===101;'
+                      b'fetch("/api/data").then(function(r){return r.json();}).then(function(v){'
+                      b'e.style.height=(css&&v.value==="fixture-data"?3000+Number(e.dataset.identity):17)+"px";'
+                      b'});},350);')
+            self.respond(script, 'application/javascript')
         elif path == '/assets/style.css':
             self.respond(STYLE, 'text/css; charset=utf-8')
         elif path == '/assets/first.js':

@@ -57,7 +57,7 @@ WKUWP_STATIC_ASSERT(sizeof(WKUWPInputKind) == 4, "WKUWPInputKind width");
 WKUWP_STATIC_ASSERT(sizeof(WKUWPModifier) == 4, "WKUWPModifier width");
 
 /* Enumeration values are frozen; renumbering them is an ABI break. */
-WKUWP_STATIC_ASSERT(WKUWPResultOk == 0, "WKUWPResultOk value");
+WKUWP_STATIC_ASSERT(WKUWPResultOK == 0, "WKUWPResultOK value");
 WKUWP_STATIC_ASSERT(WKUWPResultInvalidArgument == 1, "WKUWPResultInvalidArgument value");
 WKUWP_STATIC_ASSERT(WKUWPResultNoMainFrame == 4, "WKUWPResultNoMainFrame value");
 WKUWP_STATIC_ASSERT(WKUWPResultNoActiveDocumentLoader == 5, "WKUWPResultNoActiveDocumentLoader value");
@@ -83,8 +83,8 @@ WKUWP_STATIC_ASSERT(WKUWPResultDispatcherUnavailable == 28, "WKUWPResultDispatch
 WKUWP_STATIC_ASSERT(WKUWPCapabilityStructuredNotifications == 0x001, "StructuredNotifications bit");
 WKUWP_STATIC_ASSERT(WKUWPCapabilityHostHtml == 0x002, "HostHtml bit");
 WKUWP_STATIC_ASSERT(WKUWPCapabilityIndependentSessions == 0x004, "IndependentSessions bit");
-WKUWP_STATIC_ASSERT(WKUWPCapabilityCpuPaint == 0x008, "CpuPaint bit");
-WKUWP_STATIC_ASSERT(WKUWPCapabilityGpuCompositor == 0x010, "GpuCompositor bit");
+WKUWP_STATIC_ASSERT(WKUWPCapabilityCPUPaint == 0x008, "CPUPaint bit");
+WKUWP_STATIC_ASSERT(WKUWPCapabilityGPUCompositor == 0x010, "GPUCompositor bit");
 WKUWP_STATIC_ASSERT(WKUWPCapabilityClipboardService == 0x020, "ClipboardService bit");
 WKUWP_STATIC_ASSERT(WKUWPCapabilityCertificateDecisions == 0x040, "CertificateDecisions bit");
 WKUWP_STATIC_ASSERT(WKUWPCapabilityInput == 0x080, "Input bit");

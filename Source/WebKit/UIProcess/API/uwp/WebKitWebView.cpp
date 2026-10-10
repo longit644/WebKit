@@ -1,4 +1,5 @@
 #include "WebKitWebView.h"
+#include "platform/FrameSchedulerDriverUWP.h"
 
 #include <algorithm>
 #include <atomic>
@@ -471,9 +472,35 @@ HRESULT WebKitWebView::BindPageController(const WKUWPEngineAPI* api, unsigned lo
         auto controller = std::make_unique<PageControllerUWP>();
         attached = controller->bind(api, page, &callbacks);
         if (FAILED(attached)) return attached;
+        if (api->service) {
+            attached = AttachFrameService(api);
+            if (FAILED(attached)) { controller->close(); return attached; }
+        }
         m_pageController = std::move(controller);
         return S_OK;
     } catch (Exception^ exception) { return exception->HResult; }
+    catch (const std::bad_alloc&) { return E_OUTOFMEMORY; }
+    catch (...) { return E_FAIL; }
+}
+
+// Bind a live service lease without conflating visual unload with page/session shutdown.
+HRESULT WebKitWebView::AttachFrameService(const WKUWPEngineAPI* api)
+{
+    try {
+        CheckOpen();
+        auto driver = FrameSchedulerDriverUWP::Acquire(api, Dispatcher);
+        auto scheduler = std::make_shared<FrameSchedulerUWP>();
+        Platform::WeakReference weak(this);
+        auto token = driver->AddClient(scheduler, [weak](int64_t) {
+            auto view = weak.Resolve<WebKitWebView>();
+            // Renderer/visual ownership supplies presentation eligibility in the next gate.
+            return view && !view->m_closing ? S_OK : S_FALSE;
+        });
+        m_frameDriver = driver;
+        m_frameScheduler = std::move(scheduler);
+        m_frameClient = token;
+        return S_OK;
+    } catch (Platform::Exception^ exception) { return exception->HResult; }
     catch (const std::bad_alloc&) { return E_OUTOFMEMORY; }
     catch (...) { return E_FAIL; }
 }
@@ -733,7 +760,7 @@ WKUWPResult WebKitWebView::HandleStarting(const WKUWPPageEvent& event, uint32_t*
             return WKUWPResultInvalidArgument;
         *cancel = 1;
         if (m_closing || m_closed)
-            return WKUWPResultOk;
+            return WKUWPResultOK;
         validateEvent(event);
         if (event.eventKind != WKUWPEventStarting || m_notificationDepth)
             return WKUWPResultInvalidState;
@@ -774,7 +801,7 @@ WKUWPResult WebKitWebView::HandleStarting(const WKUWPPageEvent& event, uint32_t*
         m_awaitingPolicyTerminal = !!*cancel || FAILED(handlerError);
         if (!m_awaitingPolicyTerminal)
             m_state.acceptedStarting();
-        return *cancel ? WKUWPResultOk : static_cast<WKUWPResult>(handlerError);
+        return *cancel ? WKUWPResultOK : static_cast<WKUWPResult>(handlerError);
     } catch (Exception^ exception) { return static_cast<WKUWPResult>(exception->HResult); }
     catch (const std::bad_alloc&) { return static_cast<WKUWPResult>(E_OUTOFMEMORY); }
     catch (...) { return static_cast<WKUWPResult>(E_FAIL); }
@@ -1202,6 +1229,10 @@ void WebKitWebView::FinishClose()
     PublishState(std::move(next), stateOnly, nullptr);
     m_closed = true;
     RevokePublicEvents();
+    if (m_frameDriver && m_frameClient) m_frameDriver->RemoveClient(m_frameClient);
+    m_frameClient = 0;
+    m_frameScheduler.reset();
+    m_frameDriver = nullptr;
     m_sourceCommands.clear();
     m_deferredEvents.clear();
     m_pageCallbacks.reset();

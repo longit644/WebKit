@@ -159,7 +159,7 @@ void checkCompatibleResolution(TestProvider* provider, const wchar_t* path)
     char message[256];
     snprintf(message, sizeof(message), "bind -> result=%d expected=0, bound=%d, api=%p", static_cast<int>(result),
         module.isBound() ? 1 : 0, module.api());
-    reportCheck("bind/compatible", result == WKUWPResultOk && module.isBound() && module.api(), message);
+    reportCheck("bind/compatible", result == WKUWPResultOK && module.isBound() && module.api(), message);
     if (!module.api()) {
         reportCheck("bind/identity", false, "compatible negotiation failed, cannot continue");
         return;
@@ -176,7 +176,7 @@ void checkCompatibleResolution(TestProvider* provider, const wchar_t* path)
     snprintf(message, sizeof(message), "second bind -> result=%d, discovery calls %u -> %u", static_cast<int>(result),
         callsBefore, provider->discoveryCalls());
     reportCheck("bind/idempotent",
-        result == WKUWPResultOk && provider->discoveryCalls() == callsBefore, message);
+        result == WKUWPResultOK && provider->discoveryCalls() == callsBefore, message);
 
     snprintf(message, sizeof(message), "module handle=%p, image loaded=%d, open pages=%u", module.moduleHandle(),
         isModuleLoaded(path) ? 1 : 0, module.openPageCount());
@@ -195,7 +195,7 @@ void checkCapabilityGatedSuccess(TestProvider* provider, const wchar_t* path)
     char message[256];
     snprintf(message, sizeof(message), "bind with a delivered capability -> result=%d expected=0",
         static_cast<int>(result));
-    reportCheck("capability/delivered", result == WKUWPResultOk && module.isBound(), message);
+    reportCheck("capability/delivered", result == WKUWPResultOK && module.isBound(), message);
 }
 
 // A requested capability the provider does not deliver fails before pinning.
@@ -317,9 +317,9 @@ void checkUnboundOperations()
 void checkCloseRecreateBaseline(TestProvider* provider, const wchar_t* path)
 {
     provider->reset();
-    provider->setCreateResult(WKUWPResultOk);
+    provider->setCreateResult(WKUWPResultOK);
     WebKit::EngineModuleUWP module;
-    if (module.bind(path, 0, 0) != WKUWPResultOk) {
+    if (module.bind(path, 0, 0) != WKUWPResultOK) {
         reportCheck("page/baseline", false, "compatible negotiation failed, cannot continue");
         return;
     }
@@ -332,16 +332,16 @@ void checkCloseRecreateBaseline(TestProvider* provider, const wchar_t* path)
     WKUWPResult result = module.createPage(&options, &first);
     snprintf(message, sizeof(message), "create -> result=%d, handle=0x%llx, open=%u, engine creates=%u",
         static_cast<int>(result), first, module.openPageCount(), provider->createCalls());
-    reportCheck("page/create", result == WKUWPResultOk && first != 0 && module.openPageCount() == 1 && provider->createCalls() == 1, message);
+    reportCheck("page/create", result == WKUWPResultOK && first != 0 && module.openPageCount() == 1 && provider->createCalls() == 1, message);
 
     result = module.closePage(first);
     snprintf(message, sizeof(message), "close -> result=%d, open=%u, engine closes=%u", static_cast<int>(result),
         module.openPageCount(), provider->closeCalls());
-    reportCheck("page/close", result == WKUWPResultOk && module.openPageCount() == 0 && provider->closeCalls() == 1, message);
+    reportCheck("page/close", result == WKUWPResultOK && module.openPageCount() == 0 && provider->closeCalls() == 1, message);
 
     WKUWPPageHandle second = kUntouchedHandle;
     result = module.createPage(&options, &second);
-    const bool recreated = result == WKUWPResultOk && second != 0 && second != first
+    const bool recreated = result == WKUWPResultOK && second != 0 && second != first
         && module.openPageCount() == 1;
     snprintf(message, sizeof(message), "recreate -> result=%d, distinct handle=%d, open=%u", static_cast<int>(result),
         second != first ? 1 : 0, module.openPageCount());
@@ -350,16 +350,16 @@ void checkCloseRecreateBaseline(TestProvider* provider, const wchar_t* path)
     result = module.closePage(second);
     snprintf(message, sizeof(message), "close again -> result=%d, open=%u, engine closes=%u", static_cast<int>(result),
         module.openPageCount(), provider->closeCalls());
-    reportCheck("page/baseline", result == WKUWPResultOk && module.openPageCount() == 0 && provider->closeCalls() == 2, message);
+    reportCheck("page/baseline", result == WKUWPResultOK && module.openPageCount() == 0 && provider->closeCalls() == 2, message);
 }
 
 // Handles this object never created never reach the engine.
 void checkUnknownHandles(TestProvider* provider, const wchar_t* path)
 {
     provider->reset();
-    provider->setCreateResult(WKUWPResultOk);
+    provider->setCreateResult(WKUWPResultOK);
     WebKit::EngineModuleUWP module;
-    if (module.bind(path, 0, 0) != WKUWPResultOk) {
+    if (module.bind(path, 0, 0) != WKUWPResultOK) {
         reportCheck("page/unknown", false, "compatible negotiation failed, cannot continue");
         return;
     }
@@ -382,7 +382,7 @@ void checkFailedCreation(TestProvider* provider, const wchar_t* path)
     provider->reset();
     provider->setCreateResult(WKUWPResultUnsupported);
     WebKit::EngineModuleUWP module;
-    if (module.bind(path, 0, 0) != WKUWPResultOk) {
+    if (module.bind(path, 0, 0) != WKUWPResultOK) {
         reportCheck("page/failed-creation", false, "compatible negotiation failed, cannot continue");
         return;
     }
@@ -404,9 +404,9 @@ void checkFailedCreation(TestProvider* provider, const wchar_t* path)
 void checkShutdownLatch(TestProvider* provider, const wchar_t* path)
 {
     provider->reset();
-    provider->setCreateResult(WKUWPResultOk);
+    provider->setCreateResult(WKUWPResultOK);
     WebKit::EngineModuleUWP module;
-    if (module.bind(path, 0, 0) != WKUWPResultOk) {
+    if (module.bind(path, 0, 0) != WKUWPResultOK) {
         reportCheck("shutdown/begin", false, "compatible negotiation failed, cannot continue");
         return;
     }
@@ -416,7 +416,7 @@ void checkShutdownLatch(TestProvider* provider, const wchar_t* path)
     snprintf(message, sizeof(message), "beginShutdown -> result=%d expected=0, latched=%d, engine calls=%u",
         static_cast<int>(result), module.isShuttingDown() ? 1 : 0, provider->beginShutdownCalls());
     reportCheck("shutdown/begin",
-        result == WKUWPResultOk && module.isShuttingDown() && provider->beginShutdownCalls() == 1, message);
+        result == WKUWPResultOK && module.isShuttingDown() && provider->beginShutdownCalls() == 1, message);
 
     WKUWPPageOptions options;
     writeTestPageOptions(&options);
@@ -438,17 +438,17 @@ void checkShutdownLatch(TestProvider* provider, const wchar_t* path)
     reportCheck("shutdown/poll-pending",
         result == WKUWPResultPending && provider->pollShutdownCalls() == 1, message);
 
-    provider->setPollResult(WKUWPResultOk);
+    provider->setPollResult(WKUWPResultOK);
     result = module.pollShutdown();
     snprintf(message, sizeof(message), "pollShutdown -> result=%d expected=0, engine polls=%u", static_cast<int>(result),
         provider->pollShutdownCalls());
-    reportCheck("shutdown/poll-done", result == WKUWPResultOk && provider->pollShutdownCalls() == 2, message);
+    reportCheck("shutdown/poll-done", result == WKUWPResultOK && provider->pollShutdownCalls() == 2, message);
 
     result = module.beginShutdown();
     snprintf(message, sizeof(message), "second beginShutdown -> result=%d expected=0, engine calls=%u",
         static_cast<int>(result), provider->beginShutdownCalls());
     reportCheck("shutdown/idempotent",
-        result == WKUWPResultOk && provider->beginShutdownCalls() == 2, message);
+        result == WKUWPResultOK && provider->beginShutdownCalls() == 2, message);
 }
 
 // The pinned image stays loaded across binding, failed calls and shutdown.
@@ -458,7 +458,7 @@ void checkPinningLifecycle(TestProvider* provider, const wchar_t* path)
     WebKit::EngineModuleUWP module;
     char message[256];
 
-    if (module.bind(path, 0, 0) != WKUWPResultOk) {
+    if (module.bind(path, 0, 0) != WKUWPResultOK) {
         reportCheck("pinning/bound", false, "compatible negotiation failed, cannot continue");
         return;
     }

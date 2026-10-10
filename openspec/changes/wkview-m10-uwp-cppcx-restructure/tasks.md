@@ -157,11 +157,17 @@ Supporting-document basenames in this checklist resolve under `artifact/`;
 
 ## 6. Rendering, input and scheduling (G4)
 
-- [ ] 6.1 Extract SwapChainPresenterUWP and FrameMetricsUWP with native DirectX ownership; verify CPU host-owned versus GPU engine-owned exclusive swap-chain attachment, QI/AddRef/release/mode transitions, metrics units and Skia baseline.
-- [ ] 6.2 Extract FrameSchedulerUWP and shared owner-thread service pump; verify idle/unloaded page resources progress without render polling and two controls do not double service work.
+- [x] 6.1 Extract SwapChainPresenterUWP and FrameMetricsUWP with native DirectX ownership; verify CPU host-owned versus GPU engine-owned exclusive swap-chain attachment, QI/AddRef/release/mode transitions, metrics units and Skia baseline.
+  - Evidence: `artifact/swap-chain-presenter.md` records 49/49 native ownership/metrics checks, both ARM compilers, component metadata/consumer gates, fresh native targets and Lumia CPU/Skia runs. Owner confirms rendering/counter/scrolling. Horizontal rendering remains incorrect; 6.3 and full G4 stay open.
+- [x] 6.2 Extract FrameSchedulerUWP and shared owner-thread service pump; verify idle/unloaded page resources progress without render polling and two controls do not double service work.
+  - Evidence: `artifact/shared-frame-scheduling.md` records native/CX owner scheduling, real negotiated service/suspension forwards and a paused-page DOM oracle. Native checks pass 34/34; Lumia v1.0.0.14 passes 22/22 scheduler and 198/198 regressions. Full ARM engine/component and metadata/consumer gates pass. Horizontal rendering remains 6.3; lifecycle/quiescence integration stays open.
 - [ ] 6.3 Implement size/DPI/lost-device recovery with one rendering-child owner; verify device resize/scale/pinned-layer behavior and no duplicate swap-chain attachment.
-- [ ] 6.4 Extract InputAdapterUWP/ScrollControllerUWP; verify press/move/release/wheel/capture-cancel, kinetic/edge scroll, keyboard/focus and interleaved two-control input.
-- [ ] 6.5 Implement Loaded/Unloaded and app suspend/resume subscription handling; verify temporary reparenting preserves page state and restores exactly one token set without conflating Close.
+  - Open device requirement: v1.0.0.34 reports successful 411x663/731x343 CSS and 1439x2321/2559x1201 backing resize at scale 3.5, but owner confirms horizontal rendering remains incorrect. Compare actual EGL surface and compositor/layer geometry; successful resize HRESULTs do not satisfy this gate. See `artifact/swap-chain-presenter.md`.
+  - Partial v39 evidence in `artifact/resize-recovery.md`: EGL revision sync `ready=1` both directions, stale-tile invalidation fix, single exclusive attachment, full native `page.png`. Landscape system-bar overlay persists in the sample shell (engine output proven correct; proper `VisibleBoundsChanged` handling belongs to the CX shell in 8.1). Lost-device recovery untested.
+- [x] 6.4 Extract InputAdapterUWP/ScrollControllerUWP; verify press/move/release/wheel/capture-cancel, kinetic/edge scroll, keyboard/focus and interleaved two-control input.
+  - Evidence: `artifact/input-controllers.md` records gesture/physics extraction, V1 input/focus forwarding and the launch-activation race fix. Native checks pass 54/54 on both ARM compilers; Lumia v1.0.0.42 passes tap/scroll/fling interaction with identical stages. Keyboard/focus verified as explicit E_NOTIMPL with full validation coverage. Full G4 stays open.
+- [x] 6.5 Implement Loaded/Unloaded and app suspend/resume subscription handling; verify temporary reparenting preserves page state and restores exactly one token set without conflating Close.
+  - Evidence: `artifact/lifecycle-subscriptions.md` records the subscription state machine, shell suspend/resume forwarding and the launch-activation race guard. Native checks pass 35/35 on both ARM compilers; Lumia v1.0.0.43 passes three power-button suspend/resume cycles with continued rendering. Device reparent runs have no shell affordance; unload is proven by host machine plus wiring. Full G4 stays open.
 - [ ] 6.6 Document presentation/service/input ownership and add focused regressions; verify no network-completion inference and record partial presentation evidence, leaving combined G4 pending until all section 7 services pass.
 
 ## 7. C++/CX OS services and engine forwarding

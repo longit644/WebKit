@@ -195,7 +195,7 @@ struct CommandPage {
         uint32_t cancel = 0;
         auto result = callbacks.starting(callbacks.context, &value, &cancel);
         if (cancel) { finish(WKUWPOutcomeCancelled); return false; }
-        if (result != WKUWPResultOk) { finish(WKUWPOutcomeFailed, WKUWPErrorDomainPlatform, result); return false; }
+        if (result != WKUWPResultOK) { finish(WKUWPOutcomeFailed, WKUWPErrorDomainPlatform, result); return false; }
         return true;
     }
 
@@ -223,7 +223,7 @@ struct CommandPage {
         self->callbacks = *table;
         table->retainContext(table->context);
         self->attached = true;
-        return WKUWPResultOk;
+        return WKUWPResultOK;
     }
 
     // Load an actual Remote-shaped request; only accepted commits change provider history.
@@ -236,20 +236,20 @@ struct CommandPage {
             && request->header.structureVersion == 1 && request->contentKind == WKUWPContentRemote
             && request->uri.length && !request->html.length && !request->warningToken.issuer && !request->warningToken.decision;
         self->decision = { 0, 0 };
-        if (!self->begin(copiedSpan(request->uri), WKUWPContentRemote, id)) return WKUWPResultOk;
+        if (!self->begin(copiedSpan(request->uri), WKUWPContentRemote, id)) return WKUWPResultOK;
         if (self->failCertificate) {
             self->failCertificate = false;
             self->failedTarget = self->target;
             self->decision = { 9000 + page, ++self->revision };
             self->finish(WKUWPOutcomeFailed, WKUWPErrorDomainTransport, 60, self->decision);
-            return WKUWPResultOk;
+            return WKUWPResultOK;
         }
         if (!self->history.empty()) self->history.resize(self->cursor + 1);
         self->history.push_back(self->target);
         self->cursor = self->history.size() - 1;
         self->hostText.clear();
         self->commit();
-        return WKUWPResultOk;
+        return WKUWPResultOK;
     }
 
     // Submit isolated HostHtml bytes with empty URI; an associated pair must match exactly.
@@ -265,10 +265,10 @@ struct CommandPage {
                 return WKUWPResultInvalidCertificateToken;
         } else self->decision = { 0, 0 };
         auto markup = copiedSpan(request->html);
-        if (!self->begin("about:blank", WKUWPContentHostHtml, id)) return WKUWPResultOk;
+        if (!self->begin("about:blank", WKUWPContentHostHtml, id)) return WKUWPResultOK;
         self->hostText = std::move(markup);
         self->commit();
-        return WKUWPResultOk;
+        return WKUWPResultOK;
     }
 
     // Traverse the actual provider cursor without inserting transient host content.
@@ -278,13 +278,13 @@ struct CommandPage {
         if (!self) return WKUWPResultInvalidArgument;
         ++self->backCalls;
         self->decision = { 0, 0 };
-        if (!self->cursor) return WKUWPResultOk;
+        if (!self->cursor) return WKUWPResultOK;
         auto previous = self->cursor - 1;
-        if (!self->begin(self->history[previous], WKUWPContentRemote, nullptr)) return WKUWPResultOk;
+        if (!self->begin(self->history[previous], WKUWPContentRemote, nullptr)) return WKUWPResultOK;
         self->cursor = previous;
         self->hostText.clear();
         self->commit();
-        return WKUWPResultOk;
+        return WKUWPResultOK;
     }
 
     // Traverse the actual provider's next remote neighbor after transient dismissal.
@@ -294,13 +294,13 @@ struct CommandPage {
         if (!self) return WKUWPResultInvalidArgument;
         ++self->forwardCalls;
         self->decision = { 0, 0 };
-        if (self->cursor + 1 >= self->history.size()) return WKUWPResultOk;
+        if (self->cursor + 1 >= self->history.size()) return WKUWPResultOK;
         auto next = self->cursor + 1;
-        if (!self->begin(self->history[next], WKUWPContentRemote, nullptr)) return WKUWPResultOk;
+        if (!self->begin(self->history[next], WKUWPContentRemote, nullptr)) return WKUWPResultOK;
         self->cursor = next;
         self->hostText.clear();
         self->commit();
-        return WKUWPResultOk;
+        return WKUWPResultOK;
     }
 
     // Reload the provider's current remote content without another history entry.
@@ -310,9 +310,9 @@ struct CommandPage {
         if (!self) return WKUWPResultInvalidArgument;
         ++self->reloadCalls;
         self->decision = { 0, 0 };
-        if (self->committed.empty()) return WKUWPResultOk;
+        if (self->committed.empty()) return WKUWPResultOK;
         if (self->begin(self->committed, WKUWPContentRemote, nullptr)) self->commit();
-        return WKUWPResultOk;
+        return WKUWPResultOK;
     }
 
     // Cancel only outstanding work and invalidate pending consent, not the current document.
@@ -323,7 +323,7 @@ struct CommandPage {
         ++self->stopCalls;
         self->decision = { 0, 0 };
         self->finish(WKUWPOutcomeCancelled);
-        return WKUWPResultOk;
+        return WKUWPResultOK;
     }
 
     // Consume consent atomically before a new-ID retry of the exact stored failed target.
@@ -336,12 +336,12 @@ struct CommandPage {
             return WKUWPResultInvalidCertificateToken;
         self->decision = { 0, 0 };
         self->armed = true;
-        if (!self->begin(self->failedTarget, WKUWPContentRemote, id)) return WKUWPResultOk;
+        if (!self->begin(self->failedTarget, WKUWPContentRemote, id)) return WKUWPResultOK;
         if (!self->history.empty()) self->history.resize(self->cursor + 1);
         self->history.push_back(self->target);
         self->cursor = self->history.size() - 1;
         self->commit();
-        return WKUWPResultOk;
+        return WKUWPResultOK;
     }
 
     // Acknowledge native page/context close; no opaque capability survives the page.
@@ -355,7 +355,7 @@ struct CommandPage {
             self->callbacks.releaseContext(self->callbacks.context);
             self->attached = false;
         }
-        return WKUWPResultOk;
+        return WKUWPResultOK;
     }
 };
 

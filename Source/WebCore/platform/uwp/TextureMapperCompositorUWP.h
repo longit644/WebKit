@@ -50,6 +50,10 @@ public:
     bool needsFrame() const;
 
 private:
+    // Read the current EGL backing extent on the owning context without guessed dimensions.
+    bool querySurfaceSize(int& widthPixels, int& heightPixels) const;
+    // Bring ANGLE's delayed swap-chain resize current before any viewport-dependent drawing.
+    bool synchronizeSurface();
     // Flags the next render; layers repaint through paintContents.
     void notifyFlushRequired(const GraphicsLayer*) final;
 
@@ -91,7 +95,7 @@ private:
     // Native window properties backing the ANGLE surface; released on teardown.
     IInspectable* m_windowProperties { nullptr };
 
-    // Viewport size in physical pixels.
+    // Viewport size in CSS pixels; backing dimensions are queried from EGL separately.
     unsigned m_width { 0 }, m_height { 0 };
 
     // Device scale applied to all layer geometry.
@@ -99,6 +103,14 @@ private:
 
     // Set by notifyFlushRequired; cleared after a successful render.
     bool m_flushRequired { true };
+    // Keep frame demand until the actual EGL backing matches the new CSS/device geometry.
+    bool m_surfaceResizePending { true };
+    // Monotonic host geometry revision for batched resize/surface diagnostics.
+    uint64_t m_surfaceRevision { 0 };
+    // Bounded pending resize swaps; persistent mismatch reports recovery rather than spinning.
+    unsigned m_surfaceResizeAttempts { 0 };
+    // Actual physical extent used for the last successfully painted framebuffer.
+    int m_surfaceWidthPixels { 0 }, m_surfaceHeightPixels { 0 };
 
     // Paint calls and presented frames in the current profile window.
     unsigned m_paintCalls { 0 }, m_frames { 0 };

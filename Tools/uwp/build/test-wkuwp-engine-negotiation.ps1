@@ -53,14 +53,17 @@ $script:WindowsKitsRoot = 'C:\Program Files (x86)\Windows Kits\10'
 $script:VsRoot = 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools'
 
 function ConvertTo-QuotedArgument {
-    # PowerShell does not quote arguments for native commands, so a path under
-    # "Program Files (x86)" would otherwise arrive split at the space.
+    # Modern PowerShell preserves argument boundaries; only legacy native passing
+    # needs embedded path quotes, with a linker option's colon outside them.
     param([Parameter(Mandatory = $true)][string]$Argument)
 
+    if ($PSVersionTable.PSVersion -ge [version]'7.3' -and $PSNativeCommandArgumentPassing -ne 'Legacy') {
+        return $Argument
+    }
     if ($Argument -notmatch '[\s()]') {
         return $Argument
     }
-    if ($Argument -match '^(/[A-Za-z]+)(.+)$') {
+    if ($Argument -match '^(/[A-Za-z]+:?)(.+)$') {
         return $Matches[1] + '"' + $Matches[2] + '"'
     }
     return '"' + $Argument + '"'

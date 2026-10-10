@@ -63,6 +63,21 @@ class FixtureTests(unittest.TestCase):
         self.assertTrue(headers['Content-Type'].startswith('text/html'))
         self.assertIn(b'history.pushState', body)
 
+    def test_scheduler_resource_oracle_routes(self):
+        """Check MIME/closure and distinct page identities before real DOM execution on phone."""
+        for page, identity in (('A', b'1'), ('B', b'2')):
+            status, headers, body = self.request('/scheduler.html?page=' + page)
+            self.assertEqual(status, HTTPStatus.OK)
+            self.assertTrue(headers['Content-Type'].startswith('text/html'))
+            self.assertIn(b'data-identity="' + identity + b'"', body)
+        for route, mime in (('/scheduler.css', 'text/css'), ('/scheduler.js', 'application/javascript')):
+            status, headers, body = self.request(route)
+            self.assertEqual(status, HTTPStatus.OK)
+            self.assertTrue(headers['Content-Type'].startswith(mime))
+            self.assertEqual(int(headers['Content-Length']), len(body))
+        self.assertIn(b'setTimeout', body)
+        self.assertIn(b'fetch("/api/data")', body)
+
     def test_replacestate_fixture_page(self):
         """Verify the replaceState fixture includes both state mutations."""
         status, headers, body = self.request('/replacestate.html')

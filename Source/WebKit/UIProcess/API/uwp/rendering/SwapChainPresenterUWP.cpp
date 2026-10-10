@@ -1,0 +1,373 @@
+#include "SwapChainPresenterUWP.h"
+#include "../native/EngineResultUWP.h"
+#include <cmath>
+#include <limits>
+#include <utility>
+#include <dxgi1_3.h>
+#include <windows.ui.xaml.media.dxinterop.h>
+
+namespace WebKit {
+using Microsoft::WRL::ComPtr;
+
+// Double-buffered presentation; the second buffer hides upload latency.
+constexpr unsigned kSwapChainBufferCount = 2;
+// Present with vsync; flags stay zero (no test, no restart, no stereo).
+constexpr unsigned kPresentSyncInterval = 1;
+// No optional presentation/create flags are enabled.
+constexpr unsigned kNoDXGIFlags = 0;
+// Flip chains expose the current render target as buffer zero.
+constexpr unsigned kFirstSwapChainBuffer = 0;
+// A single-mip upload uses subresource zero.
+constexpr unsigned kFirstSubresource = 0;
+// Two-dimensional uploads have no source depth pitch.
+constexpr unsigned kNoSourceDepthPitch = 0;
+// CPU upload texture has exactly one mip.
+constexpr unsigned kSingleMipLevel = 1;
+// CPU upload texture has exactly one array slice.
+constexpr unsigned kSingleTextureArraySlice = 1;
+// No multisampling is used for BGRA uploads.
+constexpr unsigned kSingleSampleCount = 1;
+// Composition matrix identity terms have zero translation/shear.
+constexpr float kZeroCompositionOffset = 0.0f;
+// Frozen V1 physical edge bound, independent of WebCore-private headers.
+constexpr unsigned maximumPhysicalExtent = 4096;
+// Frozen V1 maximum CSS-to-device scale.
+constexpr double maximumDeviceScale = 8.0;
+// Premultiplied BGRA8 has four bytes per pixel.
+constexpr unsigned bytesPerBGRA = 4;
+
+// Ordinary teardown follows the same explicit owner-thread detach protocol.
+SwapChainPresenterUWP::~SwapChainPresenterUWP()
+{
+    detach();
+}
+
+// Refuse a worker before any panel/provider or native resource mutation.
+HRESULT SwapChainPresenterUWP::checkThread() const
+{
+    return GetCurrentThreadId() == m_owner ? S_OK : RPC_E_WRONG_THREAD;
+}
+
+// Check physical dimensions before allocation or stride multiplication.
+bool SwapChainPresenterUWP::validExtent(unsigned width, unsigned height)
+{
+    return width && height && width <= maximumPhysicalExtent && height <= maximumPhysicalExtent;
+}
+
+// Apply the frozen finite positive scaling range to either presentation mode.
+bool SwapChainPresenterUWP::validScale(double scaleX, double scaleY)
+{
+    return std::isfinite(scaleX) && std::isfinite(scaleY) && scaleX > 0 && scaleY > 0
+        && scaleX <= maximumDeviceScale && scaleY <= maximumDeviceScale;
+}
+
+// Release owned CPU objects/host references after the attachment itself is gone.
+void SwapChainPresenterUWP::releaseResources()
+{
+    m_upload.Reset();
+    m_swapChain.Reset();
+    m_context.Reset();
+    m_device.Reset();
+    m_nativePanel.Reset();
+    m_gpuPanel.Reset();
+    m_gpuAPI = { };
+    m_gpuPage = 0;
+    m_detachPending = false;
+    m_width = m_height = 0;
+    m_compositionScaleX = m_compositionScaleY = 1;
+    m_timing = { };
+    m_mode = PresentationModeUWP::Detached;
+}
+
+// Borrow the visual for frozen GPU attachment without allocating a CPU surface.
+HRESULT SwapChainPresenterUWP::initializeForCompositor(const WKUWPEngineAPI* api, WKUWPPageHandle page, IUnknown* panel, double scaleX, double scaleY)
+{
+    auto result = checkThread();
+    if (FAILED(result)) return result;
+    if (m_mode != PresentationModeUWP::Detached) return E_ILLEGAL_METHOD_CALL;
+    if (!api || !page || !panel || !validScale(scaleX, scaleY)) return E_INVALIDARG;
+    if (api->header.structureVersion != WKUWP_STRUCTURE_VERSION || api->header.structureSize < sizeof(*api)
+        || api->abiMajor != WKUWP_ABI_MAJOR_VERSION || !api->attachCompositor || !api->detachCompositor || !api->renderCompositor)
+        return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
+    if (!(api->capabilities & WKUWPCapabilityGPUCompositor)) return E_NOTIMPL;
+    if (m_gpuAttachment == (std::numeric_limits<uint64_t>::max)()) return HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW);
+    ComPtr<IInspectable> inspectable;
+    result = panel->QueryInterface(IID_PPV_ARGS(&inspectable));
+    if (FAILED(result)) return result;
+    WKUWPCompositorOptions options { { sizeof(options), WKUWP_STRUCTURE_VERSION }, inspectable.Get(), scaleX, scaleY };
+    result = engineResultToHRESULT(api->attachCompositor(page, &options));
+    if (result != S_OK) return result;
+    m_gpuAPI = *api;
+    m_gpuPage = page;
+    m_gpuPanel = std::move(inspectable);
+    ++m_gpuAttachment;
+    m_mode = PresentationModeUWP::GPU;
+    return S_OK;
+}
+
+// A failed or Pending detach keeps its attachment exclusive until actual release.
+HRESULT SwapChainPresenterUWP::detach()
+{
+    auto result = checkThread();
+    if (FAILED(result)) return result;
+    if (m_mode == PresentationModeUWP::GPU) {
+        if (m_detachPending) return E_PENDING;
+        auto native = m_gpuAPI.detachCompositor(m_gpuPage);
+        if (native == WKUWPResultPending) { m_detachPending = true; return E_PENDING; }
+        result = engineResultToHRESULT(native);
+        if (FAILED(result) && native != WKUWPResultClosed) return result;
+    } else if (m_nativePanel) {
+        result = m_nativePanel->SetSwapChain(nullptr);
+        if (FAILED(result)) return result;
+    }
+    releaseResources();
+    return S_OK;
+}
+
+// Runtime acknowledgement follows engine release and never detaches an unrelated visual.
+HRESULT SwapChainPresenterUWP::acknowledgeCompositorDetach(uint64_t attachmentId)
+{
+    auto result = checkThread();
+    if (FAILED(result)) return result;
+    if (m_mode != PresentationModeUWP::GPU || !m_detachPending) return E_ILLEGAL_METHOD_CALL;
+    if (attachmentId != m_gpuAttachment) return E_INVALIDARG;
+    releaseResources();
+    return S_OK;
+}
+
+// Forward GPU rendering solely to the table that owns the attached engine surface.
+HRESULT SwapChainPresenterUWP::renderCompositor(double overscroll)
+{
+    auto result = checkThread();
+    if (FAILED(result)) return result;
+    if (!std::isfinite(overscroll)) return E_INVALIDARG;
+    if (m_mode != PresentationModeUWP::GPU) return E_ILLEGAL_METHOD_CALL;
+    if (m_detachPending) return E_PENDING;
+    return engineResultToHRESULT(m_gpuAPI.renderCompositor(m_gpuPage, overscroll));
+}
+
+// Creates the hardware D3D11 device and records the performance-counter rate.
+HRESULT SwapChainPresenterUWP::initializeDevice()
+{
+    LARGE_INTEGER frequency;
+    if (!QueryPerformanceFrequency(&frequency)) return HRESULT_FROM_WIN32(GetLastError());
+    m_frequency = static_cast<double>(frequency.QuadPart);
+    D3D_FEATURE_LEVEL levels[] = { D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_10_0, D3D_FEATURE_LEVEL_9_3 };
+    return D3D11CreateDevice(nullptr, m_driver, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+        levels, ARRAYSIZE(levels), D3D11_SDK_VERSION, &m_device, nullptr, &m_context);
+}
+
+// Builds the shared flip-sequential BGRA swap-chain description.
+DXGI_SWAP_CHAIN_DESC1 SwapChainPresenterUWP::description(unsigned width, unsigned height) const
+{
+    DXGI_SWAP_CHAIN_DESC1 desc = {};
+    desc.Width = width;
+    desc.Height = height;
+    desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    desc.SampleDesc.Count = kSingleSampleCount;
+    desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    desc.BufferCount = kSwapChainBufferCount;
+    desc.Scaling = DXGI_SCALING_STRETCH;
+    desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
+    return desc;
+}
+
+// Attaches a double-buffered swap chain directly to a CoreWindow.
+HRESULT SwapChainPresenterUWP::initializeForCoreWindow(IUnknown* window, unsigned width, unsigned height)
+{
+    auto owner = checkThread();
+    if (FAILED(owner)) return owner;
+    if (m_mode != PresentationModeUWP::Detached) return E_ILLEGAL_METHOD_CALL;
+    if (!window || !validExtent(width, height)) return E_INVALIDARG;
+    HRESULT result = initializeDevice();
+    if (FAILED(result)) {
+        releaseResources();
+        return result;
+    }
+    ComPtr<IDXGIDevice> device;
+    ComPtr<IDXGIAdapter> adapter;
+    ComPtr<IDXGIFactory2> factory;
+    if (FAILED(result = m_device.As(&device)) || FAILED(result = device->GetAdapter(&adapter))
+        || FAILED(result = adapter->GetParent(IID_PPV_ARGS(&factory)))) {
+        releaseResources();
+        return result;
+    }
+    auto desc = description(width, height);
+    result = factory->CreateSwapChainForCoreWindow(m_device.Get(), window, &desc, nullptr, &m_swapChain);
+    if (SUCCEEDED(result)) {
+        m_width = width;
+        m_height = height;
+        m_mode = PresentationModeUWP::CPU;
+    }
+    if (FAILED(result)) releaseResources();
+    return result;
+}
+
+// Creates a composition swap chain and attaches it to the SwapChainPanel.
+HRESULT SwapChainPresenterUWP::initializeForSwapChainPanel(IUnknown* panel, unsigned width, unsigned height)
+{
+    auto owner = checkThread();
+    if (FAILED(owner)) return owner;
+    if (m_mode != PresentationModeUWP::Detached) return E_ILLEGAL_METHOD_CALL;
+    if (!panel || !validExtent(width, height)) return E_INVALIDARG;
+    ComPtr<ISwapChainPanelNative> nativePanel;
+    HRESULT result = panel->QueryInterface(IID_PPV_ARGS(&nativePanel));
+    if (FAILED(result)) return result;
+    result = initializeDevice();
+    if (FAILED(result)) {
+        releaseResources();
+        return result;
+    }
+    ComPtr<IDXGIDevice> device;
+    ComPtr<IDXGIAdapter> adapter;
+    ComPtr<IDXGIFactory2> factory;
+    if (FAILED(result = m_device.As(&device)) || FAILED(result = device->GetAdapter(&adapter))
+        || FAILED(result = adapter->GetParent(IID_PPV_ARGS(&factory)))) {
+        releaseResources();
+        return result;
+    }
+    auto desc = description(width, height);
+    desc.AlphaMode = DXGI_ALPHA_MODE_PREMULTIPLIED;
+    result = factory->CreateSwapChainForComposition(m_device.Get(), &desc, nullptr, &m_swapChain);
+    if (FAILED(result)) {
+        releaseResources();
+        return result;
+    }
+    result = nativePanel->SetSwapChain(m_swapChain.Get());
+    if (SUCCEEDED(result)) {
+        m_width = width;
+        m_height = height;
+        m_nativePanel = std::move(nativePanel);
+        m_mode = PresentationModeUWP::CPU;
+    }
+    if (FAILED(result)) releaseResources();
+    return result;
+}
+
+// Check the caller-owned V1 extent/alignment without retaining its storage.
+HRESULT SwapChainPresenterUWP::present(const WKUWPPaintBuffer& buffer)
+{
+    auto owner = checkThread();
+    if (FAILED(owner)) return owner;
+    if (m_mode != PresentationModeUWP::CPU) return E_ILLEGAL_METHOD_CALL;
+    if (buffer.header.structureVersion != WKUWP_STRUCTURE_VERSION || buffer.header.structureSize < sizeof(buffer)
+        || buffer.widthPixels != m_width || buffer.heightPixels != m_height || !buffer.data
+        || reinterpret_cast<uintptr_t>(buffer.data) % 16 || buffer.strideBytes < m_width * bytesPerBGRA
+        || buffer.strideBytes > maximumPhysicalExtent * bytesPerBGRA
+        || buffer.capacityBytes < static_cast<uint64_t>(buffer.strideBytes) * m_height)
+        return E_INVALIDARG;
+    return present(buffer.data, buffer.strideBytes);
+}
+
+// Uploads caller BGRA pixels and presents the new frame with vsync.
+HRESULT SwapChainPresenterUWP::present(const unsigned char* bgra, unsigned stride)
+{
+    auto owner = checkThread();
+    if (FAILED(owner)) return owner;
+    if (m_mode != PresentationModeUWP::CPU) return E_ILLEGAL_METHOD_CALL;
+    if (!m_swapChain || !bgra || stride < m_width * bytesPerBGRA || stride > maximumPhysicalExtent * bytesPerBGRA)
+        return E_INVALIDARG;
+    D3D11_TEXTURE2D_DESC desc = {};
+    desc.Width = m_width;
+    desc.Height = m_height;
+    desc.MipLevels = kSingleMipLevel;
+    desc.ArraySize = kSingleTextureArraySlice;
+    desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    desc.SampleDesc.Count = kSingleSampleCount;
+    desc.Usage = D3D11_USAGE_DEFAULT;
+    HRESULT result = S_OK;
+    m_timing = {};
+    double start = now();
+    if (!m_upload) {
+        result = m_device->CreateTexture2D(&desc, nullptr, &m_upload);
+        if (FAILED(result))
+            return result;
+    }
+    m_context->UpdateSubresource(m_upload.Get(), kFirstSubresource, nullptr, bgra, stride, kNoSourceDepthPitch);
+    m_timing.uploadMS = (now() - start) * millisecondsPerSecondUWP;
+    return presentCachedFrame();
+}
+
+// Copies the last upload to the current backbuffer and swaps it to the screen.
+HRESULT SwapChainPresenterUWP::presentCachedFrame()
+{
+    auto owner = checkThread();
+    if (FAILED(owner)) return owner;
+    if (m_mode != PresentationModeUWP::CPU) return E_ILLEGAL_METHOD_CALL;
+    if (!m_swapChain || !m_upload)
+        return S_FALSE;
+    ComPtr<ID3D11Texture2D> backBuffer;
+    HRESULT result = m_swapChain->GetBuffer(kFirstSwapChainBuffer, IID_PPV_ARGS(&backBuffer));
+    if (FAILED(result))
+        return result;
+    double start = now();
+    m_context->CopyResource(backBuffer.Get(), m_upload.Get());
+    m_timing.copyMS = (now() - start) * millisecondsPerSecondUWP;
+    start = now();
+    result = m_swapChain->Present(kPresentSyncInterval, kNoDXGIFlags);
+    m_timing.presentMS = (now() - start) * millisecondsPerSecondUWP;
+    return result;
+}
+
+// Seconds since boot from the performance counter for stage timing.
+double SwapChainPresenterUWP::now() const
+{
+    LARGE_INTEGER counter;
+    QueryPerformanceCounter(&counter);
+    return static_cast<double>(counter.QuadPart) / m_frequency;
+}
+
+// Resizes swap-chain buffers and drops the old staging texture.
+HRESULT SwapChainPresenterUWP::resize(unsigned width, unsigned height)
+{
+    auto owner = checkThread();
+    if (FAILED(owner)) return owner;
+    if (m_mode != PresentationModeUWP::CPU) return E_ILLEGAL_METHOD_CALL;
+    if (!m_swapChain || !validExtent(width, height))
+        return E_INVALIDARG;
+    m_upload.Reset();
+    HRESULT result = m_swapChain->ResizeBuffers(kSwapChainBufferCount, width, height, DXGI_FORMAT_B8G8R8A8_UNORM, kNoDXGIFlags);
+    if (SUCCEEDED(result)) {
+        m_width = width;
+        m_height = height;
+    }
+    return result;
+}
+
+// Applies inverse DPI scale so logical XAML size maps to physical swap-chain pixels.
+HRESULT SwapChainPresenterUWP::setCompositionScale(float scaleX, float scaleY)
+{
+    auto owner = checkThread();
+    if (FAILED(owner)) return owner;
+    if (m_mode != PresentationModeUWP::CPU) return E_ILLEGAL_METHOD_CALL;
+    if (!m_swapChain || !validScale(scaleX, scaleY))
+        return E_INVALIDARG;
+    ComPtr<IDXGISwapChain2> swapChain;
+    HRESULT result = m_swapChain.As(&swapChain);
+    if (FAILED(result))
+        return result;
+    DXGI_MATRIX_3X2_F matrix = { 1 / scaleX, kZeroCompositionOffset, kZeroCompositionOffset, 1 / scaleY, kZeroCompositionOffset, kZeroCompositionOffset };
+    result = swapChain->SetMatrixTransform(&matrix);
+    if (SUCCEEDED(result)) {
+        m_compositionScaleX = scaleX;
+        m_compositionScaleY = scaleY;
+    }
+    return result;
+}
+
+// Applies an offset without repainting; used for edge overscroll spring motion.
+HRESULT SwapChainPresenterUWP::setCompositionOffset(float x, float y)
+{
+    auto owner = checkThread();
+    if (FAILED(owner)) return owner;
+    if (m_mode != PresentationModeUWP::CPU) return E_ILLEGAL_METHOD_CALL;
+    if (!m_swapChain || !std::isfinite(x) || !std::isfinite(y))
+        return E_INVALIDARG;
+    ComPtr<IDXGISwapChain2> swapChain;
+    HRESULT result = m_swapChain.As(&swapChain);
+    if (FAILED(result))
+        return result;
+    DXGI_MATRIX_3X2_F matrix = { 1 / m_compositionScaleX, kZeroCompositionOffset, kZeroCompositionOffset, 1 / m_compositionScaleY, x, y };
+    return swapChain->SetMatrixTransform(&matrix);
+}
+}

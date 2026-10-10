@@ -117,7 +117,8 @@ typedef struct {
  * error domain travel separately in WKUWPPageEvent.
  */
 typedef enum {
-    WKUWPResultOk = 0,
+    /* Successful operation; canonical acronym spelling for new callers. */
+    WKUWPResultOK = 0,
     WKUWPResultInvalidArgument = 1,
     /* 2 and 3 are reserved legacy gaps; never assign them. */
     WKUWPResultNoMainFrame = 4,
@@ -156,8 +157,10 @@ typedef enum {
     WKUWPCapabilityStructuredNotifications = 0x001,
     WKUWPCapabilityHostHtml = 0x002,
     WKUWPCapabilityIndependentSessions = 0x004,
-    WKUWPCapabilityCpuPaint = 0x008,
-    WKUWPCapabilityGpuCompositor = 0x010,
+    /* Host-owned CPU premultiplied BGRA paint capability. */
+    WKUWPCapabilityCPUPaint = 0x008,
+    /* Engine-owned GPU compositor capability. */
+    WKUWPCapabilityGPUCompositor = 0x010,
     WKUWPCapabilityClipboardService = 0x020,
     WKUWPCapabilityCertificateDecisions = 0x040,
     WKUWPCapabilityInput = 0x080,
@@ -219,7 +222,7 @@ typedef struct WKUWPPlatformServices {
     WKUWPReleaseContext releaseContext;
 
     /*
-     * Requests clipboard read or write. On WKUWPResultOk the operation must
+     * Requests clipboard read or write. On WKUWPResultOK the operation must
      * complete exactly once, including when later cancelled, and the provider
      * owns completionContext until that completion returns. A rejected request
      * must never complete later.

@@ -1,27 +1,14 @@
 #include "PageControllerUWP.h"
+#include "EngineResultUWP.h"
+
+#include <cmath>
 
 namespace WebKit {
 
 // Convert frozen operation results by meaning, never by positive-code HRESULT equality.
 HRESULT PageControllerUWP::resultToHRESULT(WKUWPResult result)
 {
-    if (result < 0) return static_cast<HRESULT>(result);
-    switch (result) {
-    case WKUWPResultOk: return S_OK;
-    case WKUWPResultInvalidArgument:
-    case WKUWPResultInvalidCertificateToken: return E_INVALIDARG;
-    case WKUWPResultWrongThread: return RPC_E_WRONG_THREAD;
-    case WKUWPResultClosed:
-    case WKUWPResultShuttingDown: return RO_E_CLOSED;
-    case WKUWPResultUnsupported:
-    case WKUWPResultMissingCapability: return E_NOTIMPL;
-    case WKUWPResultNotInitialized: return HRESULT_FROM_WIN32(ERROR_NOT_READY);
-    case WKUWPResultConfigurationConflict: return HRESULT_FROM_WIN32(ERROR_ALREADY_INITIALIZED);
-    case WKUWPResultBudgetExceeded: return E_OUTOFMEMORY;
-    case WKUWPResultPending: return E_PENDING;
-    case WKUWPResultAbiMismatch: return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
-    default: return E_FAIL;
-    }
+    return engineResultToHRESULT(result);
 }
 
 // Validate the exact V1 identity and command capability set before attaching anything.
@@ -110,6 +97,50 @@ HRESULT PageControllerUWP::proceed(WKUWPCertificateToken token, uint64_t* naviga
     return resultToHRESULT(m_api.proceedWithCertificateFailure(m_page, &token, navigationId));
 }
 
+// Forward one frozen input event after validating its kind-specific contract.
+HRESULT PageControllerUWP::sendInput(const WKUWPInputEvent& event)
+{
+    auto ready = checkBound();
+    if (FAILED(ready))
+        return ready;
+    if (event.header.structureSize < sizeof(event) || event.header.structureVersion != WKUWP_STRUCTURE_VERSION)
+        return E_INVALIDARG;
+    if (event.kind > WKUWPInputWheel)
+        return E_INVALIDARG;
+    // The frozen header defines Alt=1/Control=2/Shift=4/Windows=8; anything else is not a modifier.
+    if (event.modifiers & ~0xFu)
+        return E_INVALIDARG;
+    bool keyboard = event.kind == WKUWPInputKeyDown || event.kind == WKUWPInputKeyUp;
+    if (keyboard) {
+        if (!event.virtualKey)
+            return E_INVALIDARG;
+        if (event.unicodeScalar > 0x10FFFFu
+            || (event.unicodeScalar >= 0xD800u && event.unicodeScalar <= 0xDFFFu))
+            return E_INVALIDARG;
+    } else {
+        if (!std::isfinite(event.xCssPixels) || !std::isfinite(event.yCssPixels))
+            return E_INVALIDARG;
+    }
+    if (!(m_api.capabilities & WKUWPCapabilityInput))
+        return E_NOTIMPL;
+    if (!m_api.sendInput)
+        return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
+    return resultToHRESULT(m_api.sendInput(m_page, &event));
+}
+
+// Forward focus state through the negotiated slot without inventing engine behavior.
+HRESULT PageControllerUWP::setFocused(bool focused)
+{
+    auto ready = checkBound();
+    if (FAILED(ready))
+        return ready;
+    if (!(m_api.capabilities & WKUWPCapabilityInput))
+        return E_NOTIMPL;
+    if (!m_api.setFocus)
+        return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
+    return resultToHRESULT(m_api.setFocus(m_page, focused ? 1u : 0u));
+}
+
 // Keep Pending ownership until provider close acknowledgement, without hot-unloading code.
 HRESULT PageControllerUWP::close()
 {
@@ -119,7 +150,7 @@ HRESULT PageControllerUWP::close()
     if (FAILED(ready)) return ready;
     m_closeRequested = true;
     auto result = m_api.closePage(m_page);
-    if (result == WKUWPResultOk || result == WKUWPResultClosed) {
+    if (result == WKUWPResultOK || result == WKUWPResultClosed) {
         m_page = 0;
         return S_OK;
     }

@@ -114,3 +114,20 @@ generation, deferred native/token/retry rejection, asynchronous policy terminal
 waits and latest Source/HTML readiness intent. The acceptance record is
 `artifact/notification-transactions.md` in the M10 change. The provider controls
 V1 responses; real WebCore/renderer/platform integration retains its own gates.
+
+## Shared owner scheduler and actual paused resources
+
+Add `-SchedulerTests -SchedulerBaseUrl <fixture-http-base> -EngineDirectory
+<actual-arm-engine-bin> -DependencyBaseline <audited-dependency-stage>` with all
+earlier switches. The package includes the real native engine/import closure and
+internetClient. `WKUWPTestScheduler` returns a real asynchronous SDK action; the
+host displays aggregate PASS only after that action and every earlier suite passes.
+
+Version 1.0.0.14 passes **22/22** scheduler plus **198/198** regression assertions.
+Fetch `LocalState/scheduler-result.txt` and all six earlier reports, requiring
+matching version/counts and zero failures. The new fixture DOM height oracle
+requires actual delayed CSS, external JavaScript, a JavaScript timer and fetch
+while no presentation callback runs. It also checks peer-close continuation,
+SDK frame epoch deduplication, process suspension and coalesced worker wakes.
+`artifact/shared-frame-scheduling.md` in M10 records exact payload/report hashes
+and the native legacy creation versus negotiated service scope.

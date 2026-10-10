@@ -108,7 +108,7 @@ WKUWPResult PlatformServiceContextUWP::buildTable(WKUWPPlatformServices* service
     services->requestClipboard = requestClipboardThunk;
     services->cancelClipboard = cancelClipboardThunk;
     services->postWake = postWakeThunk;
-    return WKUWPResultOk;
+    return WKUWPResultOK;
 }
 
 // See PlatformServiceUWP.h for the counter meanings.
@@ -143,7 +143,7 @@ WKUWPResult PlatformServiceContextUWP::deliverCompletion(
     // identifier finds nothing and cannot complete twice.
     finishOperation(index);
     completion(completionContext, operationId, result, text);
-    return WKUWPResultOk;
+    return WKUWPResultOK;
 }
 
 // See PlatformServiceUWP.h: test support proving the Write copy outlives calls.
@@ -243,7 +243,7 @@ WKUWPResult __stdcall PlatformServiceContextUWP::requestClipboardThunk(void* con
     self->m_operations[slot].completionContext = completionContext;
     self->m_operations[slot].textCopy = textCopy;
     self->m_operations[slot].textLength = textLength;
-    return WKUWPResultOk;
+    return WKUWPResultOK;
 }
 
 // See PlatformServiceUWP.h: cancellation still completes, exactly once.
@@ -261,7 +261,7 @@ WKUWPResult __stdcall PlatformServiceContextUWP::cancelClipboardThunk(void* cont
     // only completion even if it reenters cancel or delivery.
     self->finishOperation(index);
     completion(completionContext, operationId, canceledClipboardResult(), nullptr);
-    return WKUWPResultOk;
+    return WKUWPResultOK;
 }
 
 // See PlatformServiceUWP.h: records the enqueue request without touching pages.
@@ -270,7 +270,7 @@ WKUWPResult __stdcall PlatformServiceContextUWP::postWakeThunk(void* context)
     if (!context)
         return WKUWPResultInvalidArgument;
     ++static_cast<PlatformServiceContextUWP*>(context)->m_wakeCalls;
-    return WKUWPResultOk;
+    return WKUWPResultOK;
 }
 
 } // namespace WebKit

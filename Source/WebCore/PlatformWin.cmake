@@ -32,6 +32,8 @@ if (WK_UWP)
     list(APPEND WebCore_SOURCES platform/uwp/PageUWP.cpp)
     # WKUWP V1 discovery export, capability mask and build identity (task 3.2).
     list(APPEND WebCore_SOURCES platform/uwp/WKUWPEngineAPI.cpp)
+    # Configured engine service forwards; standalone negotiation tests have no WebCore dependency.
+    set_source_files_properties(platform/uwp/WKUWPEngineAPI.cpp PROPERTIES COMPILE_DEFINITIONS WKUWP_OWNER_SERVICE_FORWARD=1)
     # The frozen shared ABI headers are included by their own names, matching the
     # dual-compiler layout check, so only their directory is added here.
     list(APPEND WebCore_PRIVATE_INCLUDE_DIRECTORIES "${WEBKIT_DIR}/Shared/uwp")

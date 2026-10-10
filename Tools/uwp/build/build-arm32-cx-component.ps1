@@ -20,6 +20,7 @@ param(
     [switch]$CommandTests,
     [switch]$LifecycleTests,
     [switch]$TransactionTests,
+    [switch]$SchedulerTests,
     [string]$TestPackageVersion = '1.0.0.1'
 )
 Set-StrictMode -Version Latest
@@ -76,7 +77,7 @@ try {
         '/DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP', '/D_WIN32_WINNT=0x0A00', "/AI$references", "/AI$metadata", "/I$api", "/I$shared")
     $files = @("$api\WebKitWebView.cpp", "$api\WebKitWebViewOptions.cpp", "$api\WebKitNavigationEventArgs.cpp",
         "$api\WebKitCertificateFailureToken.cpp", "$api\platform\InitializationActionUWP.cpp", "$api\platform\PageCallbacksUWP.cpp",
-        "$repo\Tools\uwp\CXComponent\ComponentExports.cpp")
+        "$api\platform\FrameSchedulerDriverUWP.cpp", "$repo\Tools\uwp\CXComponent\ComponentExports.cpp")
     if ($SourceStateTests) {
         if ($TestPackageVersion -notmatch '^\d+\.\d+\.\d+\.\d+$') { throw 'Invalid diagnostic package version' }
         $common += ('/DTEST_PACKAGE_VERSION="' + $TestPackageVersion + '"')
@@ -107,6 +108,13 @@ try {
         if (-not $SourceStateTests -and -not $InitializationTests -and -not $EventCallbackTests -and -not $CommandTests -and -not $LifecycleTests) { $common += ('/DTEST_PACKAGE_VERSION="' + $TestPackageVersion + '"') }
         $files += "$repo\Tools\uwp\CXStateTests\TransactionTests.cpp"
     }
+    if ($SchedulerTests) {
+        if ($TestPackageVersion -notmatch '^\d+\.\d+\.\d+\.\d+$') { throw 'Invalid diagnostic package version' }
+        if (-not ($SourceStateTests -or $InitializationTests -or $EventCallbackTests -or $CommandTests -or $LifecycleTests -or $TransactionTests)) {
+            $common += ('/DTEST_PACKAGE_VERSION="' + $TestPackageVersion + '"')
+        }
+        $files += "$repo\Tools\uwp\CXStateTests\SchedulerTests.cpp"
+    }
     $objects = @()
     foreach ($file in $files) {
         $object = Join-Path $OutDir ('obj\' + [IO.Path]::GetFileNameWithoutExtension($file) + '.obj')
@@ -114,7 +122,9 @@ try {
         $objects += $object
     }
     $nativeFlags = @($common | Where-Object { $_ -notmatch '^/(ZW|AI|D_WINRT_DLL)' })
-    $nativeFiles = @("$api\native\WebViewConfigurationUWP.cpp", "$api\native\NavigationStateUWP.cpp", "$api\native\PageControllerUWP.cpp")
+    $nativeFiles = @("$api\native\WebViewConfigurationUWP.cpp", "$api\native\NavigationStateUWP.cpp", "$api\native\PageControllerUWP.cpp",
+        "$api\rendering\SwapChainPresenterUWP.cpp", "$api\rendering\FrameMetricsUWP.cpp", "$api\rendering\FrameSchedulerUWP.cpp",
+        "$api\input\ScrollControllerUWP.cpp", "$api\input\InputAdapterUWP.cpp")
     foreach ($file in $nativeFiles) {
         $object = Join-Path $OutDir ('obj\' + [IO.Path]::GetFileNameWithoutExtension($file) + '.obj')
         Invoke-ComponentTool $cl ($nativeFlags + @("/Fo$object", $file))
@@ -122,7 +132,7 @@ try {
     }
     $libs = @("/libpath:$runtime", "/libpath:$SdkRoot\Lib\$SdkVersion\um\$Architecture",
         "/libpath:$SdkRoot\Lib\$SdkVersion\ucrt\$Architecture", 'vccorlib.lib', 'msvcprt.lib', 'msvcrt.lib',
-        'vcruntime.lib', 'ucrt.lib', 'OneCoreUAP.lib', 'bcrypt.lib', 'crypt32.lib')
+        'vcruntime.lib', 'ucrt.lib', 'OneCoreUAP.lib', 'bcrypt.lib', 'crypt32.lib', 'd3d11.lib', 'dxgi.lib')
     $linkArgs = @('/nologo', '/dll', "/machine:$Architecture", '/WINMD', "/WINMDFILE:$OutDir\WebKit.winmd", "/OUT:$OutDir\WebKit.dll")
     if ($Architecture -eq 'arm') { $linkArgs += '/appcontainer' }
     Invoke-ComponentTool $link ($linkArgs + $objects + $libs)
@@ -155,11 +165,14 @@ try {
     if ([bool]($exports -match 'Name: WKUWPTestTransactions') -ne [bool]$TransactionTests) {
         throw 'Transaction diagnostic-export presence does not match selected build flavor'
     }
+    if ([bool]($exports -match 'Name: WKUWPTestScheduler') -ne [bool]$SchedulerTests) {
+        throw 'Scheduler diagnostic-export presence does not match selected build flavor'
+    }
     & python (Join-Path $PSScriptRoot 'check-cx-component-metadata.py') --idl "$OutDir\inspect\WebKit.idl" --api $api
     if ($LASTEXITCODE -ne 0) { throw 'M10 metadata contract check failed' }
     $identity = [ordered]@{ ContractRevision = 2; Architecture = $Architecture; SourceStateTests = [bool]$SourceStateTests;
         InitializationTests = [bool]$InitializationTests; EventCallbackTests = [bool]$EventCallbackTests; CommandTests = [bool]$CommandTests;
-        LifecycleTests = [bool]$LifecycleTests; TransactionTests = [bool]$TransactionTests; MsvcVersion = $MsvcVersion;
+        LifecycleTests = [bool]$LifecycleTests; TransactionTests = [bool]$TransactionTests; SchedulerTests = [bool]$SchedulerTests; MsvcVersion = $MsvcVersion;
         SdkVersion = $SdkVersion; VsPath = $VsPath; ToolsetRoot = $tool; SdkRoot = $SdkRoot;
         Sources = @(($files + $nativeFiles) | ForEach-Object { [IO.Path]::GetRelativePath($repo, $_).Replace('\', '/') });
         Payload = @('WebKit.dll', 'WebKit.winmd' | ForEach-Object {

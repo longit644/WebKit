@@ -189,7 +189,7 @@ struct TransactionPage {
         if (cancel) {
             if (!holdPolicyTerminal) finish(WKUWPOutcomeCancelled);
         }
-        else if (result != WKUWPResultOk) finish(WKUWPOutcomeFailed, WKUWPErrorDomainPlatform, result);
+        else if (result != WKUWPResultOK) finish(WKUWPOutcomeFailed, WKUWPErrorDomainPlatform, result);
         else if (certificateFailure) {
             certificateFailure = false;
             decision = { 12000 + page, 1 };
@@ -211,7 +211,7 @@ struct TransactionPage {
         self->callbacks = *table;
         table->retainContext(table->context);
         self->attached = true;
-        return WKUWPResultOk;
+        return WKUWPResultOK;
     }
 
     // Reject admission or begin exactly the borrowed Remote target through V1 policy.
@@ -222,7 +222,7 @@ struct TransactionPage {
         if (self->rejectNext) { self->rejectNext = false; return static_cast<WKUWPResult>(E_ACCESSDENIED); }
         self->decision = { 0, 0 };
         self->begin(std::string(reinterpret_cast<const char*>(request->uri.data), request->uri.length), WKUWPContentRemote, id);
-        return WKUWPResultOk;
+        return WKUWPResultOK;
     }
 
     // Revalidate a copied warning pair at provider execution; generic HTML invalidates it.
@@ -237,7 +237,7 @@ struct TransactionPage {
         self->markup.assign(reinterpret_cast<const char*>(request->html.data), request->html.length);
         self->begin("about:blank", WKUWPContentHostHtml, id);
         if (self->active) { self->commit(); self->finish(); }
-        return WKUWPResultOk;
+        return WKUWPResultOK;
     }
 
     // No-op page commands still end provider pending consent but invent no main identity.
@@ -246,7 +246,7 @@ struct TransactionPage {
         auto self = find(page);
         if (!self) return WKUWPResultClosed;
         self->decision = { 0, 0 };
-        return WKUWPResultOk;
+        return WKUWPResultOK;
     }
 
     // Cancel active work once; queued Stop must not run during the old notification.
@@ -256,7 +256,7 @@ struct TransactionPage {
         if (!self) return WKUWPResultClosed;
         self->decision = { 0, 0 };
         self->finish(WKUWPOutcomeCancelled);
-        return WKUWPResultOk;
+        return WKUWPResultOK;
     }
 
     // Invalidated queued retries reject before provider work or fresh ID allocation.
@@ -268,7 +268,7 @@ struct TransactionPage {
         if (token->issuer != self->decision.issuer || token->decision != self->decision.decision) return WKUWPResultInvalidCertificateToken;
         self->decision = { 0, 0 };
         self->begin("https://example.test/retry", WKUWPContentRemote, id);
-        return WKUWPResultOk;
+        return WKUWPResultOK;
     }
 
     // Trace one native cleanup request only after all owed public transactions finish.
@@ -280,7 +280,7 @@ struct TransactionPage {
         ++self->closes;
         self->finish(WKUWPOutcomeCancelled);
         if (self->attached) { self->attached = false; self->callbacks.releaseContext(self->callbacks.context); }
-        return WKUWPResultOk;
+        return WKUWPResultOK;
     }
 };
 

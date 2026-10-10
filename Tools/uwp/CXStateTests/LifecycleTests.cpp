@@ -184,7 +184,7 @@ struct LifecyclePage {
         self->callbacks = *callbacks;
         callbacks->retainContext(callbacks->context);
         self->attached = true;
-        return WKUWPResultOk;
+        return WKUWPResultOK;
     }
 
     // Start asynchronous work and honor real public policy without completing it early.
@@ -201,7 +201,7 @@ struct LifecyclePage {
         uint32_t cancel = 0;
         auto result = self->callbacks.starting(self->callbacks.context, &value, &cancel);
         if (cancel) self->finish(WKUWPOutcomeCancelled);
-        else if (result != WKUWPResultOk) {
+        else if (result != WKUWPResultOK) {
             auto failed = self->event(WKUWPEventCompleted);
             failed.outcome = WKUWPOutcomeFailed;
             failed.errorDomain = WKUWPErrorDomainPlatform;
@@ -209,7 +209,7 @@ struct LifecyclePage {
             self->active = 0;
             self->callbacks.notify(self->callbacks.context, &failed);
         }
-        return WKUWPResultOk;
+        return WKUWPResultOK;
     }
 
     // Unsupported fixture HTML still provides a nonnull conforming negotiated slot.
@@ -221,7 +221,7 @@ struct LifecyclePage {
         auto self = find(page);
         if (!self) return WKUWPResultClosed;
         ++self->commands;
-        return WKUWPResultOk;
+        return WKUWPResultOK;
     }
 
     // Stop outstanding work without inserting a new navigation identity.
@@ -231,7 +231,7 @@ struct LifecyclePage {
         if (!self) return WKUWPResultClosed;
         ++self->commands;
         self->finish(WKUWPOutcomeCancelled);
-        return WKUWPResultOk;
+        return WKUWPResultOK;
     }
 
     // Invalid tokens remain invalid and cannot produce a fixture navigation.
@@ -247,7 +247,7 @@ struct LifecyclePage {
         self->finish(WKUWPOutcomeCancelled);
         if (self->pendingClose) return WKUWPResultPending;
         self->acknowledge();
-        return WKUWPResultOk;
+        return WKUWPResultOK;
     }
 };
 
@@ -297,7 +297,7 @@ void runLifecycle(LifecycleReport& report)
         report.check(f.view->DocumentTitle == L"Final readable title" && f.completions == 1, "retained stale callback cannot mutate closed final snapshot");
         uint32_t cancel = 0;
         late.eventKind = WKUWPEventStarting;
-        report.check(f.callbacks.starting(f.callbacks.context, &late, &cancel) == WKUWPResultOk && cancel == 1,
+        report.check(f.callbacks.starting(f.callbacks.context, &late, &cancel) == WKUWPResultOK && cancel == 1,
             "inactive late policy fails closed without touching released page state");
         report.check(lifecycleResult([&] { f.view->Source = nullptr; }) == RO_E_CLOSED
                 && lifecycleResult([&] { f.view->GoBack(); }) == RO_E_CLOSED && lifecycleResult([&] { f.view->GoForward(); }) == RO_E_CLOSED
@@ -405,7 +405,7 @@ void runLifecycle(LifecycleReport& report)
         late.header = { sizeof(late), 1 };
         late.eventKind = WKUWPEventStarting;
         uint32_t cancel = 0;
-        report.check(callbacks.starting(callbacks.context, &late, &cancel) == WKUWPResultOk && cancel,
+        report.check(callbacks.starting(callbacks.context, &late, &cancel) == WKUWPResultOK && cancel,
             "expired weak callback target is rejected without resurrection or stale access");
         callbacks.releaseContext(callbacks.context);
     }

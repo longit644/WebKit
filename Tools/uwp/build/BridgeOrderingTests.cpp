@@ -119,8 +119,8 @@ void writeTestPageOptions(WKUWPPageOptions* options)
 bool bindBridgeModule(BridgeProvider* provider, const wchar_t* path, WebKit::EngineModuleUWP* module)
 {
     provider->reset();
-    provider->setCreateResult(WKUWPResultOk);
-    return module->bind(path, 0, 0) == WKUWPResultOk;
+    provider->setCreateResult(WKUWPResultOK);
+    return module->bind(path, 0, 0) == WKUWPResultOK;
 }
 
 // Opens one page, reporting failure instead of touching an invalid handle.
@@ -129,7 +129,7 @@ bool openBridgePage(WebKit::EngineModuleUWP* module, WKUWPPageHandle* page)
     WKUWPPageOptions options;
     writeTestPageOptions(&options);
     *page = kUntouchedHandle;
-    return module->createPage(&options, page) == WKUWPResultOk && *page != 0;
+    return module->createPage(&options, page) == WKUWPResultOK && *page != 0;
 }
 
 // Attaches a fresh context, reporting failure without leaking the setup ref.
@@ -137,11 +137,11 @@ bool attachBridgeContext(WebKit::EngineModuleUWP* module, WKUWPPageHandle page,
     WebKit::PageCallbackContextUWP* context)
 {
     WKUWPPageCallbacks table;
-    if (context->buildTable(&table) != WKUWPResultOk) {
+    if (context->buildTable(&table) != WKUWPResultOK) {
         context->release();
         return false;
     }
-    if (module->setPageCallbacks(page, &table) != WKUWPResultOk) {
+    if (module->setPageCallbacks(page, &table) != WKUWPResultOK) {
         context->release();
         return false;
     }
@@ -204,7 +204,7 @@ void checkInterleavedPages(BridgeProvider* provider, const wchar_t* path)
     WKUWPResult result = module.closePage(first);
     snprintf(message, sizeof(message), "close first -> result=%d expected=0, open=%u expected=1",
         static_cast<int>(result), module.openPageCount());
-    reportCheck("interleaved/close-one", result == WKUWPResultOk && module.openPageCount() == 1, message);
+    reportCheck("interleaved/close-one", result == WKUWPResultOK && module.openPageCount() == 1, message);
 
     // The closed page's attachment was released by the close itself, so only
     // the setup reference remains; the surviving page keeps delivering.
@@ -309,7 +309,7 @@ void checkWrongThreadCalls(BridgeProvider* provider, const wchar_t* path)
     WKUWPResult result = module.closePage(page);
     snprintf(message, sizeof(message), "owner closes after unenforced=%d, open=%u", static_cast<int>(result),
         module.openPageCount());
-    reportCheck("thread/owner-recovers", result == WKUWPResultOk && module.openPageCount() == 0, message);
+    reportCheck("thread/owner-recovers", result == WKUWPResultOK && module.openPageCount() == 0, message);
 }
 
 // A close reentrant from inside policy still completes with the verdict intact.
@@ -343,8 +343,8 @@ void checkCloseDuringPolicy(BridgeProvider* provider, const wchar_t* path)
         static_cast<int>(result), cancel, context->policyFired() ? 1 : 0,
         static_cast<int>(context->lastPolicyResult()));
     reportCheck("close-during-policy/close",
-        result == WKUWPResultOk && cancel == 0 && context->policyFired()
-            && context->lastPolicyResult() == WKUWPResultOk && module.openPageCount() == 0,
+        result == WKUWPResultOK && cancel == 0 && context->policyFired()
+            && context->lastPolicyResult() == WKUWPResultOK && module.openPageCount() == 0,
         message);
 
     snprintf(message, sizeof(message), "attachment released by the close=%u expected=1, storage alive=%u",
@@ -397,7 +397,7 @@ void checkCloseDuringDispatchDeferred(BridgeProvider* provider, const wchar_t* p
         static_cast<int>(result), static_cast<int>(context->lastPolicyResult()), context->releaseCalls(),
         module.openPageCount());
     reportCheck("close-deferred/close",
-        result == WKUWPResultOk && context->lastPolicyResult() == WKUWPResultOk
+        result == WKUWPResultOK && context->lastPolicyResult() == WKUWPResultOK
             && context->releaseCalls() == 0 && module.openPageCount() == 0,
         message);
 
@@ -405,7 +405,7 @@ void checkCloseDuringDispatchDeferred(BridgeProvider* provider, const wchar_t* p
     result = provider->fireRelease(page);
     snprintf(message, sizeof(message), "unwind release -> result=%d expected=0, releases=%u expected=1",
         static_cast<int>(result), context->releaseCalls());
-    reportCheck("close-deferred/release", result == WKUWPResultOk && context->releaseCalls() == 1, message);
+    reportCheck("close-deferred/release", result == WKUWPResultOK && context->releaseCalls() == 1, message);
 
     context->release();
 }

@@ -57,9 +57,9 @@ uint32_t g_abiMinor = WKUWP_ABI_MINOR_VERSION;
 uint32_t g_truncateBytes = WKUWP_TEST_PROVIDER_DEFAULT_TRUNCATE;
 uint32_t g_nullSlotIndex = kTestNullSlotNone;
 WKUWPResult g_createResult = WKUWPResultUnsupported;
-WKUWPResult g_closeResult = WKUWPResultOk;
-WKUWPResult g_shutdownResult = WKUWPResultOk;
-WKUWPResult g_pollResult = WKUWPResultOk;
+WKUWPResult g_closeResult = WKUWPResultOK;
+WKUWPResult g_shutdownResult = WKUWPResultOK;
+WKUWPResult g_pollResult = WKUWPResultOK;
 
 // Call counters the harness reads back through the exported getters.
 uint32_t g_discoveryCalls = 0;
@@ -181,13 +181,13 @@ WKUWPResult __stdcall testCreatePage(const WKUWPPageOptions*, WKUWPPageHandle* p
     // is rejected before any argument is read, exactly as the real engine must.
     if (!onOwnerThread())
         return WKUWPResultWrongThread;
-    if (g_createResult != WKUWPResultOk)
+    if (g_createResult != WKUWPResultOK)
         return g_createResult;
     if (!page)
         return WKUWPResultInvalidArgument;
     *page = g_nextHandle++;
     recordCreated(*page);
-    return WKUWPResultOk;
+    return WKUWPResultOK;
 }
 
 // Counting closePage slot; the harness decides the reported result.
@@ -287,7 +287,7 @@ WKUWPResult __stdcall testSetCallbacks(WKUWPPageHandle page, const WKUWPPageCall
     g_attachments[index].active = true;
     g_attachments[index].acked = false;
     memcpy(&g_attachments[index].table, callbacks, sizeof(g_attachments[index].table));
-    return WKUWPResultOk;
+    return WKUWPResultOK;
 }
 
 // Simulated detachCallbacks slot; deactivates now, releases now or later.
@@ -299,16 +299,16 @@ WKUWPResult __stdcall testDetachCallbacks(WKUWPPageHandle page)
         return WKUWPResultInvalidArgument;
     uint32_t index = findAttachment(page);
     if (index == kTestMaxAttachments)
-        return pageKnown(page) ? WKUWPResultOk : WKUWPResultInvalidArgument;
+        return pageKnown(page) ? WKUWPResultOK : WKUWPResultInvalidArgument;
     if (!g_attachments[index].active)
-        return WKUWPResultOk;
+        return WKUWPResultOK;
     // Inactive immediately; the release acknowledging it runs now, unless a
     // dispatch is logically active, in which case FireRelease runs it after.
     g_attachments[index].active = false;
     if (g_dispatching)
         return WKUWPResultPending;
     releaseAttachmentOnce(index);
-    return WKUWPResultOk;
+    return WKUWPResultOK;
 }
 
 // Unimplemented navigation slots.
@@ -343,7 +343,7 @@ WKUWPResult __stdcall testGetState(WKUWPPageHandle page, WKUWPPageState* state, 
         state->header.structureVersion = WKUWP_STRUCTURE_VERSION;
         state->pageId = page;
         state->documentGeneration = 1;
-        return WKUWPResultOk;
+        return WKUWPResultOK;
     }
 
     // Ever-growing engine: every answer needs more than was offered, so only a
@@ -498,7 +498,7 @@ __declspec(dllexport) WKUWPResult __stdcall WKUWPGetEngineAPI(
     // alone, without reading past the reported extent.
     if (g_truncateBytes)
         outAPI->header.structureSize = g_truncateBytes;
-    return WKUWPResultOk;
+    return WKUWPResultOK;
 }
 
 // Restores every default and zeroes every counter for the next test case.
@@ -510,9 +510,9 @@ __declspec(dllexport) void __stdcall WKUWPTestProviderReset()
     g_truncateBytes = WKUWP_TEST_PROVIDER_DEFAULT_TRUNCATE;
     g_nullSlotIndex = kTestNullSlotNone;
     g_createResult = WKUWPResultUnsupported;
-    g_closeResult = WKUWPResultOk;
-    g_shutdownResult = WKUWPResultOk;
-    g_pollResult = WKUWPResultOk;
+    g_closeResult = WKUWPResultOK;
+    g_shutdownResult = WKUWPResultOK;
+    g_pollResult = WKUWPResultOK;
     g_discoveryCalls = 0;
     g_createCalls = 0;
     g_closeCalls = 0;
@@ -655,7 +655,7 @@ __declspec(dllexport) WKUWPResult __stdcall WKUWPTestProviderFireRelease(WKUWPPa
     if (g_attachments[index].active || g_attachments[index].acked)
         return WKUWPResultInvalidState;
     releaseAttachmentOnce(index);
-    return WKUWPResultOk;
+    return WKUWPResultOK;
 }
 
 // Copies harness text into the provider-owned dispatch buffer, truncating.
@@ -695,7 +695,7 @@ __declspec(dllexport) WKUWPResult __stdcall WKUWPTestProviderDispatchNotify(
     // The consumer must have copied what it keeps: nothing borrowed survives.
     memset(g_eventUri, 0xCD, sizeof(g_eventUri));
     memset(g_eventTitle, 0xCD, sizeof(g_eventTitle));
-    return WKUWPResultOk;
+    return WKUWPResultOK;
 }
 
 // Delivers one policy callback, reporting the consumer's answer and verdict.
@@ -734,7 +734,7 @@ __declspec(dllexport) WKUWPResult __stdcall WKUWPTestProviderDispatchNullNotify(
     if (!g_attachments[index].table.notify)
         return WKUWPResultInvalidState;
     g_attachments[index].table.notify(g_attachments[index].table.context, nullptr);
-    return WKUWPResultOk;
+    return WKUWPResultOK;
 }
 
 // Delivers a null policy callback, reporting the consumer's guard answer.

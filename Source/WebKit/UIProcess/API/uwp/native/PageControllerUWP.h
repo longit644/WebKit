@@ -1,5 +1,6 @@
 #pragma once
 
+#include "WKUWPInput.h"
 #include "WKUWPNavigation.h"
 #include "WKUWPPage.h"
 
@@ -34,6 +35,10 @@ public:
     HRESULT stop();
     // Atomically consume the provider's decision and retry its exact stored target.
     HRESULT proceed(WKUWPCertificateToken, uint64_t* navigationId);
+    // Forward one validated input event; keyboard/focus delivery needs engine support.
+    HRESULT sendInput(const WKUWPInputEvent&);
+    // Forward keyboard focus state; the engine owns focus behavior once delivered.
+    HRESULT setFocused(bool focused);
     // Close through the engine's cancellation/detach protocol; Pending retains binding.
     HRESULT close();
     // End a previously requested Pending close when the engine releases its attachment.

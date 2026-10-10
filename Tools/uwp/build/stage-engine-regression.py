@@ -26,6 +26,7 @@ def main():
     parser.add_argument("--build", type=Path, required=True)
     parser.add_argument("--engine", type=Path, required=True)
     parser.add_argument("--baseline", type=Path, required=True)
+    parser.add_argument("--component", type=Path, help="Freshly built matching legacy DLL/WinMD for presenter regression")
     parser.add_argument("--stage", type=Path, required=True)
     parser.add_argument("--prefix", type=Path, required=True)
     parser.add_argument("--reader", required=True)
@@ -49,7 +50,7 @@ def main():
         # Runtime activation is not a static import: retain the baseline component
         # and its matching metadata for this legacy-shell regression.
         for name in ("WebKitWebView.dll", "WebKitWebView.winmd"):
-            shutil.copy2(args.baseline / name, args.stage / name)
+            shutil.copy2((args.component or args.baseline) / name, args.stage / name)
 
     tree = ET.parse(args.stage / "AppxManifest.xml")
     identity = tree.getroot().find(f"{{{FOUNDATION}}}Identity")

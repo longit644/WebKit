@@ -5,9 +5,9 @@
 // Reusable process engine startup and shared service pump, extracted from
 // FirstPageUWP.cpp and PageUWP.cpp so the smoke snapshot path and the
 // persistent page host share one initialization and one pump (M10 task 4.1).
-// Behavior is preserved exactly: the statics, result codes, log stages and
-// call order below moved here unchanged, and both former call sites funnel
-// into these two functions. Smoke-only content (the first-page snapshot
+// Task 4.1 moved the startup/result/log contract here; task 6.2 adds validated
+// process service and explicit suspension while separating page rendering.
+// Smoke-only content (the first-page snapshot
 // render and its harness strategies) stays in FirstPageUWP.cpp until its
 // diagnostics host replacement passes in task 8.5. The historical
 // FirstPageResultUWP names are kept verbatim; renames belong to section 10.
@@ -61,8 +61,9 @@ enum FirstPageResultUWP {
 unsigned engineEnsureInitializedUWP(const wchar_t* fontDirectory, WKPageLogUWP log);
 
 // Runs timers, transport pump and deferred work once on the owner thread.
-// Called by the validated per-page tick and the owner-dispatcher wake callback;
-// compositor/rendering work stays per-page. Shared scheduling is task 6.2.
+// Called by negotiated process service and the owner-dispatcher wake; page
+// presentation ticks do not cycle the process loop. Pre-init, suspended,
+// recursive and foreign-thread calls perform no work or readiness transition.
 void engineServiceUWP();
 
 } // namespace WebCore

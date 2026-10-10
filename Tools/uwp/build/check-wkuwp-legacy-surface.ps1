@@ -25,9 +25,9 @@
          legacy WK*UWP identifier may appear in the new consumer sources at
          all. The map header and its check file are the map, not consumers,
          and are excluded by name.
-      4. The smoke surface PageUWP.h/.cpp, FirstPageUWP.cpp, the wrapper and
-         the diagnostic hosts are byte-identical to the committed HEAD, so this
-         slice provably changed none of the semantics it claims to retain.
+      4. Frozen PageUWP.h and the diagnostic application sources remain
+         byte-identical to HEAD. Engine restructuring and task-6.1 wrapper/
+         presenter extraction have explicit independent build/behavior gates.
 
 .PARAMETER OutDir
     Directory receiving the throwaway objects.
@@ -72,20 +72,16 @@ $script:LegacyExports = @(
 )
 
 # Smoke surface this slice must leave byte-identical to prove retained semantics.
-# The two engine implementation files are intentionally excluded: task 4.1 moved
-# shared startup into EngineUWP and task 4.2 splits the page clients into their
-# planned files, so those two files evolve by design while their declarations,
-# the wrapper and the diagnostic hosts must not.
+# Engine restructuring (4.1/4.2), wrapper presenter/metrics extraction (6.1) and
+# the MiniBrowser visible-bounds shell evolution (6.3) intentionally change their
+# files by design. The frozen engine declarations and diagnostic application
+# sources remain byte-identical; presenter/input ownership is checked by the
+# rendering/input contract tests plus the MiniBrowser ARM build and device logs.
 $script:SmokeSurface = @(
     'Source/WebCore/platform/uwp/PageUWP.h',
-    'Source/WebKit/UIProcess/API/uwp/WebKitWebViewUWP.h',
-    'Source/WebKit/UIProcess/API/uwp/WebKitWebViewUWP.cpp',
-    'Source/WebKit/UIProcess/API/uwp/WebKitWebViewPresenterUWP.h',
-    'Source/WebKit/UIProcess/API/uwp/WebKitWebViewPresenterUWP.cpp',
     'Tools/uwp/RuntimeSmoke/SmokeHost.cpp',
     'Tools/uwp/FpuProbe/FpuProbe.cpp',
-    'Tools/uwp/TlsSmoke/TlsSmoke.cpp',
-    'Tools/MiniBrowser/uwp/MiniBrowserUWP.cpp'
+    'Tools/uwp/TlsSmoke/TlsSmoke.cpp'
 )
 
 function Get-ToolchainSetting {
@@ -332,7 +328,7 @@ finally {
 if ($smokeExit -ne 0) {
     throw "The smoke surface differs from the committed HEAD; semantics cannot be claimed retained"
 }
-Write-Host '    PageUWP, wrapper, diagnostic hosts: identical to HEAD'
+Write-Host '    PageUWP declarations and diagnostic hosts: identical to HEAD'
 
 Write-Host ''
 Write-Host 'Task 3.6 legacy surface verification passed.'

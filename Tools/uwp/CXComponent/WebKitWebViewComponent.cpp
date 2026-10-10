@@ -21,7 +21,7 @@ typedef Windows::Foundation::IAsyncAction __x_Windows_CFoundation_CIAsyncAction;
 // Classic C ABI only: the generated header's C++ template section needs a
 // primary template the SDK does not provide standalone here.
 #define RO_NO_TEMPLATE_NAME
-#include "WebKitWebView.h" // MIDLRT output: ABI + C++ names
+#include "LegacyWebKitWebView.h" // build-only MIDLRT output: ABI + C++ names
 #undef RO_NO_TEMPLATE_NAME
 #include "WebKitWebViewUWP.h" // existing wrapper, reused unchanged
 

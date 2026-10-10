@@ -11,7 +11,10 @@
  *
  * Scope limits are deliberate and are not implementation shortcuts:
  *
- *   - Only negotiation, capabilities and build identity are delivered here. The
+ *   - Negotiation, capabilities and build identity are delivered here. Configured
+ *     engine builds also forward process service/suspension (task 6.2), after
+ *     actual engine initialization; standalone negotiation tests have no WebCore
+ *     dependency and retain Unsupported stubs for those slots. The
  *     24 table slots are filled, because the contract forbids a null call, but
  *     every slot whose implementation belongs to a later task reports
  *     WKUWPResultUnsupported. Nothing here creates a page, allocates an
@@ -40,6 +43,13 @@
 
 #include <string.h>
 
+#if defined(WKUWP_OWNER_SERVICE_FORWARD)
+// Configured-engine forwards; standalone negotiation remains dependency-free.
+extern "C" WKUWPResult __stdcall wkuwpEngineServiceUWP();
+// Actual process resource-suspension operation, independent of page presentation.
+extern "C" WKUWPResult __stdcall wkuwpEngineSetSuspendedUWP(uint32_t);
+#endif
+
 namespace {
 
 // Capabilities this build delivers, as a bitwise OR of WKUWPCapability values.
@@ -47,7 +57,7 @@ namespace {
 // WKUWPCapabilityStructuredNotifications (0x001) arrives with the navigation
 // controller in task 4.3, WKUWPCapabilityHostHtml (0x002) with the substitute
 // data contract in task 4.5, WKUWPCapabilityIndependentSessions (0x004) in task
-// 4.7, WKUWPCapabilityCpuPaint (0x008) and WKUWPCapabilityGpuCompositor
+// 4.7, WKUWPCapabilityCPUPaint (0x008) and WKUWPCapabilityGPUCompositor
 // (0x010) with the presenter/compositor work in section 6,
 // WKUWPCapabilityClipboardService (0x020) with the engine clipboard forward in
 // task 7.2, WKUWPCapabilityCertificateDecisions (0x040) with the certificate
@@ -61,8 +71,8 @@ constexpr uint64_t s_deliveredCapabilities = 0;
 constexpr uint64_t kFrozenCapabilityBits = WKUWPCapabilityStructuredNotifications
     | WKUWPCapabilityHostHtml
     | WKUWPCapabilityIndependentSessions
-    | WKUWPCapabilityCpuPaint
-    | WKUWPCapabilityGpuCompositor
+    | WKUWPCapabilityCPUPaint
+    | WKUWPCapabilityGPUCompositor
     | WKUWPCapabilityClipboardService
     | WKUWPCapabilityCertificateDecisions
     | WKUWPCapabilityInput
@@ -122,7 +132,7 @@ WKUWPResult __stdcall unimplementedInitialize(const WKUWPEngineOptions*)
     return WKUWPResultUnsupported;
 }
 
-// Unimplemented no-argument slots: service pump, shutdown begin and shutdown poll.
+// Standalone service and pending shutdown slots; configured service uses the real owner forward.
 WKUWPResult __stdcall unimplementedNoArguments()
 {
     return WKUWPResultUnsupported;
@@ -225,6 +235,11 @@ void fillEngineTable(WKUWPEngineAPI* api)
     api->initialize = unimplementedInitialize;
     api->service = unimplementedNoArguments;
     api->setSuspended = unimplementedUnsignedFlag;
+#if defined(WKUWP_OWNER_SERVICE_FORWARD)
+    // Service delivery does not advertise still-unsupported page/rendering capability bits.
+    api->service = wkuwpEngineServiceUWP;
+    api->setSuspended = wkuwpEngineSetSuspendedUWP;
+#endif
     api->createPage = unimplementedCreatePage;
     api->closePage = unimplementedHandleOnly;
     api->setCallbacks = unimplementedSetCallbacks;
@@ -298,5 +313,5 @@ extern "C" WKUWP_EXPORT WKUWPResult __stdcall WKUWPGetEngineAPI(
     // is how a consumer detects that an appended slot is absent.
     memset(outAPI, 0, outAPI->header.structureSize);
     fillEngineTable(outAPI);
-    return WKUWPResultOk;
+    return WKUWPResultOK;
 }

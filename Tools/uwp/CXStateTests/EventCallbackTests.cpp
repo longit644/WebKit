@@ -80,7 +80,7 @@ struct EventDriver {
     // Copied last document-title notification.
     WebKitDocumentTitleChangedEventArgs^ titled;
     // Last original policy result for explicit handler-error mapping.
-    WKUWPResult policyResult { WKUWPResultOk };
+    WKUWPResult policyResult { WKUWPResultOK };
     // Public completions observed, proving duplicate/stale delivery suppression.
     unsigned completions { 0 };
     // Ordered property/typed-event observations for transaction assertions.
@@ -149,7 +149,7 @@ struct EventDriver {
         policyResult = callbacks.starting(callbacks.context, &event, &cancel);
         std::fill(bytes.begin(), bytes.end(), '!');
         if (cancel) finish(WKUWPOutcomeCancelled);
-        else if (policyResult != WKUWPResultOk) finish(WKUWPOutcomeFailed, WKUWPErrorDomainPlatform, policyResult);
+        else if (policyResult != WKUWPResultOK) finish(WKUWPOutcomeFailed, WKUWPErrorDomainPlatform, policyResult);
     }
 
     // Emit a terminal with controlled domain/status/token data and scramble borrowed bytes.
@@ -298,7 +298,7 @@ void runEvents(EventReport& report)
         f.view->NavigationStarting += ref new TypedEventHandler<WebKitWebView^, WebKitNavigationStartingEventArgs^>(
             [](WebKitWebView^, WebKitNavigationStartingEventArgs^ args) { args->Cancel = true; throw Exception::CreateException(E_ACCESSDENIED); });
         f.start(L"https://example.test/cancel-and-throw");
-        report.check(f.policyResult == WKUWPResultOk && f.completed->Outcome == WebKitNavigationOutcome::Cancelled
+        report.check(f.policyResult == WKUWPResultOK && f.completed->Outcome == WebKitNavigationOutcome::Cancelled
                 && f.completed->ErrorDomain == WebKitNavigationErrorDomain::None, "explicit Cancel takes precedence over simultaneous handler failure");
     }
     {

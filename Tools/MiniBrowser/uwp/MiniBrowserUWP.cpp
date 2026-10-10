@@ -12,6 +12,7 @@
 #include <windows.foundation.h>
 #include <windows.storage.h>
 #include <windows.ui.core.h>
+#include <windows.ui.viewmanagement.h>
 #include <windows.ui.xaml.markup.h>
 #include <windows.ui.xaml.media.h>
 #include <winsock2.h>
@@ -339,6 +340,7 @@ public:
     HRESULT RuntimeClassInitialize()
     {
         InitializeSRWLock(&m_fetchLock);
+        InitializeSRWLock(&m_openLock);
         m_fetchInFlight = false;
         m_fetchReady = false;
         m_fetchGeneration = 0;
@@ -348,6 +350,7 @@ public:
         HRESULT hr = RoGetActivationFactory(HStringReference(RuntimeClass_Windows_UI_Xaml_Application).Get(), IID_PPV_ARGS(&factory));
         if (FAILED(hr) || FAILED(hr = factory->CreateInstance(this, &inner, &application)))
             return hr;
+        m_application = application;
         return SetComposableBasePointers(inner.Get());
     }
 
@@ -935,6 +938,17 @@ private:
     // Builds the window, toolbar and browser host on first launch; reactivates after.
     HRESULT openWindow()
     {
+        // Launch and generic activation race on first run; without this lock both
+        // threads create engines/windows and the loser trips the process owner gate.
+        struct OpenWindowGuard {
+            // Locks first-time creation; released on every exit path below.
+            SRWLOCK* lock;
+            // Acquire the exclusive creation lock before touching shared shell state.
+            explicit OpenWindowGuard(SRWLOCK* value) : lock(value) { AcquireSRWLockExclusive(lock); }
+            // Release the creation lock so a peer activates the created window.
+            ~OpenWindowGuard() { ReleaseSRWLockExclusive(lock); }
+        };
+        OpenWindowGuard openGuard(&m_openLock);
         logResult("minibrowser-launched", 0);
         if (m_window)
             return m_window->Activate();
@@ -942,6 +956,28 @@ private:
         HRESULT hr = RoGetActivationFactory(HStringReference(RuntimeClass_Windows_UI_Xaml_Window).Get(), IID_PPV_ARGS(&windows));
         if (FAILED(hr) || FAILED(hr = windows->get_Current(&m_window)))
             return hr;
+        // Scale content above the opaque system bars like other browsers: lay
+        // out inside the visible bounds before any content exists, and keep the
+        // navigation bar visible instead of a transparent overlay. No fullscreen.
+        {
+            namespace ViewManagement = ABI::Windows::UI::ViewManagement;
+            ComPtr<ViewManagement::IApplicationViewStatics2> viewStatics;
+            ComPtr<ViewManagement::IApplicationView> view;
+            ComPtr<ViewManagement::IApplicationView2> view2;
+            boolean usingVisible = false;
+            if (SUCCEEDED(RoGetActivationFactory(HStringReference(RuntimeClass_Windows_UI_ViewManagement_ApplicationView).Get(), IID_PPV_ARGS(&viewStatics)))
+                && SUCCEEDED(viewStatics->GetForCurrentView(&view))
+                && SUCCEEDED(view.As(&view2))
+                && SUCCEEDED(view2->SetDesiredBoundsMode(ViewManagement::ApplicationViewBoundsMode_UseVisible, &usingVisible))) {
+                logResult("minibrowser-desired-bounds-visible", usingVisible ? 1UL : 0UL);
+                // Keep the view alive for the process lifetime; the mode persists.
+                // VisibleBoundsChanged subscription is omitted: its typed delegate
+                // has no native MIDL specialization, and panel SizeChanged already
+                // resizes the engine on every bounds change.
+                m_appView = view2;
+            } else
+                logResult("minibrowser-desired-bounds-setup", static_cast<unsigned long>(E_FAIL));
+        }
         ComPtr<ABI::Windows::UI::Xaml::Markup::IXamlReaderStatics> reader;
         ComPtr<IInspectable> root;
         hr = RoGetActivationFactory(HStringReference(RuntimeClass_Windows_UI_Xaml_Markup_XamlReader).Get(), IID_PPV_ARGS(&reader));
@@ -1057,6 +1093,25 @@ private:
                 logResult("minibrowser-statusbar-hide", E_FAIL);
         }
         hr = m_window->Activate();
+        // Pause Rendering callbacks across OS suspension without closing the page.
+        // The engine keeps its state; resume re-subscribes the single token set.
+        {
+            auto suspending = Callback<Xaml::ISuspendingEventHandler>([this](IInspectable*, ABI::Windows::ApplicationModel::ISuspendingEventArgs*) -> HRESULT {
+                HRESULT hr = m_view ? m_view->setSuspended(true) : S_OK;
+                logResult("minibrowser-suspending", hr);
+                return S_OK;
+            });
+            auto resuming = Callback<Foundation::IEventHandler<IInspectable*>>([this](IInspectable*, IInspectable*) -> HRESULT {
+                HRESULT hr = m_view ? m_view->setSuspended(false) : S_OK;
+                logResult("minibrowser-resumed", hr);
+                return S_OK;
+            });
+            if (FAILED(hr = m_application->add_Suspending(suspending.Get(), &m_suspendingToken))
+                || FAILED(hr = m_application->add_Resuming(resuming.Get(), &m_resumingToken))) {
+                logResult("minibrowser-suspend-subscribe", hr);
+                return hr;
+            }
+        }
         // Do not call IDisplayRequest::RequestActive here. Holding the display
         // request kept the screen on forever, so the phone never auto-locked
         // while MiniBrowser was in the foreground. Normal UWP apps do not hold
@@ -1293,6 +1348,18 @@ private:
 
     // Rendering subscription that pumps fetch completion and diagnostics.
     EventRegistrationToken m_fetchRenderToken {};
+
+    // XAML application owning lifecycle Suspending/Resuming subscriptions.
+    ComPtr<Xaml::IApplication> m_application;
+
+    // Lifecycle subscriptions; process-lifetime, revoked never before teardown.
+    EventRegistrationToken m_suspendingToken {}, m_resumingToken {};
+
+    // Serializes first-time window creation across launch/activation threads.
+    SRWLOCK m_openLock;
+
+    // Application view for visible-bounds layout; kept alive once configured.
+    ComPtr<ABI::Windows::UI::ViewManagement::IApplicationView2> m_appView;
 };
 
 // One-time curl initialization state shared by all app instances.

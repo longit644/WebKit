@@ -75,6 +75,19 @@ struct HINSTANCE__* __stdcall GetModuleHandleW(
     LPCWSTR lpModuleName
     );
 
+// Refcount-neutral module-address lookup exported by OneCore but hidden by PC_APP.
+BOOL __stdcall GetModuleHandleExW(
+    DWORD dwFlags,
+    LPCWSTR lpModuleName,
+    struct HINSTANCE__** phModule
+    );
+#ifndef GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
+// Interpret the module-name argument as an address inside the loaded image.
+#define GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS 0x00000004
+// Leave the loader reference count unchanged for diagnostic identity lookup.
+#define GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT 0x00000002
+#endif
+
 // --- PSAPI working-set snapshot (psapi.h hides these under PC_APP behind the
 // DESKTOP|SYSTEM|GAMES partition). WTF's footprint probe needs only the block
 // union, the information struct and QueryWorkingSet itself; all resolve from

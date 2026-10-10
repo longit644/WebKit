@@ -33,30 +33,15 @@ constexpr wchar_t kEngineModuleName[] = L"WebCore.dll";
 constexpr unsigned kPlaceholderExtent = 1;
 // Scale reported in thousandths for integer log lines.
 constexpr double kScaleToMilli = 1000.0;
-// Edge displacement below which the overscroll is considered settled.
-constexpr double kEdgeRestThreshold = 0.1;
 // Smallest logical control size accepted from XAML SizeChanged.
 constexpr float kMinimumControlExtent = 1.0f;
-// WHEEL_DELTA units (120 per notch) mapped to a logical scroll distance.
-constexpr int kWheelDeltaPerNotch = 120;
-constexpr double kWheelPixelsPerNotch = 80.0;
-// Conversion from elapsed seconds to reported timing units.
-constexpr double kMillisecondsPerSecond = 1000.0;
+// Conversion from copied millisecond metrics to the retained diagnostic microseconds.
 constexpr double kMicrosecondsPerMillisecond = 1000.0;
-// Rank constants for p95 frame-profile calculation.
-constexpr unsigned kPercentileBase = 100;
-constexpr unsigned kP95Percentile = 95;
-constexpr unsigned kP95RoundingBias = kPercentileBase - 1;
-constexpr size_t kFrameProfileMessageCapacity = 512;
-constexpr double kZeroElapsedSeconds = 0.0;
-constexpr double kZeroScrollDelta = 0.0;
-constexpr double kZeroFrameIntervalMS = 0.0;
-constexpr double kNoMeasuredIntervalMS = 0.0;
-constexpr double kSpringIntegrationHz = 120.0;
-constexpr double kMilliHertzPerMillisecond = 1000000.0;
+// Neutral DPI scale used before the first composition-scale report arrives.
 constexpr float kIdentityCompositionScale = 1.0f;
 // XAML surface markup and matching FindName key.
 constexpr wchar_t kSurfaceElementName[] = L"Surface";
+// Transparent input grid hosting the named composition surface above.
 constexpr wchar_t kInputSurfaceMarkup[] = L"<Grid xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml' Background='Transparent'><SwapChainPanel x:Name='Surface'/></Grid>";
 
 // Emits one engine-log line; drops it when no log sink is installed.
@@ -64,6 +49,69 @@ void WebKitWebViewUWP::report(const char* stage, HRESULT result)
 {
     if (m_log)
         m_log(stage, result);
+}
+
+// Scroll the bound legacy page by CSS pixels for the input controller.
+HRESULT WebKitWebViewUWP::ScrollPortUWP::scroll(int dx, int dy)
+{
+    if (!view || !view->m_page)
+        return RO_E_CLOSED;
+    return bridgeResult(view->m_api.scroll(view->m_page, dx, dy));
+}
+
+// Snapshot offset/document/viewport heights for scroll-target clamping.
+HRESULT WebKitWebViewUWP::ScrollPortUWP::snapshot(ScrollSnapshotUWP& output)
+{
+    if (!view || !view->m_page)
+        return RO_E_CLOSED;
+    WKPageStateUWP state { };
+    HRESULT result = bridgeResult(view->m_api.state(view->m_page, &state));
+    if (FAILED(result))
+        return result;
+    output = { static_cast<int>(state.scrollY), static_cast<int>(state.contentHeight), static_cast<int>(state.height) };
+    return S_OK;
+}
+
+// Deliver one tap press through the bound legacy page.
+HRESULT WebKitWebViewUWP::TapPortUWP::tapPress(double xCssPixels, double yCssPixels)
+{
+    if (!view || !view->m_page)
+        return RO_E_CLOSED;
+    return bridgeResult(view->m_api.pointer(view->m_page, WKPointerEventPressUWP, xCssPixels, yCssPixels, WKPointerModifierNoneUWP));
+}
+
+// Deliver the matching tap release through the bound legacy page.
+HRESULT WebKitWebViewUWP::TapPortUWP::tapRelease(double xCssPixels, double yCssPixels)
+{
+    if (!view || !view->m_page)
+        return RO_E_CLOSED;
+    return bridgeResult(view->m_api.pointer(view->m_page, WKPointerEventReleaseUWP, xCssPixels, yCssPixels, WKPointerModifierNoneUWP));
+}
+
+// Subscribe the stored tick handler through the owner's CompositionTarget.
+HRESULT WebKitWebViewUWP::RenderPortUWP::subscribe(EventRegistrationToken& token)
+{
+    if (!view)
+        return RO_E_CLOSED;
+    return view->m_composition->add_Rendering(tick.Get(), &token);
+}
+
+// Revoke one Rendering token through the owner's CompositionTarget.
+HRESULT WebKitWebViewUWP::RenderPortUWP::unsubscribe(EventRegistrationToken token)
+{
+    if (!view)
+        return RO_E_CLOSED;
+    return view->m_composition->remove_Rendering(token);
+}
+
+// Pause or resume Rendering callbacks for app suspension without closing.
+HRESULT WebKitWebViewUWP::setSuspended(bool suspended)
+{
+    if (GetCurrentThreadId() != m_owner)
+        return RPC_E_WRONG_THREAD;
+    HRESULT result = m_renderHooks.setSuspended(suspended);
+    report(suspended ? "control-suspended" : "control-resumed", result);
+    return result;
 }
 
 // Binds WebCore.dll, creates the page and builds the XAML tree. Fails when
@@ -78,6 +126,10 @@ HRESULT WebKitWebViewUWP::initialize(const wchar_t* fonts, WKPageLogUWP log)
         return HRESULT_FROM_WIN32(GetLastError());
     m_counterFrequency = static_cast<double>(frequency.QuadPart);
     m_log = log;
+    // Route scroll-physics diagnostics through the same engine-log sink.
+    m_scroller.setReportSink([this](const char* stage) { report(stage, S_OK); });
+    m_scrollPort.view = this;
+    m_tapPort.view = this;
     m_engine = LoadPackagedLibrary(kEngineModuleName, 0);
     if (!m_engine)
         return HRESULT_FROM_WIN32(GetLastError());
@@ -111,6 +163,17 @@ HRESULT WebKitWebViewUWP::initialize(const wchar_t* fonts, WKPageLogUWP log)
     m_page = m_api.create(fonts, kPlaceholderExtent, kPlaceholderExtent, m_log, &result);
     if (!m_page)
         return bridgeResult(result ? result : WKPageResultInvalidArgumentUWP);
+    // Render ticks are page-local; bind process service only through the negotiated table.
+    auto discover = reinterpret_cast<decltype(&WKUWPGetEngineAPI)>(GetProcAddress(m_engine, "WKUWPGetEngineAPI"));
+    if (!discover) return HRESULT_FROM_WIN32(ERROR_PROC_NOT_FOUND);
+    WKUWPEngineAPI serviceAPI { };
+    serviceAPI.header = { sizeof(serviceAPI), WKUWP_STRUCTURE_VERSION };
+    auto negotiated = discover(1, 0, 0, &serviceAPI);
+    if (negotiated != WKUWPResultOK) return E_FAIL;
+    std::shared_ptr<OwnerThreadServicePumpUWP> servicePump;
+    auto serviceResult = OwnerThreadServicePumpUWP::acquire(&serviceAPI, servicePump);
+    if (FAILED(serviceResult) || FAILED(serviceResult = m_frameScheduler.attach(servicePump))) return serviceResult;
+    m_frameScheduler.setPresentationEnabled(true);
 
     ComPtr<Controls::IUserControlFactory> controlFactory;
     ComPtr<Controls::IUserControl> control;
@@ -184,19 +247,14 @@ HRESULT WebKitWebViewUWP::initialize(const wchar_t* fonts, WKPageLogUWP log)
         if (FAILED(hr) || FAILED(hr = point->get_Properties(&properties)) || FAILED(hr = properties->get_MouseWheelDelta(&delta)))
             return hr;
         args->put_Handled(true);
-        m_pendingScrollY -= delta * kWheelPixelsPerNotch / kWheelDeltaPerNotch;
-        m_inertia = false;
-        m_velocityY = 0;
-        m_pendingElastic = false;
+        hr = m_scroller.addWheelDelta(InputAdapterUWP::wheelDeltaToCssPixels(delta));
+        if (FAILED(hr))
+            return hr;
         m_redrawPending = true;
         return S_OK;
     });
     auto cancel = Callback<Input::IPointerEventHandler>([this](IInspectable*, Input::IPointerRoutedEventArgs*) -> HRESULT {
-        m_pointerDown = false;
-        m_inertia = false;
-        m_velocityY = 0;
-        m_pendingScrollX = m_pendingScrollY = 0;
-        return S_OK;
+        return m_input.abort(m_scroller);
     });
     if (FAILED(hr = m_inputElement->add_PointerPressed(press.Get(), &m_pressToken))
         || FAILED(hr = m_inputElement->add_PointerMoved(move.Get(), &m_moveToken))
@@ -207,17 +265,43 @@ HRESULT WebKitWebViewUWP::initialize(const wchar_t* fonts, WKPageLogUWP log)
     hr = RoGetActivationFactory(HStringReference(RuntimeClass_Windows_UI_Xaml_Media_CompositionTarget).Get(), IID_PPV_ARGS(&m_composition));
     if (FAILED(hr))
         return hr;
-    auto tick = Callback<Foundation::IEventHandler<IInspectable*>>([this](IInspectable*, IInspectable*) -> HRESULT {
+    auto tick = Callback<Foundation::IEventHandler<IInspectable*>>([this](IInspectable*, IInspectable* args) -> HRESULT {
         if (!m_page || m_inPaint)
             return S_OK;
-        HRESULT hr = advanceFrame();
+        ComPtr<Xaml::Media::IRenderingEventArgs> rendering;
+        Foundation::TimeSpan time { };
+        HRESULT hr = args ? args->QueryInterface(IID_PPV_ARGS(&rendering)) : E_INVALIDARG;
+        if (SUCCEEDED(hr)) hr = rendering->get_RenderingTime(&time);
+        if (SUCCEEDED(hr)) hr = m_frameScheduler.beginFrame(time.Duration);
+        if (hr == S_FALSE) return S_OK;
+        if (SUCCEEDED(hr)) hr = advanceFrame();
         if (FAILED(hr)) {
             report("control-frame-failed", hr);
-            m_composition->remove_Rendering(m_renderToken);
+            m_renderHooks.disableAfterFailure();
         }
         return S_OK;
     });
-    return m_composition->add_Rendering(tick.Get(), &m_renderToken);
+    m_renderPort.view = this;
+    m_renderPort.tick = tick;
+    if (FAILED(hr = m_renderHooks.attach(&m_renderPort)))
+        return hr;
+    ComPtr<Xaml::IFrameworkElement> rootFramework;
+    if (FAILED(hr = control.As(&rootFramework)))
+        return hr;
+    auto loaded = Callback<Xaml::IRoutedEventHandler>([this](IInspectable*, Xaml::IRoutedEventArgs*) -> HRESULT {
+        HRESULT hr = m_renderHooks.onLoaded();
+        report("control-loaded", hr);
+        return hr;
+    });
+    auto unloaded = Callback<Xaml::IRoutedEventHandler>([this](IInspectable*, Xaml::IRoutedEventArgs*) -> HRESULT {
+        HRESULT hr = m_renderHooks.onUnloaded();
+        report("control-unloaded", hr);
+        return hr;
+    });
+    if (FAILED(hr = rootFramework->add_Loaded(loaded.Get(), &m_loadedToken))
+        || FAILED(hr = rootFramework->add_Unloaded(unloaded.Get(), &m_unloadedToken)))
+        return hr;
+    return S_OK;
 }
 
 // Rebuilds the backing store, clip and presenter for the new control size.
@@ -262,6 +346,10 @@ HRESULT WebKitWebViewUWP::resize(unsigned width, unsigned height)
     m_scaleY = scaleY;
     if (!m_compositorAttempted) {
         m_compositorAttempted = true;
+        // CPU attachment must be released before an engine-owned surface can attach.
+        hr = m_presenter.detach();
+        if (FAILED(hr)) return hr;
+        m_presenterReady = false;
         ComPtr<IInspectable> nativePanel;
         hr = m_panelElement.As(&nativePanel);
         if (SUCCEEDED(hr))
@@ -277,7 +365,11 @@ HRESULT WebKitWebViewUWP::resize(unsigned width, unsigned height)
     report("control-pixel-width", pixelWidth);
     report("control-pixel-height", pixelHeight);
     report("control-scale-x-milli", static_cast<unsigned>(scaleX * kScaleToMilli));
-    return repaint();
+    // ANGLE receives its own SizeChanged notification after this handler returns.
+    // Present on the next SDK Rendering callback, once every panel listener has
+    // installed the new geometry, rather than painting into the old surface here.
+    m_redrawPending = true;
+    return S_OK;
 }
 
 // Drops to the software presenter when the compositor cannot run.
@@ -295,7 +387,7 @@ HRESULT WebKitWebViewUWP::useFallbackPresenter()
     if (SUCCEEDED(hr))
         hr = m_presenter.setCompositionScale(m_scaleX, m_scaleY);
     if (SUCCEEDED(hr))
-        hr = m_presenter.setCompositionOffset(0, static_cast<float>(m_overscrollY));
+        hr = m_presenter.setCompositionOffset(0, static_cast<float>(m_scroller.overscrollY()));
     m_presenterReady = SUCCEEDED(hr);
     report("control-cairo-fallback", hr);
     return hr;
@@ -311,10 +403,7 @@ HRESULT WebKitWebViewUWP::loadHTML(const char* utf8)
     if (m_presenterReady)
         m_presenter.setCompositionOffset(0, 0);
     m_redrawPending = true;
-    m_frameWarmupCount = m_frameWorkCount = m_frameIntervalCount = 0;
-    m_frameOverBudget = m_frameLongIntervals = 0;
-    m_scrollWorkTotal = m_engineWorkTotal = m_renderWorkTotal = 0;
-    m_previousFrameSubmitted = false;
+    m_frameMetrics.resetPacing();
     return hr;
 }
 
@@ -330,10 +419,7 @@ HRESULT WebKitWebViewUWP::navigateRemote(const char* utf8Url, const wchar_t* caP
     if (m_presenterReady)
         m_presenter.setCompositionOffset(0, 0);
     m_redrawPending = true;
-    m_frameWarmupCount = m_frameIntervalCount = 0;
-    m_frameOverBudget = m_frameLongIntervals = 0;
-    m_scrollWorkTotal = m_engineWorkTotal = m_renderWorkTotal = 0;
-    m_previousFrameSubmitted = false;
+    m_frameMetrics.resetPacing();
     report("control-navigate-remote", hr);
     return hr;
 }
@@ -427,7 +513,7 @@ HRESULT WebKitWebViewUWP::repaint()
         return S_FALSE;
     m_inPaint = true;
     if (m_compositorActive) {
-        HRESULT hr = bridgeResult(m_api.renderCompositor(m_page, m_overscrollY));
+        HRESULT hr = bridgeResult(m_api.renderCompositor(m_page, m_scroller.overscrollY()));
         if (SUCCEEDED(hr)) {
             m_redrawPending = false;
             m_inPaint = false;
@@ -442,7 +528,7 @@ HRESULT WebKitWebViewUWP::repaint()
     }
     double start = now();
     HRESULT hr = bridgeResult(m_api.paintScaled(m_page, m_pixels.get(), static_cast<size_t>(m_pixelWidth) * m_pixelHeight * UWPBytesPerBGRA, m_pixelWidth * UWPBytesPerBGRA, m_scaleX, m_scaleY));
-    double paintMS = (now() - start) * kMillisecondsPerSecond;
+    double paintMS = (now() - start) * millisecondsPerSecondUWP;
     if (SUCCEEDED(hr))
         hr = m_presenter.present(m_pixels.get(), m_pixelWidth * UWPBytesPerBGRA);
     if (SUCCEEDED(hr))
@@ -506,11 +592,8 @@ HRESULT WebKitWebViewUWP::pointer(unsigned type, Input::IPointerRoutedEventArgs*
     // GetCurrentPoint relative to a XAML element returns device-independent
     // coordinates, matching the WebCore viewport. Composition scale applies
     // to the backing surface, not to pointer positions.
-    double logicalX = position.X;
-    double logicalY = position.Y;
-    // Drag threshold in logical pixels before a press becomes a scroll.
+    // Diagnostic tap-slop log value; gesture classification owns the real constant.
     constexpr double kTapSlopLogicalPx = 10.0;
-    double slopX = kTapSlopLogicalPx;
     double slopY = kTapSlopLogicalPx;
     if (type == WKPointerEventPressUWP) {
         report("control-pointer-pressed", S_OK);
@@ -518,68 +601,33 @@ HRESULT WebKitWebViewUWP::pointer(unsigned type, Input::IPointerRoutedEventArgs*
         report("ptr-press-y", static_cast<unsigned>(position.Y));
         report("ptr-scale-milli", static_cast<unsigned>(m_scaleX * kScaleToMilli));
         report("ptr-slop", static_cast<unsigned>(slopY));
-        m_pointerDown = true;
-        m_dragging = false;
-        m_inertia = false;
-        m_velocityY = 0;
-        m_springVelocity = 0;
-        m_lastPointerTime = m_lastMotionTime = now();
-        m_startX = position.X;
-        m_startY = m_lastY = position.Y;
+        hr = m_input.press(position.X, position.Y, now(), m_scroller);
+        if (FAILED(hr))
+            return hr;
         ComPtr<Input::IPointer> pointer;
         boolean captured;
         if (SUCCEEDED(args->get_Pointer(&pointer)))
             m_inputElement->CapturePointer(pointer.Get(), &captured);
-    } else if (type == WKPointerEventMoveUWP && m_pointerDown) {
-        // Velocity sampling window, motion threshold and blend time constant for fling physics.
-        constexpr double kVelocitySampleWindowS = 0.2;
-        constexpr double kMinMotionDeltaPx = 0.2;
-        constexpr double kMaxFlingVelocity = 5000.0;
-        constexpr double kVelocityBlendTauS = 0.035;
-        m_dragging = m_dragging || std::abs(position.Y - m_startY) > slopY || std::abs(position.X - m_startX) > slopX;
-        double time = now(), elapsed = time - m_lastPointerTime;
-        double delta = m_lastY - position.Y;
-        if (m_dragging) {
-            m_pendingScrollY += delta;
-            m_pendingElastic = true;
-            if (elapsed > kZeroElapsedSeconds && elapsed < kVelocitySampleWindowS) {
-                double sample = std::clamp(delta / elapsed, -kMaxFlingVelocity, kMaxFlingVelocity);
-                double blend = 1 - std::exp(-elapsed / kVelocityBlendTauS);
-                m_velocityY += blend * (sample - m_velocityY);
-            }
-            if (std::abs(delta) > kMinMotionDeltaPx)
-                m_lastMotionTime = time;
-        }
-        m_lastPointerTime = time;
-        m_lastY = position.Y;
+    } else if (type == WKPointerEventMoveUWP) {
+        hr = m_input.move(position.X, position.Y, now(), m_scroller);
+        if (FAILED(hr))
+            return hr;
     } else if (type == WKPointerEventReleaseUWP) {
+        bool wasDown = m_input.pointerDown();
+        bool wasDragging = m_input.dragging();
+        double startY = m_input.startY();
         report("control-pointer-released", S_OK);
         report("ptr-release-x", static_cast<unsigned>(position.X));
         report("ptr-release-y", static_cast<unsigned>(position.Y));
-        report("ptr-start-y", static_cast<unsigned>(m_startY));
-        report("ptr-down", m_pointerDown ? 1 : 0);
-        report("ptr-dragging", m_dragging ? 1 : 0);
-        if (m_pointerDown && !m_dragging
-            && std::abs(position.Y - m_startY) <= slopY && std::abs(position.X - m_startX) <= slopX) {
-            hr = bridgeResult(m_api.pointer(m_page, WKPointerEventPressUWP, logicalX, logicalY - m_overscrollY, WKPointerModifierNoneUWP));
-            if (SUCCEEDED(hr))
-                hr = bridgeResult(m_api.pointer(m_page, WKPointerEventReleaseUWP, logicalX, logicalY - m_overscrollY, WKPointerModifierNoneUWP));
+        report("ptr-start-y", static_cast<unsigned>(startY));
+        report("ptr-down", wasDown ? 1 : 0);
+        report("ptr-dragging", wasDragging ? 1 : 0);
+        PointerReleaseUWP outcome { };
+        hr = m_input.release(position.X, position.Y, now(), m_scroller, m_tapPort, outcome);
+        if (FAILED(hr))
+            return hr;
+        if (outcome.tapped)
             m_redrawPending = true;
-        }
-
-        // Fling needs a live drag, a settled edge, enough velocity and a recent motion sample.
-        constexpr double kMinFlingVelocity = 60.0;
-        constexpr double kFlingRecencyWindowS = 0.1;
-        constexpr double kFlingBoostFactor = 1.12;
-        constexpr double kMaxBoostedVelocity = 5500.0;
-        m_pointerDown = false;
-        m_inertia = m_dragging && std::abs(m_overscrollY) < kEdgeRestThreshold && std::abs(m_velocityY) >= kMinFlingVelocity && now() - m_lastMotionTime < kFlingRecencyWindowS;
-        if (m_inertia) {
-            m_velocityY = std::clamp(m_velocityY * kFlingBoostFactor, -kMaxBoostedVelocity, kMaxBoostedVelocity);
-            report("control-inertia-start", S_OK);
-        } else
-            m_velocityY = 0;
-        m_lastFrameTime = now();
         m_inputElement->ReleasePointerCaptures();
         WKPageStateUWP state;
         if (m_api.state(m_page, &state) == WKPageResultOkUWP)
@@ -600,118 +648,25 @@ double WebKitWebViewUWP::now() const
 // Clears gesture and inertia state on pointer release or navigation.
 void WebKitWebViewUWP::resetMotion()
 {
-    m_pendingScrollX = m_pendingScrollY = 0;
-    m_velocityY = m_overscrollY = m_springVelocity = 0;
-    m_inertia = m_pendingElastic = false;
-    m_lastFrameTime = now();
-}
-
-// Moves the document through the engine; leftover delta becomes edge overscroll.
-HRESULT WebKitWebViewUWP::applyScroll(int dx, int dy, bool elastic, bool kinetic)
-{
-    // Reverse motion first consumes a held edge displacement before moving
-    // the document. Page coordinates stay clamped; only presentation bounces.
-    if (m_overscrollY * dy > kZeroScrollDelta) {
-        double consumed = std::min(std::abs(static_cast<double>(dy)), std::abs(m_overscrollY));
-        consumed = std::copysign(consumed, m_overscrollY);
-        m_overscrollY -= consumed;
-        dy -= static_cast<int>(consumed);
-    }
-    WKPageStateUWP before, after;
-    HRESULT hr = bridgeResult(m_api.state(m_page, &before));
-    if (FAILED(hr))
-        return hr;
-    int maximumY = std::max(0, before.contentHeight - static_cast<int>(before.height));
-    int targetY = static_cast<int>(std::clamp<long long>(static_cast<long long>(before.scrollY) + dy, 0, maximumY));
-    after = before;
-    if (dx || targetY != before.scrollY) {
-        hr = bridgeResult(m_api.scroll(m_page, dx, targetY - before.scrollY));
-        if (FAILED(hr) || FAILED(hr = bridgeResult(m_api.state(m_page, &after))))
-            return hr;
-        m_redrawPending = true;
-    }
-    int unused = dy - (after.scrollY - before.scrollY);
-    if (unused && elastic) {
-        // Kinetic flings meet a stiffer edge than slow drags; resistance also
-        // grows with the held displacement so the edge cannot run away.
-        constexpr double kResistanceKinetic = 0.2;
-        constexpr double kResistanceStaticBase = 0.4;
-        constexpr double kResistanceFalloffPx = 36.0;
-        constexpr double kMaxOverscrollPx = 56.0;
-        constexpr double kKineticSpringTransfer = 0.2;
-        double resistance = kinetic ? kResistanceKinetic : kResistanceStaticBase / (1 + std::abs(m_overscrollY) / kResistanceFalloffPx);
-        bool firstEdge = std::abs(m_overscrollY) < kEdgeRestThreshold;
-        m_overscrollY = std::clamp(m_overscrollY - unused * resistance, -kMaxOverscrollPx, kMaxOverscrollPx);
-        if (firstEdge)
-            report("control-edge-hit", S_OK);
-        if (kinetic) {
-            m_springVelocity = -m_velocityY * kKineticSpringTransfer;
-            m_inertia = false;
-            m_velocityY = 0;
-        }
-    }
-    return S_OK;
+    m_scroller.reset(now());
 }
 
 // Advances inertia, ticks the engine and presents when dirty; one Rendering callback.
 HRESULT WebKitWebViewUWP::advanceFrame()
 {
-    // Long stalls (suspend/resume) invalidate fling state; steps stay small for stable springs.
-    constexpr double kStallResetIntervalS = 0.25;
-    constexpr double kMaxFrameStepS = 0.05;
-    constexpr double kFlingFriction = 4.2;
-    constexpr double kFlingStopVelocity = 20.0;
-    constexpr double kSpringStiffness = 256.0;
-    constexpr double kSpringDamping = 32.0;
-    constexpr double kSpringSubstepS = 1.0 / kSpringIntegrationHz;
-    constexpr double kEdgeSnapDistance = 0.15;
-    constexpr double kEdgeSnapVelocity = 2.0;
+    // Presentation-only offset epsilon; scroll physics owns its own thresholds.
     constexpr double kOffsetChangeEpsilon = 0.001;
-    double time = now(), elapsed = time - m_lastFrameTime;
-    m_lastFrameTime = time;
-    double previousOffset = m_overscrollY;
-    if (elapsed > kStallResetIntervalS) {
-        // Don't resume an old fling after suspension or a long UI stall.
-        m_inertia = false;
-        m_velocityY = m_overscrollY = m_springVelocity = 0;
-    }
-    double dt = std::clamp(elapsed, 0.0, kMaxFrameStepS);
-    if (m_inertia && !m_pointerDown) {
-        double next = m_velocityY * std::exp(-kFlingFriction * dt);
-        m_pendingScrollY += (m_velocityY - next) / kFlingFriction;
-        m_velocityY = next;
-        if (std::abs(m_velocityY) < kFlingStopVelocity) {
-            m_inertia = false;
-            m_velocityY = 0;
-            report("control-inertia-stop", S_OK);
-        }
-    }
-    int dx = static_cast<int>(m_pendingScrollX), dy = static_cast<int>(m_pendingScrollY);
-    m_pendingScrollX -= dx;
-    m_pendingScrollY -= dy;
-    bool kinetic = m_inertia;
-    if (dx || dy) {
-        HRESULT hr = applyScroll(dx, dy, m_pendingElastic || kinetic, kinetic);
-        if (FAILED(hr))
-            return hr;
-    }
-    m_pendingElastic = false;
-    if (!m_pointerDown && !m_inertia && std::abs(m_overscrollY) > kZeroScrollDelta) {
-        // Small substeps keep the spring stable across variable frame times.
-        for (double remaining = dt; remaining > kZeroElapsedSeconds;) {
-            double step = std::min(remaining, kSpringSubstepS);
-            m_springVelocity += (-kSpringStiffness * m_overscrollY - kSpringDamping * m_springVelocity) * step;
-            m_overscrollY += m_springVelocity * step;
-            remaining -= step;
-        }
-        if (std::abs(m_overscrollY) < kEdgeSnapDistance && std::abs(m_springVelocity) < kEdgeSnapVelocity) {
-            m_overscrollY = m_springVelocity = 0;
-            report("control-edge-returned", S_OK);
-        }
-    }
-    bool offsetChanged = std::abs(previousOffset - m_overscrollY) > kOffsetChangeEpsilon;
+    double time = now();
+    double previousOffset = m_scroller.overscrollY();
+    bool scrolled = false;
+    HRESULT motion = m_scroller.advance(time, m_input.pointerDown(), m_scrollPort, scrolled);
+    if (FAILED(motion))
+        return motion;
+    if (scrolled)
+        m_redrawPending = true;
+    bool offsetChanged = std::abs(previousOffset - m_scroller.overscrollY()) > kOffsetChangeEpsilon;
     if (offsetChanged && m_presenterReady && !m_compositorActive) {
-        HRESULT hr = m_presenter.setCompositionOffset(0, static_cast<float>(m_overscrollY));
+        HRESULT hr = m_presenter.setCompositionOffset(0, static_cast<float>(m_scroller.overscrollY()));
         if (FAILED(hr))
             return hr;
     }
@@ -742,98 +697,38 @@ HRESULT WebKitWebViewUWP::advanceFrame()
 // Splits one frame into scroll/engine/render cost and reports percentiles per window.
 void WebKitWebViewUWP::recordFramePacing(double started, double scrollFinished, double engineFinished, bool submitted)
 {
-    // Warmup frames, the 60 Hz budget and the valid/long interval bounds.
-    constexpr unsigned kFrameWarmupFrames = 8;
-    constexpr double kDisplayHertz = 60.0;
-    constexpr double kMaxValidIntervalMS = 250.0;
-    constexpr double kLongIntervalMS = 25.0;
-    double finished = now();
-    bool consecutive = m_previousFrameSubmitted && submitted;
-    double intervalMS = (started - m_previousFrameStart) * kMillisecondsPerSecond;
-    m_previousFrameSubmitted = submitted;
-    m_previousFrameStart = started;
-    if (!submitted)
-        return;
-    // Cold shader/tile costs are reported separately by the compositor. Do not
-    // mix the initial eight submitted callbacks into warmed percentile samples.
-    if (m_frameWarmupCount < kFrameWarmupFrames) {
-        ++m_frameWarmupCount;
-        return;
-    }
-    double workMS = (finished - started) * kMillisecondsPerSecond;
-    m_frameWorkSamples[m_frameWorkCount++] = workMS;
-    m_scrollWorkTotal += (scrollFinished - started) * kMillisecondsPerSecond;
-    m_engineWorkTotal += (engineFinished - scrollFinished) * kMillisecondsPerSecond;
-    m_renderWorkTotal += (finished - engineFinished) * kMillisecondsPerSecond;
-    if (workMS > kMillisecondsPerSecond / kDisplayHertz)
-        ++m_frameOverBudget;
-    if (consecutive && intervalMS > kZeroFrameIntervalMS && intervalMS < kMaxValidIntervalMS) {
-        m_frameIntervalSamples[m_frameIntervalCount++] = intervalMS;
-        if (intervalMS > kLongIntervalMS)
-            ++m_frameLongIntervals;
-    }
-    if (m_frameWorkCount < m_frameWorkSamples.size())
-        return;
-    auto summarize = [](auto samples, unsigned count, double& average, double& p95, double& maximum) {
-        average = p95 = maximum = 0;
-        if (!count)
-            return;
-        for (unsigned i = 0; i < count; ++i)
-            average += samples[i];
-        average /= count;
-        std::sort(samples.begin(), samples.begin() + count);
-        p95 = samples[(count * kP95Percentile + kP95RoundingBias) / kPercentileBase - 1];
-        maximum = samples[count - 1];
-    };
-    double workAverage, workP95, workMaximum, intervalAverage, intervalP95, intervalMaximum;
-    summarize(m_frameWorkSamples, m_frameWorkCount, workAverage, workP95, workMaximum);
-    summarize(m_frameIntervalSamples, m_frameIntervalCount, intervalAverage, intervalP95, intervalMaximum);
-    char summary[kFrameProfileMessageCapacity];
-    sprintf_s(summary, "frame-profile n=%u work-us=%.0f/%.0f/%.0f interval-n=%u interval-us=%.0f/%.0f/%.0f callback-mHz=%.0f over-budget=%u long-intervals=%u scroll-us=%.0f engine-us=%.0f render-us=%.0f",
-        m_frameWorkCount, workAverage * kMicrosecondsPerMillisecond, workP95 * kMicrosecondsPerMillisecond, workMaximum * kMicrosecondsPerMillisecond,
-        m_frameIntervalCount, intervalAverage * kMicrosecondsPerMillisecond, intervalP95 * kMicrosecondsPerMillisecond, intervalMaximum * kMicrosecondsPerMillisecond,
-        intervalAverage > kNoMeasuredIntervalMS ? kMilliHertzPerMillisecond / intervalAverage : 0, m_frameOverBudget, m_frameLongIntervals,
-        m_scrollWorkTotal * kMicrosecondsPerMillisecond / m_frameWorkCount, m_engineWorkTotal * kMicrosecondsPerMillisecond / m_frameWorkCount, m_renderWorkTotal * kMicrosecondsPerMillisecond / m_frameWorkCount);
+    FramePacingSummaryUWP metrics;
+    if (!m_frameMetrics.recordPacing(started, scrollFinished, engineFinished, now(), submitted, metrics)) return;
+    char summary[frameProfileMessageCapacity];
+    if (!FrameMetricsUWP::formatPacing(metrics, summary, sizeof(summary))) return;
     // Callback cadence is not proof of scan-out; this includes engine and swap
     // work, but excludes time spent reporting this summary and OS input delivery.
     report(summary, S_OK);
-    m_frameWorkCount = m_frameIntervalCount = m_frameOverBudget = m_frameLongIntervals = 0;
-    m_scrollWorkTotal = m_engineWorkTotal = m_renderWorkTotal = 0;
 }
 
 // Accumulates paint/upload/copy/present cost and reports averages per window.
 void WebKitWebViewUWP::recordFrame(double paintMS)
 {
-    // Report once eight frames span at least a second of wall time.
-    constexpr unsigned kProfileMinFrames = 8;
-    constexpr double kProfileMinSeconds = 1.0;
-    double time = now();
-    if (!m_profileFrames)
-        m_profileStart = time;
-    auto timing = m_presenter.frameTiming();
-    ++m_profileFrames;
-    m_paintTotal += paintMS;
-    m_uploadTotal += timing.uploadMS;
-    m_copyTotal += timing.copyMS;
-    m_presentTotal += timing.presentMS;
-    m_frameMax = std::max(m_frameMax, paintMS + timing.uploadMS + timing.copyMS + timing.presentMS);
-    if (m_profileFrames >= kProfileMinFrames && time - m_profileStart >= kProfileMinSeconds) {
-        report("perf-paint-average-us", static_cast<unsigned>(m_paintTotal * kMicrosecondsPerMillisecond / m_profileFrames));
-        report("perf-upload-average-us", static_cast<unsigned>(m_uploadTotal * kMicrosecondsPerMillisecond / m_profileFrames));
-        report("perf-copy-submit-average-us", static_cast<unsigned>(m_copyTotal * kMicrosecondsPerMillisecond / m_profileFrames));
-        report("perf-present-average-us", static_cast<unsigned>(m_presentTotal * kMicrosecondsPerMillisecond / m_profileFrames));
-        report("perf-frame-max-us", static_cast<unsigned>(m_frameMax * kMicrosecondsPerMillisecond));
-        report("perf-paint-sample-count", m_profileFrames);
-        m_profileFrames = 0;
-        m_paintTotal = m_uploadTotal = m_copyTotal = m_presentTotal = m_frameMax = 0;
-    }
+    FramePaintSummaryUWP metrics;
+    if (!m_frameMetrics.recordPaint(now(), paintMS, m_presenter.frameTiming(), metrics)) return;
+    report("perf-paint-average-us", static_cast<unsigned>(metrics.paintMS * kMicrosecondsPerMillisecond));
+    report("perf-upload-average-us", static_cast<unsigned>(metrics.uploadMS * kMicrosecondsPerMillisecond));
+    report("perf-copy-submit-average-us", static_cast<unsigned>(metrics.copyMS * kMicrosecondsPerMillisecond));
+    report("perf-present-average-us", static_cast<unsigned>(metrics.presentMS * kMicrosecondsPerMillisecond));
+    report("perf-frame-max-us", static_cast<unsigned>(metrics.maximumMS * kMicrosecondsPerMillisecond));
+    report("perf-paint-sample-count", metrics.count);
 }
 
 // Revokes every XAML subscription, detaches the swap chain and destroys the page.
 WebKitWebViewUWP::~WebKitWebViewUWP()
 {
-    if (m_composition)
-        m_composition->remove_Rendering(m_renderToken);
+    m_frameScheduler.close();
+    m_renderHooks.close();
+    ComPtr<Xaml::IFrameworkElement> rootFramework;
+    if (m_rootElement.Get() && SUCCEEDED(m_rootElement.As(&rootFramework))) {
+        rootFramework->remove_Loaded(m_loadedToken);
+        rootFramework->remove_Unloaded(m_unloadedToken);
+    }
     if (m_panelElement) {
         ComPtr<Xaml::IFrameworkElement> element;
         if (SUCCEEDED(m_panelElement.As(&element)))
@@ -842,7 +737,9 @@ WebKitWebViewUWP::~WebKitWebViewUWP()
         if (SUCCEEDED(m_panelElement.As(&scale)))
             scale->remove_CompositionScaleChanged(m_scaleToken);
         ComPtr<ISwapChainPanelNative> panel;
-        if (SUCCEEDED(m_panelElement.As(&panel)))
+        if (m_presenter.mode() == PresentationModeUWP::CPU)
+            m_presenter.detach();
+        else if (SUCCEEDED(m_panelElement.As(&panel)))
             panel->SetSwapChain(nullptr);
     }
     if (m_inputElement) {

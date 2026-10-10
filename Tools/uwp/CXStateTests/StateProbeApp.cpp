@@ -126,6 +126,39 @@ protected:
 #endif
             m_status->Text = transactionsPassed ? L"TRANSACTIONS / REGRESSIONS PASS " TEST_PACKAGE_VERSION_W : L"TRANSACTIONS / REGRESSIONS FAIL " TEST_PACKAGE_VERSION_W;
 #endif
+#if defined(TEST_FRAME_SCHEDULER)
+            // Asynchronous idle-resource acceptance must finish before the aggregate UI passes.
+            using RunScheduler = Windows::Foundation::IAsyncAction^(__stdcall*)(const wchar_t*, const wchar_t*);
+            auto scheduler = module ? reinterpret_cast<RunScheduler>(GetProcAddress(module, "WKUWPTestScheduler")) : nullptr;
+            auto schedulerPath = Windows::Storage::ApplicationData::Current->LocalFolder->Path + L"\\scheduler-result.txt";
+            auto priorPassed = SUCCEEDED(result);
+#if defined(TEST_INITIALIZATION_ACTIONS)
+            priorPassed = priorPassed && SUCCEEDED(initialized);
+#endif
+#if defined(TEST_EVENT_CALLBACKS)
+            priorPassed = priorPassed && SUCCEEDED(eventResult);
+#endif
+#if defined(TEST_PUBLIC_COMMANDS)
+            priorPassed = priorPassed && SUCCEEDED(commandResult);
+#endif
+#if defined(TEST_CONTROL_LIFECYCLE)
+            priorPassed = priorPassed && SUCCEEDED(lifecycleResult);
+#endif
+#if defined(TEST_NOTIFICATION_TRANSACTIONS)
+            priorPassed = priorPassed && SUCCEEDED(transactionResult);
+#endif
+            m_status->Text = L"SCHEDULER / REGRESSIONS RUNNING " TEST_PACKAGE_VERSION_W;
+            if (!scheduler) m_status->Text = L"SCHEDULER EXPORT MISSING " TEST_PACKAGE_VERSION_W;
+            else {
+                auto scheduled = scheduler(schedulerPath->Data(), TEST_SCHEDULER_BASE);
+                scheduled->Completed = ref new Windows::Foundation::AsyncActionCompletedHandler(
+                    [this, priorPassed](Windows::Foundation::IAsyncAction^ action, Windows::Foundation::AsyncStatus status) {
+                        bool passed = priorPassed && status == Windows::Foundation::AsyncStatus::Completed;
+                        try { action->GetResults(); } catch (...) { passed = false; }
+                        m_status->Text = passed ? L"SCHEDULER / REGRESSIONS PASS " TEST_PACKAGE_VERSION_W : L"SCHEDULER / REGRESSIONS FAIL " TEST_PACKAGE_VERSION_W;
+                    });
+            }
+#endif
         });
         Window::Current->Content = panel;
         Window::Current->Activate();

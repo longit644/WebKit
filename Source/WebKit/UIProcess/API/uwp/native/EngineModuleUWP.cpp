@@ -91,7 +91,7 @@ WKUWPResult EngineModuleUWP::bind(const wchar_t* modulePath, uint32_t minimumMin
 {
     // Binding twice is not a second load; the pin and the table are already held.
     if (m_bound)
-        return WKUWPResultOk;
+        return WKUWPResultOK;
 
     // A null or empty path is the caller's own bug, reported before any load.
     if (!modulePath || !modulePath[0])
@@ -120,7 +120,7 @@ WKUWPResult EngineModuleUWP::bind(const wchar_t* modulePath, uint32_t minimumMin
     negotiated.header.structureVersion = WKUWP_STRUCTURE_VERSION;
 
     WKUWPResult result = getEngineAPI(kRequiredAbiMajor, minimumMinor, requiredCapabilities, &negotiated);
-    if (result != WKUWPResultOk) {
+    if (result != WKUWPResultOK) {
         // The provider's own rejection is the answer; an incompatible engine is
         // never pinned, so its module is released before returning.
         FreeLibrary(module);
@@ -140,7 +140,7 @@ WKUWPResult EngineModuleUWP::bind(const wchar_t* modulePath, uint32_t minimumMin
     m_module = module;
     m_api = negotiated;
     m_bound = true;
-    return WKUWPResultOk;
+    return WKUWPResultOK;
 }
 
 // See EngineModuleUWP.h: bound state is a single flag, never a handle guess.
@@ -174,7 +174,7 @@ WKUWPResult EngineModuleUWP::createPage(const WKUWPPageOptions* options, WKUWPPa
         return WKUWPResultInvalidState;
 
     WKUWPResult result = m_api.createPage(options, page);
-    if (result != WKUWPResultOk)
+    if (result != WKUWPResultOK)
         return result;
 
     // The contract promises a nonzero handle on success; a zero handle means
@@ -186,7 +186,7 @@ WKUWPResult EngineModuleUWP::createPage(const WKUWPPageOptions* options, WKUWPPa
     // keeping a single registration still returns the baseline to zero later.
     if (findPage(*page) == m_pageCount)
         m_pages[m_pageCount++] = *page;
-    return WKUWPResultOk;
+    return WKUWPResultOK;
 }
 
 // See EngineModuleUWP.h for the close and deregistration contract.
@@ -202,7 +202,7 @@ WKUWPResult EngineModuleUWP::closePage(WKUWPPageHandle page)
         return WKUWPResultInvalidArgument;
 
     WKUWPResult result = m_api.closePage(page);
-    if (result == WKUWPResultOk || result == WKUWPResultClosed) {
+    if (result == WKUWPResultOK || result == WKUWPResultClosed) {
         // The engine no longer owns the page in either case, so the
         // registration ends here; any other answer keeps it, because the page
         // still exists and a later close must still reach it.
@@ -250,7 +250,7 @@ WKUWPResult EngineModuleUWP::beginShutdown()
         return WKUWPResultNotInitialized;
 
     WKUWPResult result = m_api.beginShutdown();
-    if (result == WKUWPResultOk)
+    if (result == WKUWPResultOK)
         m_shutdown = true;
     return result;
 }

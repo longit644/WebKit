@@ -410,15 +410,13 @@ extern "C" __declspec(dllexport) unsigned __stdcall WKPointerPageUWP(void* handl
     return WKPageResultOkUWP;
 }
 
-// Ticks timers and the rendering pipeline once.
+// Advances this page's rendering pipeline; shared service is independently scheduled.
 extern "C" __declspec(dllexport) unsigned __stdcall WKTickPageUWP(void* handle)
 {
     if (!handle)
         return WKPageResultInvalidArgumentUWP;
     if (!host(handle)->validThread())
         return WKPageResultWrongThreadUWP;
-    // Single shared service pump; see EngineUWP.h for the moved implementation.
-    engineServiceUWP();
     if (host(handle)->compositorActive && !host(handle)->compositor->makeCurrent())
         return WKPageResultCompositorUnavailableUWP;
     host(handle)->page->updateRendering();
@@ -448,19 +446,24 @@ extern "C" __declspec(dllexport) long __stdcall WKInstallClipboardDispatcherUWP(
         return RPC_E_WRONG_THREAD;
     // CurlRequest dispatches through WTF's main RunLoop. Wake it through the
     // owning UI dispatcher, independently of frame rendering or page dirtiness.
-    auto wakePending = std::make_shared<std::atomic<bool>>(false);
-    WTF::RunLoop::setWakeUpCallback([ui, wakePending] {
-        if (wakePending->exchange(true))
-            return;
-        auto callback = Microsoft::WRL::Callback<Core::IDispatchedHandler>([wakePending]() -> HRESULT {
-            wakePending->store(false);
-            engineServiceUWP();
-            return S_OK;
+    // All views share the one engine owner dispatcher rather than replacing its wake hook.
+    static bool wakeInstalled { false };
+    if (!wakeInstalled) {
+        auto wakePending = std::make_shared<std::atomic<bool>>(false);
+        WTF::RunLoop::setWakeUpCallback([ui, wakePending] {
+            if (wakePending->exchange(true))
+                return;
+            auto callback = Microsoft::WRL::Callback<Core::IDispatchedHandler>([wakePending]() -> HRESULT {
+                wakePending->store(false);
+                engineServiceUWP();
+                return S_OK;
+            });
+            Microsoft::WRL::ComPtr<ABI::Windows::Foundation::IAsyncAction> action;
+            if (!callback || FAILED(ui->RunAsync(Core::CoreDispatcherPriority_Normal, callback.Get(), &action)))
+                wakePending->store(false);
         });
-        Microsoft::WRL::ComPtr<ABI::Windows::Foundation::IAsyncAction> action;
-        if (!callback || FAILED(ui->RunAsync(Core::CoreDispatcherPriority_Normal, callback.Get(), &action)))
-            wakePending->store(false);
-    });
+        wakeInstalled = true;
+    }
     ClipboardUWP::setUIDispatcher([ui](Function<void()>&& task) -> bool {
         boolean hasAccess = false;
         if (FAILED(ui->get_HasThreadAccess(&hasAccess)))

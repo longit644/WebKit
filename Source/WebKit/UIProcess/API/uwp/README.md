@@ -139,3 +139,47 @@ reference ordering and payload/report identities.
 All authored functions/methods, constants, enums and types require documentation
 comments. `Tools/uwp/audit-source-docs.py --check <authored-paths>` checks CX/native
 declarations and spacing, including this directory's authored `WebKitWebView.h`.
+
+## Native presentation extraction
+
+Task 6.1 adds `rendering/SwapChainPresenterUWP` and `FrameMetricsUWP`, compiled
+without `/ZW`. CPU owns DirectX upload/swap-chain resources; GPU uses the frozen
+table with engine-owned compositor resources. Active mode replacement requires
+detach, and Pending release acknowledgement is bound to an attachment cookie.
+The native ownership/metrics gate passes 49 checks and both ARM compilers;
+Lumia CPU presentation and retained Skia demo/counter/scrolling pass. See
+`rendering/README.md` and M10 `artifact/swap-chain-presenter.md` for exact units,
+ownership, builds and device identities. Horizontal rendering remains incorrect
+and task 6.3 stays open. New-control visual/service/runtime integration retains
+the later rendering and cleanup gates.
+
+Task 6.2 adds `rendering/FrameSchedulerUWP` and the private CX
+`platform/FrameSchedulerDriverUWP`: shared service epochs, independent view
+visibility/leases, one owner service timer and weak rendering/wake hooks.
+Service-capable bound pages join automatically and retain service through Pending
+Close. The real engine's negotiated service/suspension slots now forward native
+owner work, while page capability mask zero/default Unsupported initialization
+still prevents false readiness. Native checks pass 34/34; Lumia v1.0.0.14 passes
+22 actual paused-resource/timer/peer assertions and all 198 existing assertions.
+See M10 `artifact/shared-frame-scheduling.md`; horizontal rendering remains 6.3.
+
+Task 6.5 adds `rendering/RenderSubscriptionUWP`: exactly-once Rendering
+subscription across unload/load, suspension, frame failure and Close. The native
+wrapper pauses/resumes callbacks on root Loaded/Unloaded and OS suspend without
+tearing down page state; the MiniBrowser shell forwards Suspending/Resuming.
+Native checks pass 35/35; Lumia v1.0.0.43 passes power-button suspend/resume
+cycles with continued rendering. See M10 `artifact/lifecycle-subscriptions.md`.
+
+Task 6.4 adds `input/InputAdapterUWP` and `input/ScrollControllerUWP`: gesture
+classification with tap slop/offset/cancel semantics plus kinetic/edge physics
+behind narrow engine ports. The native wrapper delegates with identical log
+stages; V1 keyboard/focus forward with validation and explicit `E_NOTIMPL`
+against the real engine. Native checks pass 54/54; Lumia v1.0.0.42 passes
+tap/scroll/fling interaction. The v42 shell also serializes first-time window
+creation after portal launch exposed an OnLaunched/OnActivated race tripping the
+process owner gate. See M10 `artifact/input-controllers.md`.
+
+Native acronym spelling uses CPU/GPU/OK (`PresentationModeUWP::CPU/GPU`,
+`WKUWPResultOK`, `WKUWPCapabilityCPUPaint/GPUCompositor`). Mixed-case spellings are
+fully replaced without aliases, per owner instruction. See M10
+`artifact/acronym-conventions.md` for the convention and unchanged binary layout proof.

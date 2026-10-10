@@ -69,7 +69,7 @@
  * legacy gaps (2, 3) stay reserved on both sides and are never assigned.
  */
 WKUWP_STATIC_ASSERT(WKPageResultOkUWP == 0, "legacy Ok value");
-WKUWP_STATIC_ASSERT(static_cast<int>(WKPageResultOkUWP) == static_cast<int>(WKUWPResultOk), "Ok forwards identically");
+WKUWP_STATIC_ASSERT(static_cast<int>(WKPageResultOkUWP) == static_cast<int>(WKUWPResultOK), "OK forwards identically");
 WKUWP_STATIC_ASSERT(WKPageResultInvalidArgumentUWP == 1, "legacy InvalidArgument value");
 WKUWP_STATIC_ASSERT(static_cast<int>(WKPageResultInvalidArgumentUWP) == static_cast<int>(WKUWPResultInvalidArgument), "InvalidArgument forwards identically");
 WKUWP_STATIC_ASSERT(WKPageResultNoMainFrameUWP == 4, "legacy NoMainFrame value");

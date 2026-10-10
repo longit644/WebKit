@@ -14,6 +14,10 @@
 namespace WebKit {
 
 ref class WebKitWebView;
+// Private owner hook implementation; no scheduler type is part of public WinMD.
+ref class FrameSchedulerDriverUWP;
+// Native per-view service lease/eligibility helper, owned until cleanup acknowledgement.
+class FrameSchedulerUWP;
 
 // A named default interface also resolves the compiler's self-referential
 // TypedEventHandler GUIDs (C4462). This IID is distinct from the WRL prototype.
@@ -209,6 +213,8 @@ internal:
     HRESULT LastDeferredCommandError() { return m_lastDeferredCommandError; }
 
 private:
+    // Join process service for a bound page; visual presentation hooks are configured separately.
+    HRESULT AttachFrameService(const WKUWPEngineAPI*);
     // Forward declaration of the owned native/CX-safe deferred command record.
     struct DeferredSource;
     // Enforce owning UI-dispatcher access before state reads or mutations.
@@ -285,6 +291,12 @@ private:
     std::unique_ptr<const ValidatedWebViewOptionsUWP> m_validatedOptions;
     // Native frozen-table page consumer; module pin/lifetime is supplied by the runtime.
     std::unique_ptr<PageControllerUWP> m_pageController;
+    // Shared weak-target SDK timer/rendering driver for a service-capable page table.
+    FrameSchedulerDriverUWP^ m_frameDriver;
+    // Native instance service lease remains live while ordinary Close is Pending.
+    std::shared_ptr<FrameSchedulerUWP> m_frameScheduler;
+    // Monotonic driver subscription revoked only after page cleanup finishes.
+    uint64_t m_frameClient { 0 };
     // Published value state plus private page/generation/lifecycle bookkeeping.
     NavigationStateUWP m_state;
     // Published immutable URI handle, matching the guarded DP value.

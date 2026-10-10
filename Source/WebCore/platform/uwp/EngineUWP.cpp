@@ -10,6 +10,7 @@
 #include "PlatformStrategies.h"
 #include "TlsPolicyUWP.h"
 #include "WebCoreMainThread.h"
+#include "WKUWPEngine.h"
 #include <fontconfig/fontconfig.h>
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -20,8 +21,21 @@
 #include <wtf/text/WTFString.h>
 
 #include <algorithm>
+#include <atomic>
 
 namespace WebCore {
+namespace {
+
+// Process engine owner, safely observable by pre-initialization service callers.
+std::atomic<DWORD> engineThread { 0 };
+// Publish successful setup before a negotiated service call may touch the run loop.
+std::atomic<bool> engineInitialized { false };
+// Process app suspension, distinct from temporary visual unload.
+bool engineSuspended { false };
+// Prevent recursive generic RunLoop cycles during owner callbacks.
+bool engineServicing { false };
+
+} // namespace
 
 // FreeType face selected from the packaged fonts.
 constexpr FT_Long kRegularFontFaceIndex = 0;
@@ -79,9 +93,11 @@ unsigned engineEnsureInitializedUWP(const wchar_t* fontDirectory, WKPageLogUWP l
 {
     if (!fontDirectory)
         return FirstPageResultInvalidArgumentUWP;
-    static DWORD engineThread;
-    static bool initialized;
-    if (engineThread && engineThread != GetCurrentThreadId())
+    auto owner = engineThread.load();
+    auto thread = GetCurrentThreadId();
+    if (owner && owner != thread)
+        return FirstPageResultWrongThreadUWP;
+    if (!owner && !engineThread.compare_exchange_strong(owner, thread) && owner != thread)
         return FirstPageResultWrongThreadUWP;
     // Frozen process font configuration: the first successful setup wins, and
     // a conflicting directory or content fingerprint fails before any page
@@ -90,7 +106,7 @@ unsigned engineEnsureInitializedUWP(const wchar_t* fontDirectory, WKPageLogUWP l
     static String frozenFontFingerprint;
     String directory(fontDirectory);
     String fingerprint = fontFingerprintForDirectory(directory);
-    if (initialized) {
+    if (engineInitialized.load()) {
         if (directory != frozenFontDirectory || fingerprint != frozenFontFingerprint) {
             if (log)
                 log("page-font-configuration-conflict", FirstPageResultConfigurationConflictUWP);
@@ -98,7 +114,6 @@ unsigned engineEnsureInitializedUWP(const wchar_t* fontDirectory, WKPageLogUWP l
         }
         return FirstPageResultOkUWP;
     }
-    engineThread = GetCurrentThreadId();
     // Emits a stage with a success value unless an API supplies an error code.
     auto report = [log](const char* stage, unsigned long result = WKPageLogFalseUWP) {
         if (log)
@@ -152,14 +167,40 @@ unsigned engineEnsureInitializedUWP(const wchar_t* fontDirectory, WKPageLogUWP l
     // Freeze the configuration that just succeeded; later mismatches fail.
     frozenFontDirectory = directory;
     frozenFontFingerprint = fingerprint;
-    initialized = true;
+    engineInitialized.store(true);
     return FirstPageResultOkUWP;
 }
 
 // Runs timers, transport pump and deferred work once on the owner thread.
 void engineServiceUWP()
 {
+    if (!engineInitialized.load() || GetCurrentThreadId() != engineThread.load() || engineSuspended || engineServicing)
+        return;
+    engineServicing = true;
     WTF::RunLoop::cycle();
+    engineServicing = false;
+}
+
+// Real frozen service slot, linked only in the configured engine target.
+extern "C" WKUWPResult __stdcall wkuwpEngineServiceUWP()
+{
+    if (!engineInitialized.load()) return WKUWPResultNotInitialized;
+    if (GetCurrentThreadId() != engineThread.load()) return WKUWPResultWrongThread;
+    engineServiceUWP();
+    return WKUWPResultOK;
+}
+
+// Apply explicit app suspension once to process resource queue/deadline accounting.
+extern "C" WKUWPResult __stdcall wkuwpEngineSetSuspendedUWP(uint32_t suspended)
+{
+    if (!engineInitialized.load()) return WKUWPResultNotInitialized;
+    if (GetCurrentThreadId() != engineThread.load()) return WKUWPResultWrongThread;
+    if (suspended > 1) return WKUWPResultInvalidArgument;
+    if (engineSuspended == !!suspended) return WKUWPResultOK;
+    if (suspended) platformStrategies()->loaderStrategy()->suspendPendingRequests();
+    else platformStrategies()->loaderStrategy()->resumePendingRequests();
+    engineSuspended = !!suspended;
+    return WKUWPResultOK;
 }
 
 } // namespace WebCore

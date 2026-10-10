@@ -112,7 +112,7 @@ public:
     // Closes a page this object created, removing exactly one registration.
     //
     // A zero handle or a handle this object never registered reports
-    // InvalidArgument without reaching the engine. An engine Ok or Closed
+    // InvalidArgument without reaching the engine. An engine OK or Closed
     // answer drops the registration, because the engine no longer owns the
     // page in either case; any other engine answer keeps it, because the page
     // still exists and a later close must still reach it.

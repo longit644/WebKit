@@ -24,15 +24,15 @@ PageCallbackContextUWP::PageCallbackContextUWP()
     , m_suppressedCalls(0)
     , m_cancelVerdict(false)
     , m_failResultSet(false)
-    , m_failResult(WKUWPResultOk)
+    , m_failResult(WKUWPResultOK)
     , m_detachHook(nullptr)
     , m_detachHookContext(nullptr)
     , m_detachFired(false)
-    , m_lastDetachResult(WKUWPResultOk)
+    , m_lastDetachResult(WKUWPResultOK)
     , m_policyHook(nullptr)
     , m_policyHookContext(nullptr)
     , m_policyFired(false)
-    , m_lastPolicyResult(WKUWPResultOk)
+    , m_lastPolicyResult(WKUWPResultOK)
     , m_destroyedHook(nullptr)
     , m_destroyedHookContext(nullptr)
     , m_lastUri(nullptr)
@@ -92,10 +92,10 @@ void PageCallbackContextUWP::setCancelVerdict(bool cancel)
     m_cancelVerdict = cancel;
 }
 
-// See CallbackContextUWP.h: Ok clears the override back to verdict mode.
+// See CallbackContextUWP.h: OK clears the override back to verdict mode.
 void PageCallbackContextUWP::setFailResult(WKUWPResult result)
 {
-    m_failResultSet = result != WKUWPResultOk;
+    m_failResultSet = result != WKUWPResultOK;
     m_failResult = result;
 }
 
@@ -159,7 +159,7 @@ WKUWPResult PageCallbackContextUWP::buildTable(WKUWPPageCallbacks* callbacks)
     callbacks->releaseContext = releaseThunk;
     callbacks->starting = startingThunk;
     callbacks->notify = notifyThunk;
-    return WKUWPResultOk;
+    return WKUWPResultOK;
 }
 
 // See CallbackContextUWP.h for the snapshot accessor meanings.
@@ -288,7 +288,7 @@ WKUWPResult __stdcall PageCallbackContextUWP::startingThunk(
     if (self->m_failResultSet)
         return self->m_failResult;
     *cancel = self->m_cancelVerdict ? 1 : 0;
-    return WKUWPResultOk;
+    return WKUWPResultOK;
 }
 
 // See CallbackContextUWP.h: suppression records, and the hook may detach.

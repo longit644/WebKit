@@ -19,6 +19,12 @@ verify its generated metadata/consumer boundaries with
 `Tools/uwp/build/test-cx-component-contract.ps1`. These commands use the new
 authored sources and compiler-generated `WebKit.winmd`.
 
+The historical CMake target is still a native prototype regression target. It
+generates its legacy IDL/header/WinMD inside the binary directory, using discovered
+SDK inputs from `arm32-uwp-env.ps1`; `LegacyWebKitWebView.h` cannot collide with
+the authored CX header. The native MiniBrowser build produces this matching pair
+as a subtarget. Presenter extraction evidence is in M10 `artifact/swap-chain-presenter.md`.
+
 ## XAML identity probe baseline
 
 The compiled-page host now lives in `Tools/uwp/CXCompiledProbe/`; its README and

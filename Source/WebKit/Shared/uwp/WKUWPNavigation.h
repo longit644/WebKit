@@ -169,7 +169,7 @@ typedef struct WKUWPPageEvent {
  * Synchronous navigation policy callback.
  *
  * The provider sets *cancel to 0 before the call. The consumer returns
- * WKUWPResultOk with *cancel set to allow or refuse, or a failure result, which
+ * WKUWPResultOK with *cancel set to allow or refuse, or a failure result, which
  * the engine maps to a failed navigation carrying that HRESULT unless
  * cancellation or closing already requires a cancelled outcome.
  */

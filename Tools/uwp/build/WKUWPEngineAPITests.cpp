@@ -251,7 +251,7 @@ void checkSuccessfulNegotiation(WKUWPResult(__stdcall* getEngineAPI)(uint32_t, u
 
     char message[256];
     snprintf(message, sizeof(message), "compatible request -> result=%d expected=0", static_cast<int>(result));
-    reportCheck("success/result", result == WKUWPResultOk, message);
+    reportCheck("success/result", result == WKUWPResultOK, message);
 
     snprintf(message, sizeof(message), "filled extent=%u expected=%u",
         api->header.structureSize, kFilledTableSize);
@@ -322,7 +322,7 @@ void checkLargerDeclaredExtent(WKUWPResult(__stdcall* getEngineAPI)(uint32_t, ui
         declaredSize, static_cast<int>(result), attempt.api()->header.structureSize, tailZeroed ? "zero" : "NOT ZERO",
         tailUnwritten ? "untouched" : "MODIFIED");
 
-    const bool passed = result == WKUWPResultOk && attempt.api()->header.structureSize == kFilledTableSize && tailZeroed
+    const bool passed = result == WKUWPResultOK && attempt.api()->header.structureSize == kFilledTableSize && tailZeroed
         && tailUnwritten;
     reportCheck("success/larger-declared-extent", passed, message);
 }
@@ -364,8 +364,8 @@ void checkCapabilitiesRejected(WKUWPResult(__stdcall* getEngineAPI)(uint32_t, ui
         { "structured-notifications", WKUWPCapabilityStructuredNotifications },
         { "host-html", WKUWPCapabilityHostHtml },
         { "independent-sessions", WKUWPCapabilityIndependentSessions },
-        { "cpu-paint", WKUWPCapabilityCpuPaint },
-        { "gpu-compositor", WKUWPCapabilityGpuCompositor },
+        { "cpu-paint", WKUWPCapabilityCPUPaint },
+        { "gpu-compositor", WKUWPCapabilityGPUCompositor },
         { "clipboard-service", WKUWPCapabilityClipboardService },
         { "certificate-decisions", WKUWPCapabilityCertificateDecisions },
         { "input", WKUWPCapabilityInput },
@@ -378,7 +378,7 @@ void checkCapabilitiesRejected(WKUWPResult(__stdcall* getEngineAPI)(uint32_t, ui
         char name[64];
         snprintf(name, sizeof(name), "capability/%s", rows[index].name);
         const bool supported = (deliveredCapabilities & rows[index].bit) != 0;
-        const WKUWPResult expected = supported ? WKUWPResultOk : WKUWPResultMissingCapability;
+        const WKUWPResult expected = supported ? WKUWPResultOK : WKUWPResultMissingCapability;
         checkRejection(getEngineAPI, name,
             supported ? "delivered capability is accepted" : "undelivered capability is refused",
             kExpectedAbiMajor, kExpectedAbiMinor, rows[index].bit, expected, kFilledTableSize);
@@ -401,7 +401,7 @@ void checkNoPageCreation(WKUWPResult(__stdcall* getEngineAPI)(uint32_t, uint32_t
     Attempt attempt;
     writeV1Header(attempt, kFilledTableSize);
 
-    if (getEngineAPI(kExpectedAbiMajor, kExpectedAbiMinor, 0, attempt.api()) != WKUWPResultOk) {
+    if (getEngineAPI(kExpectedAbiMajor, kExpectedAbiMinor, 0, attempt.api()) != WKUWPResultOK) {
         reportCheck("page/not-created", false, "compatible negotiation failed, cannot continue");
         return;
     }
@@ -516,13 +516,13 @@ int main(int argc, char** argv)
         Attempt frozen;
         writeV1Header(frozen, kV1TableSize);
         const WKUWPResult result = getEngineAPI(kExpectedAbiMajor, kExpectedAbiMinor, 0, frozen.api());
-        const WKUWPResult expected = kV1TableSize >= kFilledTableSize ? WKUWPResultOk : WKUWPResultAbiMismatch;
+        const WKUWPResult expected = kV1TableSize >= kFilledTableSize ? WKUWPResultOK : WKUWPResultAbiMismatch;
         char message[200];
         snprintf(message, sizeof(message),
             "declared structureSize %u with a %u-byte table -> result=%d expected=%d, output %s", kV1TableSize,
             kFilledTableSize, static_cast<int>(result), static_cast<int>(expected),
-            result == WKUWPResultOk ? "filled" : (frozen.untouched() ? "untouched" : "MODIFIED"));
-        const bool passed = result == expected && (result != WKUWPResultOk || frozen.untouched());
+            result == WKUWPResultOK ? "filled" : (frozen.untouched() ? "untouched" : "MODIFIED"));
+        const bool passed = result == expected && (result != WKUWPResultOK || frozen.untouched());
         reportCheck("size/frozen-v1-extent", passed, message);
     }
 

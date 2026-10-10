@@ -103,11 +103,11 @@ WKUWPResult __stdcall PageCallbacksUWP::startingThunk(void* context, const WKUWP
         return static_cast<WKUWPResult>(RPC_E_WRONG_THREAD);
     }
     if (!self->m_active.load())
-        return WKUWPResultOk;
+        return WKUWPResultOK;
     try {
         auto target = self->m_target.Resolve<WebKitWebView>();
         if (!target)
-            return WKUWPResultOk;
+            return WKUWPResultOK;
         auto result = target->HandleStarting(*event, cancel);
         self->m_lastResult.store(result);
         return result;

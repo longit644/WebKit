@@ -216,7 +216,7 @@ struct Driver {
         uint32_t cancel = 0;
         auto result = self.view->HandleStarting(data, &cancel);
         if (cancel) self.finish(WKUWPOutcomeCancelled);
-        else if (result != WKUWPResultOk) self.finish(WKUWPOutcomeFailed, WKUWPErrorDomainPlatform, result);
+        else if (result != WKUWPResultOK) self.finish(WKUWPOutcomeFailed, WKUWPErrorDomainPlatform, result);
         return S_OK;
     }
 };

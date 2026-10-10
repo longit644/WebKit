@@ -97,7 +97,7 @@ public:
     //
     // Unset by default, in which case starting answers with the verdict. Once
     // set, starting answers with this result so a test can prove a handler
-    // failure travels without throwing. Clear by passing WKUWPResultOk.
+    // failure travels without throwing. Clear by passing WKUWPResultOK.
     void setFailResult(WKUWPResult result);
 
     // Arms the reentrant detach hook invoked from inside the notify entry.

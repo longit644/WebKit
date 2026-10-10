@@ -214,12 +214,12 @@ bool openTestPage(OwnershipProvider* provider, const wchar_t* path,
     WebKit::EngineModuleUWP* module, WKUWPPageHandle* page)
 {
     provider->reset();
-    provider->setCreateResult(WKUWPResultOk);
-    if (module->bind(path, 0, 0) != WKUWPResultOk)
+    provider->setCreateResult(WKUWPResultOK);
+    if (module->bind(path, 0, 0) != WKUWPResultOK)
         return false;
     WKUWPPageOptions options;
     writeTestPageOptions(&options);
-    return module->createPage(&options, page) == WKUWPResultOk && *page != 0;
+    return module->createPage(&options, page) == WKUWPResultOK && *page != 0;
 }
 
 // Attaching installs the table and retains the context exactly once.
@@ -240,7 +240,7 @@ void checkAttachFlow(OwnershipProvider* provider, const wchar_t* path)
     }
     WKUWPPageCallbacks table;
     char message[256];
-    if (context->buildTable(&table) != WKUWPResultOk) {
+    if (context->buildTable(&table) != WKUWPResultOK) {
         reportCheck("attach/install", false, "cannot build the callback table");
         context->release();
         module.closePage(page);
@@ -251,10 +251,10 @@ void checkAttachFlow(OwnershipProvider* provider, const wchar_t* path)
     snprintf(message, sizeof(message), "setPageCallbacks -> result=%d expected=0, refcount=%u, retains=%u",
         static_cast<int>(result), context->refCount(), context->retainCalls());
     reportCheck("attach/install",
-        result == WKUWPResultOk && context->refCount() == 2 && context->retainCalls() == 1, message);
+        result == WKUWPResultOK && context->refCount() == 2 && context->retainCalls() == 1, message);
 
     result = module.detachPageCallbacks(page);
-    const bool detached = result == WKUWPResultOk && context->releaseCalls() == 1;
+    const bool detached = result == WKUWPResultOK && context->releaseCalls() == 1;
     snprintf(message, sizeof(message), "detach outside dispatch -> result=%d expected=0, releases=%u",
         static_cast<int>(result), context->releaseCalls());
     reportCheck("attach/detach-immediate", detached, message);
@@ -292,7 +292,7 @@ void checkBorrowedPayloadCopy(OwnershipProvider* provider, const wchar_t* path)
         static_cast<int>(result), uriCopied ? 1 : 0, titleCopied ? 1 : 0, context->lastEventKind(),
         context->lastSequence());
     reportCheck("payload/copy",
-        result == WKUWPResultOk && uriCopied && titleCopied
+        result == WKUWPResultOK && uriCopied && titleCopied
             && context->lastEventKind() == WKUWPEventSourceChanged && context->lastSequence() == 1
             && context->notifyCalls() == 1,
         message);
@@ -321,20 +321,20 @@ void checkStartingPolicy(OwnershipProvider* provider, const wchar_t* path)
     WKUWPResult result = provider->dispatchStarting(page, "https://example.test/", &cancel);
     snprintf(message, sizeof(message), "starting -> result=%d expected=0, cancel=%u expected=0",
         static_cast<int>(result), cancel);
-    reportCheck("policy/refuse", result == WKUWPResultOk && cancel == 0 && context->startingCalls() == 1, message);
+    reportCheck("policy/refuse", result == WKUWPResultOK && cancel == 0 && context->startingCalls() == 1, message);
 
     context->setCancelVerdict(true);
     result = provider->dispatchStarting(page, "https://example.test/", &cancel);
     snprintf(message, sizeof(message), "starting -> result=%d expected=0, cancel=%u expected=1",
         static_cast<int>(result), cancel);
-    reportCheck("policy/allow", result == WKUWPResultOk && cancel == 1, message);
+    reportCheck("policy/allow", result == WKUWPResultOK && cancel == 1, message);
 
     context->setFailResult(kTestHandlerFailure);
     result = provider->dispatchStarting(page, "https://example.test/", &cancel);
     snprintf(message, sizeof(message), "failing handler -> result=%d expected=%d", static_cast<int>(result),
         static_cast<int>(kTestHandlerFailure));
     reportCheck("policy/handler-failure", result == kTestHandlerFailure, message);
-    context->setFailResult(WKUWPResultOk);
+    context->setFailResult(WKUWPResultOK);
 
     module.detachPageCallbacks(page);
     context->release();
@@ -372,7 +372,7 @@ void checkNullGuards(OwnershipProvider* provider, const wchar_t* path)
     snprintf(message, sizeof(message), "dispatched null notify -> result=%d, suppressed=%u",
         static_cast<int>(result), context->suppressedCalls());
     reportCheck("guards/dispatched-null-notify",
-        result == WKUWPResultOk && context->suppressedCalls() == 2, message);
+        result == WKUWPResultOK && context->suppressedCalls() == 2, message);
 
     cancel = kUntouchedCancel;
     result = provider->dispatchNullStarting(page, &cancel);
@@ -416,7 +416,7 @@ void checkReleaseAfterUnwind(OwnershipProvider* provider, const wchar_t* path)
         static_cast<int>(result), context->detachFired() ? 1 : 0, static_cast<int>(context->lastDetachResult()),
         static_cast<int>(WKUWPResultPending), context->releaseCalls(), tracker.destroyedCount);
     reportCheck("detach/pending",
-        result == WKUWPResultOk && context->detachFired()
+        result == WKUWPResultOK && context->detachFired()
             && context->lastDetachResult() == WKUWPResultPending && context->releaseCalls() == 0
             && tracker.destroyedCount == 0,
         message);
@@ -430,7 +430,7 @@ void checkReleaseAfterUnwind(OwnershipProvider* provider, const wchar_t* path)
     // setup reference, so the object survives; only the setup release below
     // frees it, which is what proves storage outlived the detach call.
     reportCheck("detach/release-after-unwind",
-        result == WKUWPResultOk && context->releaseCalls() == 1 && tracker.destroyedCount == 0, message);
+        result == WKUWPResultOK && context->releaseCalls() == 1 && tracker.destroyedCount == 0, message);
 
     context->release();
     snprintf(message, sizeof(message), "setup release -> destroyed=%u expected=1", tracker.destroyedCount);
@@ -449,7 +449,7 @@ void checkReleaseAfterUnwind(OwnershipProvider* provider, const wchar_t* path)
     result = module.closePage(page);
     snprintf(message, sizeof(message), "close -> result=%d expected=0, open=%u", static_cast<int>(result),
         module.openPageCount());
-    reportCheck("detach/close-baseline", result == WKUWPResultOk && module.openPageCount() == 0, message);
+    reportCheck("detach/close-baseline", result == WKUWPResultOK && module.openPageCount() == 0, message);
 }
 
 // Replacing an active attachment is rejected; re-attaching after ack succeeds.
@@ -480,7 +480,7 @@ void checkReplaceRejected(OwnershipProvider* provider, const wchar_t* path)
     result = module.setPageCallbacks(page, &secondTable);
     snprintf(message, sizeof(message), "re-attaching after ack -> result=%d expected=0, second refcount=%u",
         static_cast<int>(result), second->refCount());
-    reportCheck("attach/reattach-after-ack", result == WKUWPResultOk && second->refCount() == 2, message);
+    reportCheck("attach/reattach-after-ack", result == WKUWPResultOK && second->refCount() == 2, message);
 
     first->release();
     module.detachPageCallbacks(page);
@@ -505,7 +505,7 @@ void checkSnapshotRetry(OwnershipProvider* provider, const wchar_t* path)
     snprintf(message, sizeof(message), "fetch -> result=%d expected=0, attempts=%u expected=2, pageId=%llu",
         static_cast<int>(result), snapshot.attempts(), snapshot.state()->pageId);
     reportCheck("snapshot/retry",
-        result == WKUWPResultOk && snapshot.attempts() == 2 && snapshot.state()->pageId == page
+        result == WKUWPResultOK && snapshot.attempts() == 2 && snapshot.state()->pageId == page
             && snapshot.storageBytes() == 64,
         message);
 
@@ -566,7 +566,7 @@ void checkServiceWriteCancel()
     snprintf(message, sizeof(message), "write request -> result=%d expected=0, pending=%u", static_cast<int>(result),
         service->pendingCount());
     reportCheck("service/write-accept",
-        result == WKUWPResultOk && service->pendingCount() == 1 && tracker.calls == 0, message);
+        result == WKUWPResultOK && service->pendingCount() == 1 && tracker.calls == 0, message);
 
     memset(source, 0xCD, sizeof(source));
     uint8_t copied[16];
@@ -582,7 +582,7 @@ void checkServiceWriteCancel()
         static_cast<int>(result), tracker.calls, static_cast<int>(tracker.lastResult),
         static_cast<int>(expectedCanceledResult()), service->pendingCount());
     reportCheck("service/cancel-once",
-        result == WKUWPResultOk && tracker.calls == 1 && tracker.lastResult == expectedCanceledResult()
+        result == WKUWPResultOK && tracker.calls == 1 && tracker.lastResult == expectedCanceledResult()
             && tracker.lastId == 1 && service->pendingCount() == 0,
         message);
 
@@ -592,7 +592,7 @@ void checkServiceWriteCancel()
     reportCheck("service/cancel-twice",
         result == WKUWPResultInvalidArgument && tracker.calls == 1, message);
 
-    result = service->deliverCompletion(1, WKUWPResultOk, nullptr);
+    result = service->deliverCompletion(1, WKUWPResultOK, nullptr);
     snprintf(message, sizeof(message), "delivery after cancel -> result=%d expected=%d, completions=%u",
         static_cast<int>(result), static_cast<int>(WKUWPResultInvalidArgument), tracker.calls);
     reportCheck("service/no-second-delivery",
@@ -614,24 +614,24 @@ void checkServiceReadDeliver()
     WKUWPResult result = table.requestClipboard(service, 7, 2, WKUWPClipboardRead, nullptr, recordTestCompletion, &tracker);
     snprintf(message, sizeof(message), "read request -> result=%d expected=0, pending=%u", static_cast<int>(result),
         service->pendingCount());
-    reportCheck("service/read-accept", result == WKUWPResultOk && service->pendingCount() == 1, message);
+    reportCheck("service/read-accept", result == WKUWPResultOK && service->pendingCount() == 1, message);
 
     uint8_t source[] = "data";
     WKUWPString text;
     text.data = source;
     text.length = static_cast<uint32_t>(sizeof(source) - 1);
-    result = service->deliverCompletion(2, WKUWPResultOk, &text);
+    result = service->deliverCompletion(2, WKUWPResultOK, &text);
     memset(source, 0xCD, sizeof(source));
     snprintf(message, sizeof(message),
         "read delivery -> result=%d expected=0, completions=%u, text copied=%d, pending=%u", static_cast<int>(result),
         tracker.calls, tracker.textLength == 4 && memcmp(tracker.text, "data", 4) == 0 ? 1 : 0,
         service->pendingCount());
     reportCheck("service/read-deliver",
-        result == WKUWPResultOk && tracker.calls == 1 && tracker.textLength == 4
+        result == WKUWPResultOK && tracker.calls == 1 && tracker.textLength == 4
             && memcmp(tracker.text, "data", 4) == 0 && service->pendingCount() == 0,
         message);
 
-    result = service->deliverCompletion(2, WKUWPResultOk, &text);
+    result = service->deliverCompletion(2, WKUWPResultOK, &text);
     snprintf(message, sizeof(message), "second delivery -> result=%d expected=%d, completions=%u",
         static_cast<int>(result), static_cast<int>(WKUWPResultInvalidArgument), tracker.calls);
     reportCheck("service/read-once",
@@ -679,7 +679,7 @@ void checkServiceRejections()
 
     for (uint64_t id = 100; id < 100 + WebKit::PlatformServiceContextUWP::kMaxPendingOperations; ++id) {
         if (table.requestClipboard(service, 7, id, WKUWPClipboardRead, nullptr, recordTestCompletion, &tracker)
-            != WKUWPResultOk) {
+            != WKUWPResultOK) {
             reportCheck("service/table-full", false, "filling the operation table failed early");
             service->release();
             return;
@@ -723,7 +723,7 @@ void checkServiceLifetime()
     WKUWPResult result = table.postWake(service);
     snprintf(message, sizeof(message), "postWake -> result=%d expected=0, wakes=%u", static_cast<int>(result),
         service->wakeCalls());
-    reportCheck("service/wake", result == WKUWPResultOk && service->wakeCalls() == 1, message);
+    reportCheck("service/wake", result == WKUWPResultOK && service->wakeCalls() == 1, message);
 
     table.releaseContext(service);
     snprintf(message, sizeof(message), "engine release -> refcount=%u expected=1, releases=%u, destroyed=%u",
@@ -752,7 +752,7 @@ void checkServiceNullGuards()
     reportCheck("service/null-guards", requestGuarded && cancelGuarded && wakeGuarded, message);
 
     WebKit::PlatformServiceContextUWP* service = new (std::nothrow) WebKit::PlatformServiceContextUWP();
-    const bool unknownDelivery = service->deliverCompletion(0x9999, WKUWPResultOk, nullptr) == WKUWPResultInvalidArgument;
+    const bool unknownDelivery = service->deliverCompletion(0x9999, WKUWPResultOK, nullptr) == WKUWPResultInvalidArgument;
     uint32_t needed = 0;
     const bool unknownCopy = !service->copyOutText(0x9999, nullptr, 0, &needed);
     snprintf(message, sizeof(message), "unknown delivery/copy refused=%d%d", unknownDelivery ? 1 : 0,

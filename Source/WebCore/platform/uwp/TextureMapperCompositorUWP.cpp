@@ -20,6 +20,7 @@
 #include <EGL/eglext.h>
 #include <GLES2/gl2.h>
 #include <cstdio>
+#include <cmath>
 #include <windows.foundation.collections.h>
 #include <windows.foundation.h>
 #include <wrl.h>
@@ -33,21 +34,35 @@ namespace Collections = ABI::Windows::Foundation::Collections;
 
 // GPU-cache budget and profile-window settings tuned for the ARM phone target.
 constexpr size_t kSkiaResourceCacheBytes = 64 * 1024 * 1024;
+// Minimum submitted frames per aggregate GPU diagnostic window.
 constexpr unsigned kProfileMinFrames = 8;
+// Minimum wall duration of an aggregate GPU diagnostic window, in seconds.
 constexpr double kProfileMinSeconds = 1.0;
+// Conversion from monotonic elapsed seconds to millisecond submission costs.
 constexpr double kMillisecondsPerSecond = 1000.0;
+// Conversion from monotonic elapsed seconds to diagnostic microseconds.
 constexpr double kMicrosecondsPerSecond = 1000000.0;
+// Capacity of one bounded GPU aggregate/resize diagnostic line.
 constexpr size_t kGpuProfileMessageCapacity = 512;
+// Allow panel event propagation across a few frames before persistent geometry failure recovers.
+constexpr unsigned maximumSurfaceResizeAttempts = 4;
+// Tolerance for ceil versus ANGLE nearest rounding at fractional panel/DPI edges.
+constexpr int surfacePixelRoundingTolerance = 1;
 
 // Eight-bit stencil mask and the default framebuffer binding required before clear.
 constexpr GLuint kAllStencilBits = 0xff;
+// Window EGL rendering binds the default framebuffer at index zero.
 constexpr GLuint kDefaultFramebuffer = 0;
+// Initial stencil value used for a complete window-surface clear.
 constexpr GLint kClearStencilValue = 0;
 
 // Snapshot background color (#EDF3FA) used for pixels not painted by a layer.
 constexpr GLfloat kSnapshotBackgroundRed = 0.929f;
+// Green component of the opaque snapshot background.
 constexpr GLfloat kSnapshotBackgroundGreen = 0.953f;
+// Blue component of the opaque snapshot background.
 constexpr GLfloat kSnapshotBackgroundBlue = 0.980f;
+// Alpha component for an opaque window clear.
 constexpr GLfloat kOpaqueAlpha = 1.0f;
 
 // Constructs an unattached compositor for the frame and its host log.
@@ -143,7 +158,7 @@ bool TextureMapperCompositorUWP::makeCurrent()
 // Requests another frame for dirty layers or running animations.
 bool TextureMapperCompositorUWP::needsFrame() const
 {
-    return m_flushRequired || (m_viewport && downcast<GraphicsLayerTextureMapper>(*m_viewport).layer().descendantsOrSelfHaveRunningAnimations());
+    return m_flushRequired || m_surfaceResizePending || (m_viewport && downcast<GraphicsLayerTextureMapper>(*m_viewport).layer().descendantsOrSelfHaveRunningAnimations());
 }
 
 // Installs the page root under the offset layer used for edge overscroll.
@@ -163,6 +178,11 @@ void TextureMapperCompositorUWP::setRootLayer(GraphicsLayer* layer)
 // Rebuilds viewport geometry and scale-dependent layers for the new extent.
 void TextureMapperCompositorUWP::resize(unsigned width, unsigned height, float scale)
 {
+    if (width != m_width || height != m_height || scale != m_scale) {
+        ++m_surfaceRevision;
+        m_surfaceResizeAttempts = 0;
+        m_surfaceResizePending = true;
+    }
     m_width = width;
     m_height = height;
     m_scale = scale;
@@ -174,7 +194,66 @@ void TextureMapperCompositorUWP::resize(unsigned width, unsigned height, float s
     transform.scale(scale);
     m_viewport->setTransform(transform);
     m_viewport->setNeedsDisplay();
+    // Cached document tiles are rasterized at the old width; without an explicit
+    // invalidation they survive as portrait-width content in the landscape frame
+    // until a later scroll repaints them. Repaint the offset subtree and the page
+    // root at the new geometry now. The viewport itself draws no content in the
+    // composited-scrolling path, so invalidating it alone cannot refresh tiles.
+    m_offset->setNeedsDisplay();
+    if (m_root)
+        m_root->setNeedsDisplay();
     m_flushRequired = true;
+}
+
+// EGL reports backing-buffer pixels, independently of the host's CSS viewport/clip values.
+bool TextureMapperCompositorUWP::querySurfaceSize(int& width, int& height) const
+{
+    EGLSurface surface = eglGetCurrentSurface(EGL_DRAW);
+    return surface != EGL_NO_SURFACE
+        && eglQuerySurface(m_display->eglDisplay(), surface, EGL_WIDTH, &width)
+        && eglQuerySurface(m_display->eglDisplay(), surface, EGL_HEIGHT, &height)
+        && width > 0 && height > 0;
+}
+
+// ANGLE SurfaceD3D applies client resize after swap; synchronize before painting the new layout.
+bool TextureMapperCompositorUWP::synchronizeSurface()
+{
+    int beforeWidth = 0, beforeHeight = 0;
+    if (!querySurfaceSize(beforeWidth, beforeHeight)) return false;
+    int targetWidth = static_cast<int>(std::ceil(m_width * m_scale));
+    int targetHeight = static_cast<int>(std::ceil(m_height * m_scale));
+    bool matches = std::abs(beforeWidth - targetWidth) <= surfacePixelRoundingTolerance
+        && std::abs(beforeHeight - targetHeight) <= surfacePixelRoundingTolerance;
+    if (matches) {
+        m_surfaceWidthPixels = beforeWidth;
+        m_surfaceHeightPixels = beforeHeight;
+        m_surfaceResizePending = false;
+        return true;
+    }
+    m_surfaceResizePending = true;
+    if (++m_surfaceResizeAttempts > maximumSurfaceResizeAttempts) {
+        if (m_log) m_log("gpu-surface-resize-unresolved", WKPageLogTrueUWP);
+        return false;
+    }
+
+    // Presenting once lets ANGLE consume its owner panel event and rebuild the
+    // engine-owned buffers. Caller pixels/layout are not drawn at stale extents.
+    if (!eglSwapBuffers(m_display->eglDisplay(), eglGetCurrentSurface(EGL_DRAW))) return false;
+    int afterWidth = 0, afterHeight = 0;
+    if (!querySurfaceSize(afterWidth, afterHeight)) return false;
+    matches = std::abs(afterWidth - targetWidth) <= surfacePixelRoundingTolerance
+        && std::abs(afterHeight - targetHeight) <= surfacePixelRoundingTolerance;
+    if (m_log) {
+        char report[kGpuProfileMessageCapacity];
+        sprintf_s(report, "gpu-surface-resize revision=%llu css=%ux%u scale=%.3f target=%dx%d before=%dx%d after=%dx%d attempt=%u ready=%u",
+            m_surfaceRevision, m_width, m_height, m_scale, targetWidth, targetHeight,
+            beforeWidth, beforeHeight, afterWidth, afterHeight, m_surfaceResizeAttempts, matches);
+        m_log(report, WKPageLogFalseUWP);
+    }
+    m_surfaceWidthPixels = afterWidth;
+    m_surfaceHeightPixels = afterHeight;
+    m_surfaceResizePending = !matches;
+    return true;
 }
 
 // Marks the given document region dirty in TextureMapper.
@@ -204,6 +283,10 @@ bool TextureMapperCompositorUWP::render(double overscrollY)
 {
     if (!m_root || !makeCurrent())
         return false;
+    if (!synchronizeSurface()) return false;
+    // Owner panel notification may still be pending; retain frame demand and
+    // draw only after both target axes belong to the same actual backing.
+    if (m_surfaceResizePending) return true;
     auto clock = [this] { LARGE_INTEGER counter; QueryPerformanceCounter(&counter); return static_cast<double>(counter.QuadPart) / m_frequency; };
     double start = clock();
     if (!m_frames)
@@ -245,11 +328,9 @@ bool TextureMapperCompositorUWP::render(double overscrollY)
     m_tileStats.uploadSeconds += tileStats.uploadSeconds;
     m_tileStats.gpuSubmitSeconds += tileStats.gpuSubmitSeconds;
     double flushed = clock();
-    EGLint pixelWidth = 0, pixelHeight = 0;
+    int pixelWidth = 0, pixelHeight = 0;
     EGLSurface surface = eglGetCurrentSurface(EGL_DRAW);
-    if (!eglQuerySurface(m_display->eglDisplay(), surface, EGL_WIDTH, &pixelWidth)
-        || !eglQuerySurface(m_display->eglDisplay(), surface, EGL_HEIGHT, &pixelHeight)
-        || pixelWidth <= 0 || pixelHeight <= 0) {
+    if (!querySurfaceSize(pixelWidth, pixelHeight)) {
         if (m_log)
             m_log("gpu-surface-query-failed", eglGetError());
         return false;
@@ -275,6 +356,13 @@ bool TextureMapperCompositorUWP::render(double overscrollY)
             m_log("gpu-swap-failed", eglGetError());
         return false;
     }
+    int swappedWidth = 0, swappedHeight = 0;
+    if (!querySurfaceSize(swappedWidth, swappedHeight)) return false;
+    // A notification arriving during swap requires another complete repaint,
+    // even when the document/layers otherwise report no visual dirtiness.
+    m_surfaceResizePending = swappedWidth != pixelWidth || swappedHeight != pixelHeight;
+    m_surfaceWidthPixels = swappedWidth;
+    m_surfaceHeightPixels = swappedHeight;
     double swapped = clock();
     GLenum error = glGetError();
     if (error != GL_NO_ERROR) {
@@ -282,7 +370,7 @@ bool TextureMapperCompositorUWP::render(double overscrollY)
             m_log("gpu-gl-error", error);
         return false;
     }
-    m_flushRequired = false;
+    m_flushRequired = m_surfaceResizePending;
     ++m_frames;
     m_flushMS += (flushed - start) * kMillisecondsPerSecond;
     m_compositeMS += (composited - flushed) * kMillisecondsPerSecond;
@@ -307,6 +395,7 @@ bool TextureMapperCompositorUWP::render(double overscrollY)
     return true;
 }
 
+// Release layer/context resources on the same engine-owned rendering context.
 TextureMapperCompositorUWP::~TextureMapperCompositorUWP()
 {
     makeCurrent();

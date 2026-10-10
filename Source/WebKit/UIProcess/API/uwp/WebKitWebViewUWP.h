@@ -1,7 +1,9 @@
 #pragma once
 #include "PageUWP.h"
 #include "WebKitWebViewPresenterUWP.h"
-#include <array>
+#include "input/InputAdapterUWP.h"
+#include "rendering/FrameSchedulerUWP.h"
+#include "rendering/RenderSubscriptionUWP.h"
 #include <memory>
 #include <windows.ui.xaml.controls.h>
 #include <windows.ui.xaml.h>
@@ -9,9 +11,6 @@
 #include <windows.ui.xaml.media.h>
 
 namespace WebKit {
-
-// Rolling frame-profile window length used for percentile reporting.
-constexpr size_t kFrameProfileSampleCountUWP = 64;
 
 // Reusable native wrapper exposing a XAML UserControl backed by SwapChainPanel.
 // Construct, use and dispose on the same XAML/engine UI thread. This initial
@@ -57,6 +56,9 @@ public:
     // Requests one engine tick plus present on the next Rendering callback.
     HRESULT repaint();
 
+    // Pause or resume Rendering callbacks for app suspension without closing.
+    HRESULT setSuspended(bool suspended);
+
     // Writes the last presented pixels to a file for on-device diagnosis.
     HRESULT savePNG(const wchar_t* filename);
 
@@ -75,9 +77,6 @@ private:
 
     // Advances inertia, ticks the engine and presents when dirty.
     HRESULT advanceFrame();
-
-    // Applies a scroll delta; elastic overshoots at edges, kinetic keeps inertia going.
-    HRESULT applyScroll(int dx, int dy, bool elastic, bool kinetic);
 
     // Clears gesture and inertia state on pointer release or navigation.
     void resetMotion();
@@ -185,8 +184,25 @@ private:
     // Clips painting to the control bounds during resize.
     Microsoft::WRL::ComPtr<ABI::Windows::UI::Xaml::Media::IRectangleGeometry> m_clip;
 
-    // XAML subscriptions in size/press/move/release/wheel/render/scale/cancel order; revoked on teardown.
-    EventRegistrationToken m_sizeToken {}, m_pressToken {}, m_moveToken {}, m_releaseToken {}, m_wheelToken {}, m_renderToken {}, m_scaleToken {}, m_cancelToken {};
+    // XAML subscriptions in size/press/move/release/wheel/loaded/unloaded/scale/cancel order; revoked on teardown.
+    EventRegistrationToken m_sizeToken {}, m_pressToken {}, m_moveToken {}, m_releaseToken {}, m_wheelToken {}, m_loadedToken {}, m_unloadedToken {}, m_scaleToken {}, m_cancelToken {};
+
+    // Adapts CompositionTarget subscription to the render-subscription state machine.
+    struct RenderPortUWP final : RenderHookUWP {
+        // Subscribe the stored tick handler, writing exactly one token.
+        HRESULT subscribe(EventRegistrationToken&) override;
+        // Revoke one previously issued Rendering token.
+        HRESULT unsubscribe(EventRegistrationToken) override;
+        // Owning wrapper; null until initialize wires the port.
+        WebKitWebViewUWP* view { nullptr };
+        // Tick callback kept alive for the subscription lifetime.
+        Microsoft::WRL::ComPtr<ABI::Windows::Foundation::IEventHandler<IInspectable*>> tick;
+    };
+
+    // Exactly-once Rendering subscription across unload/load, suspension and Close.
+    RenderSubscriptionUWP m_renderHooks;
+    // Bound CompositionTarget port; its view back-pointer is set by initialize.
+    RenderPortUWP m_renderPort;
 
     // Owns the SwapChainPanel and its DirectX swap chain.
     WebKitWebViewPresenterUWP m_presenter;
@@ -203,49 +219,51 @@ private:
     // DPI scale applied on top of the CSS size.
     float m_scaleX { 1 }, m_scaleY { 1 };
 
-    // Presenter up, paint reentrancy guard, pointer down, drag in progress.
-    bool m_presenterReady { false }, m_inPaint { false }, m_pointerDown { false }, m_dragging { false };
+    // Presenter up, paint reentrancy guard.
+    bool m_presenterReady { false }, m_inPaint { false };
+
+    // Per-control pointer gesture classification; physics lives in m_scroller.
+    InputAdapterUWP m_input;
+
+    // Per-control kinetic/edge scroll physics behind the gesture classification.
+    ScrollControllerUWP m_scroller;
+
+    // Narrow engine ports adapting the bound legacy table to the input classes.
+    struct ScrollPortUWP final : ScrollEngineUWP {
+        // Scroll by CSS pixels through the bound page.
+        HRESULT scroll(int dx, int dy) override;
+        // Snapshot offset, document and viewport heights from the bound page.
+        HRESULT snapshot(ScrollSnapshotUWP&) override;
+        // Owning wrapper; null until initialize binds the engine table.
+        WebKitWebViewUWP* view { nullptr };
+    };
+
+    // Tap port delivering press/release pairs to the bound page.
+    struct TapPortUWP final : TapEngineUWP {
+        // Deliver a tap press at viewport CSS pixels.
+        HRESULT tapPress(double xCssPixels, double yCssPixels) override;
+        // Deliver the matching tap release.
+        HRESULT tapRelease(double xCssPixels, double yCssPixels) override;
+        // Owning wrapper; null until initialize binds the engine table.
+        WebKitWebViewUWP* view { nullptr };
+    };
+
+    // Bound scroll/tap ports; their view back-pointer is set by initialize.
+    ScrollPortUWP m_scrollPort;
+    TapPortUWP m_tapPort;
 
     // Compositor running, compositor tried once, surface ready for present.
     bool m_compositorActive { false }, m_compositorAttempted { false }, m_surfaceReady { false };
 
-    // Gesture start point plus last Y for drag deltas.
-    double m_startX { 0 }, m_startY { 0 }, m_lastY { 0 };
-
-    // Scroll delta accumulated since the last engine tick.
-    double m_pendingScrollX { 0 }, m_pendingScrollY { 0 };
-
     // Forces a repaint even when nothing reports dirty.
     bool m_redrawPending { true };
 
-    // Performance-counter frequency plus last pointer/motion/frame timestamps.
-    double m_counterFrequency { 1 }, m_lastPointerTime { 0 }, m_lastMotionTime { 0 }, m_lastFrameTime { 0 };
+    // Performance-counter frequency for gesture physics and frame pacing.
+    double m_counterFrequency { 1 };
 
-    // Vertical fling velocity, edge overscroll offset and spring-back velocity.
-    double m_velocityY { 0 }, m_overscrollY { 0 }, m_springVelocity { 0 };
-
-    // Fling coasting, edge spring-back armed.
-    bool m_inertia { false }, m_pendingElastic { false };
-
-    // Frames collected in the current profile window.
-    unsigned m_profileFrames { 0 };
-
-    // Profile window start plus accumulated paint/upload/copy/present cost and worst frame.
-    double m_profileStart { 0 }, m_paintTotal { 0 }, m_uploadTotal { 0 }, m_copyTotal { 0 }, m_presentTotal { 0 }, m_frameMax { 0 };
-
-    // Rolling per-frame work and interval samples for the pacing report.
-    std::array<double, kFrameProfileSampleCountUWP> m_frameWorkSamples {}, m_frameIntervalSamples {};
-
-    // Stored work/interval sample counts plus warmup frames skipped before measuring.
-    unsigned m_frameWorkCount { 0 }, m_frameIntervalCount { 0 }, m_frameWarmupCount { 0 };
-
-    // Frames over budget and gaps far above the display interval.
-    unsigned m_frameOverBudget { 0 }, m_frameLongIntervals { 0 };
-
-    // Whether the previous frame reached the screen; gates pacing math.
-    bool m_previousFrameSubmitted { false };
-
-    // Previous frame start plus accumulated scroll/engine/render work totals.
-    double m_previousFrameStart { 0 }, m_scrollWorkTotal { 0 }, m_engineWorkTotal { 0 }, m_renderWorkTotal { 0 };
+    // Instance-owned extracted pacing and CPU submission windows with explicit units.
+    FrameMetricsUWP m_frameMetrics;
+    // Per-view eligibility backed by the process-shared negotiated service slot.
+    FrameSchedulerUWP m_frameScheduler;
 };
 }
