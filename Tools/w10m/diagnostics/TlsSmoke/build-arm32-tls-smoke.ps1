@@ -81,6 +81,15 @@ if (-not $VcpkgRoot -or -not (Test-Path -LiteralPath $VcpkgRoot)) {
     else { throw 'No vcpkg root; specify -VcpkgRoot' }
 }
 $vcpkgInstalled = Join-Path $VcpkgRoot 'installed\arm-w10m-webkit'
+if (-not (Test-Path -LiteralPath (Join-Path $vcpkgInstalled 'include\curl\curl.h'))) {
+    # Pre-rename installed prefix still on disk; a full triplet reinstall is
+    # later vcpkg work, not a probe prerequisite.
+    $legacyInstalled = Join-Path $VcpkgRoot 'installed\arm-uwp-webkit'
+    if (Test-Path -LiteralPath (Join-Path $legacyInstalled 'include\curl\curl.h')) {
+        Write-Host "    using pre-rename vcpkg prefix: $legacyInstalled"
+        $vcpkgInstalled = $legacyInstalled
+    }
+}
 foreach ($required in @("$vcpkgInstalled\include\curl\curl.h", "$vcpkgInstalled\include\openssl\ssl.h",
         "$vcpkgInstalled\lib\libcurl.lib", "$vcpkgInstalled\lib\libcrypto.lib")) {
     if (-not (Test-Path -LiteralPath $required)) { throw "Required probe input missing: $required" }
