@@ -1,6 +1,6 @@
 ## Purpose
 
-Provide trustworthy host/device acceptance with replacement fixture oracles, package-specific evidence and explicit owner approval for the restructured UWP port.
+Provide trustworthy host/device acceptance with replacement fixture oracles, package-specific evidence and explicit owner approval for the restructured W10M port.
 
 ## ADDED Requirements
 

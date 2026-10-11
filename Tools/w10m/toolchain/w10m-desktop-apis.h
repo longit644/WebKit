@@ -79,6 +79,7 @@ struct HINSTANCE__* __stdcall GetModuleHandleW(
 BOOL __stdcall GetModuleHandleExW(
     DWORD dwFlags,
     LPCWSTR lpModuleName,
+    // Receives the HMODULE without changing its reference count when requested.
     struct HINSTANCE__** phModule
     );
 #ifndef GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS

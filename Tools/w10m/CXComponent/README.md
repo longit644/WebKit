@@ -1,13 +1,11 @@
-# W10M C++/CX component sources
+# W10M C++/CX component support
 
-The projection in use is C++/CX, not C++/WinRT, because the SDK's C++/WinRT base
-header rejects 32-bit ARM. This directory is named for that projection. It was
-`WinRTComponent/` while the prototype was C++/WinRT.
-
-Two things live here and they have different fates. `XamlProbe.idl` and
-`XamlProbeComponent.cpp` are the browser-free gate probe, which M10 keeps. The
-`WebKitWebView*` files are the prototype control that M10 replaces with authored
-sources in `Source/WebKit/UIProcess/API/w10m/`; do not add to them.
+The public control is authored in `Source/WebKit/UIProcess/API/w10m/` and built
+by `Tools/w10m/build/build-arm32-cx-component.ps1`. This directory contains the
+build/activation entry-point shell (`ComponentExports.cpp`) and the independent
+browser-free XAML identity probe (`XamlProbe.idl`, `XamlProbeComponent.cpp`).
+The retired WRL prototype and its historical CMake/MIDLRT build are not part of
+the component contract or build.
 
 ## M10 authored control
 
@@ -17,13 +15,10 @@ directory's README for revision-2 identity and current implementation progress.
 Build the new component with `Tools/w10m/build/build-arm32-cx-component.ps1` and
 verify its generated metadata/consumer boundaries with
 `Tools/w10m/build/test-cx-component-contract.ps1`. These commands use the new
-authored sources and compiler-generated `WebKit.winmd`.
-
-The historical CMake target is still a native prototype regression target. It
-generates its legacy IDL/header/WinMD inside the binary directory, using discovered
-SDK inputs from `arm32-w10m-env.ps1`; `LegacyWebKitWebView.h` cannot collide with
-the authored CX header. The native MiniBrowser build produces this matching pair
-as a subtarget. Presenter extraction evidence is in M10 `artifact/swap-chain-presenter.md`.
+authored sources and compiler-generated `WebKit.winmd`. The build records the
+actual source manifest and checks that no prototype or log-derived event source
+has entered the authored boundary. Presenter extraction evidence is in M10
+`artifact/swap-chain-presenter.md`.
 
 ## XAML identity probe baseline
 
@@ -119,22 +114,3 @@ complete ARM app/package and phone run are still required; see
 `openspec/changes/wkview-m10-w10m-cppcx-restructure/artifact/compiled-xaml-investigation.md`.
 The compiled-XAML gate remains open, separately from the passing runtime markup
 measurement.
-
-## Prototype control (to be replaced)
-
-`WebKitWebView.idl` is the source of truth for the prototype's public WinRT
-contract and its documentation. Edit and review the IDL, then regenerate its
-WinMD and C/C++ projection outputs with the installed Windows SDK MIDLRT
-compiler. This repository uses the classic MIDLRT dialect, which emits
-`WebKitWebView_p.h`, `WebKitWebView_p.c` and `dlldata.c` into the compiler's
-working directory. Do not hand-edit generated C/C++ files.
-
-Generate into a build directory, never into the source tree. The generated
-`WebKitWebView.h` previously occupied exactly the path M10 assigns to the new
-authored header, which had to be cleared before that header could be written.
-
-`WebKitWebViewComponent.cpp` contains the WRL implementation. Its local event
-argument and async-action classes are component implementation details; their
-public contracts are documented in the IDL. `WebKitWinRTBase.h` supplies the
-minimal OS-stable async interfaces needed by this toolchain and documents each
-method and status value.

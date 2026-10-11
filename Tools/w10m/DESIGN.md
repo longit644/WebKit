@@ -1,7 +1,9 @@
 # M10 Windows 10 Mobile C++/CX design
 
-Author: Sol. Status: owner-selected direction; reviewed contract corrections,
-implementation and runtime/device feasibility pending.
+Author: Sol. Status: owner-selected architecture with the public C++/CX control,
+native ABI, decomposed services and MiniBrowser integration implemented. Production
+engine page creation remains unsupported; remaining integration and device gates
+are tracked by the M10 OpenSpec acceptance matrix.
 
 This is the developer-facing architecture for
 [`wkview-m10-w10m-cppcx-restructure`](../../openspec/changes/wkview-m10-w10m-cppcx-restructure/README.md).
@@ -37,9 +39,9 @@ need `ref class` wrappers just to satisfy a naming policy.
   C++/WinRT releases. C++/CX is the owner's selected architecture regardless.
 - Compiling an object does not prove DLL linking, compatible exception/runtime
   support, WinMD correctness, XAML metadata generation, or phone activation.
-- The installed SDK lacks ARM32 link libraries. Discover a complete compatible
-  Windows 10 SDK, initially 10.0.19041.0, and prove its runtime/XAML tooling.
-  Do not change toolsets speculatively or substitute ARM64 libraries.
+- The validated build uses Windows 10 SDK 10.0.19041.0 ARM32 libraries and
+  runtime/XAML tooling. Keep those inputs explicit; do not substitute ARM64
+  libraries or infer phone compatibility from a different SDK/toolset.
 - Existing native shims are not presumed compatible with C++/CX exceptions,
   reference counting, activation, or `vccorlib` initialization.
 
@@ -180,8 +182,8 @@ Use `enum class` for internal states and C++/CX `public enum class` for public
 metadata. ABI headers use explicitly sized integral fields and named value
 constants, not compiler-dependent enum layout or `bool`. Types/members carry
 why-focused documentation; public enums document each numeric value. Preserve
-WebKit formatting. Update the source audit/format rules for CX syntax before
-running them; never format generated output.
+WebKit formatting. The source audit recognizes CX declarations and the native/CX
+boundary, and reports lexical candidates for review. Never format generated output.
 
 The initial rename map and full-scope accounting are in M10
 `migration-map.md`. Its rows must cover every authored W10M class, enum,

@@ -35,6 +35,8 @@ def main():
     parser.add_argument("--prefix", type=Path, required=True)
     parser.add_argument("--reader", required=True)
     parser.add_argument("--version", default="1.0.0.1")
+    parser.add_argument("--skip-audit", action="store_true",
+                        help="Bypass the pre-package staging audit (task 10.4 gate; not for device evidence)")
     args = parser.parse_args()
     if args.stage.exists():
         parser.error("Use a new staging directory for each package build")
@@ -73,6 +75,12 @@ def main():
     tls_directory = REPO / "Tools/w10m/NavigationTests/tls"
     for filename in ("fixture-ca.pem", "fixture-unrelated-ca.pem"):
         shutil.copy2(tls_directory / filename, args.stage / filename)
+    if not args.skip_audit:
+        # M10 task 10.4: reject negative ARM64, incompatible ABI, missing
+        # asset and non-Skia candidates before any package identity exists.
+        gate = [sys.executable, str(REPO / "Tools/w10m/build/audit-stage-package.py"),
+                "--stage", str(args.stage), "--kind", "engine", "--reader", args.reader]
+        subprocess.run(gate, check=True)
     payload = {path.relative_to(args.stage).as_posix(): digest(path)
                for path in sorted(args.stage.rglob("*")) if path.is_file()}
     report = {"identity": name, "version": args.version, "kind": args.kind,

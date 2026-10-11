@@ -16,7 +16,7 @@ it through `scripts/stage-runtimesmoke.py`.
   render and D3D11 presentation, exposed as `WKRunSmokeDiagnostics`. It calls
   the engine `WKRenderFirstPageUWP` export through the declared
   `WKRenderFirstPageUWPType` instead of an inline `reinterpret_cast`.
-- `host/` — C# UWP app (`WebKitRuntimeSmokeHost.exe`, class
+- `host/` — C# W10M app using the UWP model (`WebKitRuntimeSmokeHost.exe`, class
   `WebKitWebView.RuntimeSmoke.App`). Project shape, targeting
   (10.0.19041.0 / MinVersion 10.0.15063.0), `PhoneIdentity`, exact-size
   logos and the nuget.org feed pin follow the proven C# proof project

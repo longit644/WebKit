@@ -22,6 +22,7 @@ using namespace Windows::UI::Xaml::Media;
 
 namespace WebKitProbe {
 
+// Stable probe identity, opaque class name, and visual bounds/colors for the XAML gate.
 constexpr unsigned int kProbeId = 0x0001U;
 constexpr wchar_t kProbeClassName[] = L"WebKitProbe.XamlProbe";
 constexpr unsigned char kProbeFillAlpha = 0xFF;
@@ -35,9 +36,12 @@ constexpr double kProbeRequestedHeight = 160.0;
 // class then exposes this contract alongside the inherited UserControl chain.
 [uuid(6d1c8f44-2b90-4a37-8c65-1f9d3b7a5e20)]
 public interface class IXamlProbe {
+    // Reports the stable probe identifier to the activation host.
     property unsigned int ProbeId {
         unsigned int get();
     }
+
+    // Read/write text property used by the direct-access and binding checks.
     property String^ ProbeText {
         String^ get();
         void set(String^ value);
@@ -48,16 +52,25 @@ public interface class IXamlProbe {
 // type provider. The accessor holds no target reference of its own.
 ref class ProbeTextAccessor sealed : ICustomProperty {
 public:
+    // Binding metadata identifies this accessor as a readable/writable string.
     virtual property TypeName Type { TypeName get() { return String::typeid; } }
+    // The binding engine uses this property name to locate ProbeText.
     virtual property String^ Name { String^ get() { return L"ProbeText"; } }
+    // This probe accessor always permits reading the value.
     virtual property bool CanRead { bool get() { return true; } }
+    // This probe accessor always permits writing the value.
     virtual property bool CanWrite { bool get() { return true; } }
+    // Resolve the named probe property through the component's public contract.
     virtual Object^ GetValue(Object^ target) { return safe_cast<IXamlProbe^>(target)->ProbeText; }
+    // Forward a binding update to the probe's dependency property.
     virtual void SetValue(Object^ target, Object^ value)
     {
         safe_cast<IXamlProbe^>(target)->ProbeText = safe_cast<String^>(value);
     }
+
+    // Indexed binding is unsupported by this non-collection probe object.
     virtual Object^ GetIndexedValue(Object^, Object^) { throw ref new NotImplementedException(); }
+    // Indexed binding is unsupported by this non-collection probe object.
     virtual void SetIndexedValue(Object^, Object^, Object^) { throw ref new NotImplementedException(); }
 };
 
@@ -66,6 +79,7 @@ public:
 [Windows::UI::Xaml::Data::Bindable]
 public ref class XamlProbe sealed : UserControl, IXamlProbe, ICustomPropertyProvider {
 public:
+    // Builds the solid-color visual and registers the bindable text property.
     XamlProbe()
     {
         if (!s_probeTextProperty)
@@ -84,10 +98,12 @@ public:
         Height = kProbeRequestedHeight;
     }
 
+    // Stable identity value checked by the activation host.
     virtual property unsigned int ProbeId {
         unsigned int get() { return kProbeId; }
     }
 
+    // Dependency-property-backed text surfaced to callers and XAML bindings.
     virtual property String^ ProbeText {
         String^ get() { return safe_cast<String^>(GetValue(s_probeTextProperty)); }
         void set(String^ value)
@@ -96,12 +112,17 @@ public:
         }
     }
 
+    // Supplies the runtime binding provider for the probe's text property.
     virtual ICustomProperty^ GetCustomProperty(String^ name)
     {
         return name == L"ProbeText" ? ref new ProbeTextAccessor() : nullptr;
     }
+
+    // The probe has no indexed properties.
     virtual ICustomProperty^ GetIndexedProperty(String^ name, TypeName type) { return nullptr; }
+    // Provides a compact diagnostic representation of the probe.
     virtual String^ GetStringRepresentation() { return ProbeText; }
+    // Reports the runtime type required by the XAML binding provider.
     virtual property TypeName Type { TypeName get() { return XamlProbe::typeid; } }
 
 private:

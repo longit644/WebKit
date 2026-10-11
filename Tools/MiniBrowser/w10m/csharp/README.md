@@ -1,5 +1,8 @@
 # Windows 10 Mobile MiniBrowser (M10 tasks 8.1, 8.2 and 8.8)
 
+The W10M target is Windows 10 Mobile; this C#/XAML application uses the UWP app
+model and API surface.
+
 C#/XAML W10M application targeting Windows 10 Mobile, hosting the public `WebKit.WebKitWebView` control from compiled component metadata (`WebKit.winmd`). No `Source/WebKit/UIProcess/API/w10m/` source is compiled into this app; the WinMD plus its matching implementation DLL is the only contract. `BrowserViewModel` supplies address, title, history, loading, status, notification-demo and menu state. A phone Edge-inspired 48-DIP bottom bar contains a loading-swapped Reload/Stop control, a stretch address field, and the three-dot action toggle. The compact address text is shifted left 3 DIP to balance the refresh-control region; Enter submits the address. System Back comes from `SystemNavigationManager.BackRequested`. There is no extra Go button or tab switcher. Startup keeps null Source and an empty status; no permanent Ready footer or test navigation runs.
 
 The W10M app uses `MvvmLightLibs` 5.4.1.1 (`ViewModelBase`, `RelayCommand`, and `SimpleIoc`). `MiniBrowserServiceLocator` registers app- and page-scoped dependencies; `BrowserService` adapts the XAML-created WebKit control and owns its event subscriptions; `BrowserPolicy` remains the app-owned navigation/warning policy. `MainPage` coordinates window lifecycle, visible bounds, keyboard handling, and animations. `Views/Controls/AddressBarControl` and `BrowserAppBarControl` isolate the address and app-bar visuals in the same project/assembly. New C# declarations include XML documentation.

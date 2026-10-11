@@ -9,8 +9,8 @@
 // attributable to XAML identity rather than to WebCore or the WebKitWebView
 // prototype shape.
 //
-// Classic MIDLRT dialect, matching the original Tools/uwp/WinRTComponent/WebKitWebView.idl:
-// C-style enums, explicit get_/put_ methods, explicit event add_/remove_.
+// Classic MIDLRT dialect: C-style enums, explicit get_/put_ methods and
+// explicit event add_/remove_ methods.
 import "inspectable.idl";
 import "windows.ui.xaml.controls.idl";
 import "windows.ui.xaml.data.idl";

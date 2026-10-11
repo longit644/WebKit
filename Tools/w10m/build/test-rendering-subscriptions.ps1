@@ -52,7 +52,7 @@ try {
         $executable = if ($compiler -eq 'msvc') { "$tool\bin\Hostx64\arm\cl.exe" } else { $clang }
         $compilerFlags = $flags
         if ($compiler -eq 'clang') { $compilerFlags += '--target=armv7-unknown-windows-msvc' }
-        $object = Join-Path $OutDir ("arm-$compiler-RenderSubscriptionUWP.obj")
+        $object = Join-Path $OutDir ("arm-$compiler-RenderSubscriptionW10M.obj")
         Invoke-SubscriptionTool $executable ($compilerFlags + @("/Fo$object", $files[0]))
     }
     'Render subscription ARM separation PASS: MSVC + clang-cl, no /ZW'

@@ -52,6 +52,7 @@ enum RuntimeSmokeFailure {
 
 // Counts global constructions; must read exactly one.
 struct GlobalProbe {
+    // Records whether process-wide dynamic initialization ran exactly once.
     GlobalProbe() { InterlockedIncrement(&globalConstructed); }
 };
 
@@ -60,11 +61,14 @@ static GlobalProbe globalProbe;
 // Thread-local canary plus a plain POD canary; both reset per worker thread.
 struct TLSProbe {
     unsigned value;
+    // Initializes the per-thread canary and increments its construction count.
     TLSProbe()
         : value(kInitialTlsValue)
     {
         InterlockedIncrement(&tlsConstructed);
     }
+
+    // Records teardown of the per-thread object.
     ~TLSProbe() { InterlockedIncrement(&tlsDestroyed); }
 };
 static thread_local TLSProbe tlsProbe;
@@ -73,6 +77,7 @@ static thread_local unsigned podProbe = kInitialPodTlsValue;
 // Function-local static canary; the delay makes workers contend on its init guard.
 struct StaticProbe {
     unsigned value;
+    // Delays initialization to force worker threads to contend on the CRT guard.
     StaticProbe()
         : value(kFunctionStaticValue)
     {

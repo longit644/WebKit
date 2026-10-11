@@ -67,9 +67,21 @@ $env:INCLUDE = "$tool\include;$SdkRoot\Include\$SdkVersion\ucrt;$SdkRoot\Include
 
 # Never trust only a tool's banner; fail immediately on its exit code.
 function Invoke-BuildTool([string]$exe, [string[]]$arguments) {
-    # Windows PowerShell 5.1 must escape a trailing backslash before a closing quote.
-    $quoted = @($arguments | ForEach-Object { '"' + ($_ -replace '(\\+)$', '$1$1') + '"' })
-    & $exe @quoted
+    # PowerShell 7.3+ preserves native argument boundaries itself. Older
+    # PowerShell needs explicit quoting, with linker-option paths quoted after
+    # the option colon rather than as a single slash-prefixed argument.
+    if ($PSVersionTable.PSVersion -ge [version]'7.3' -and $PSNativeCommandArgumentPassing -ne 'Legacy') {
+        & $exe @arguments
+    } else {
+        $quoted = @($arguments | ForEach-Object {
+            if ($_ -match '^(/[A-Za-z]+:?)(.+)$') {
+                $Matches[1] + '"' + ($Matches[2] -replace '(\\+)$', '$1$1') + '"'
+            } else {
+                '"' + ($_ -replace '(\\+)$', '$1$1') + '"'
+            }
+        })
+        & $exe @quoted
+    }
     if ($LASTEXITCODE -ne 0) { throw "$exe failed: $LASTEXITCODE" }
 }
 try {

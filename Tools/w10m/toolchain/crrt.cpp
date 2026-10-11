@@ -479,6 +479,7 @@ BOOL __stdcall _DllMainCRTStartup(HINSTANCE hinst, DWORD reason, LPVOID reserved
 namespace std {
 // MSVC ABI replacement for std::nothrow_t; the class-key affects mangling.
 struct nothrow_t {
+    // Default construction is the single MSVC-compatible nothrow tag value.
     explicit nothrow_t() = default;
 };
 extern nothrow_t const nothrow;

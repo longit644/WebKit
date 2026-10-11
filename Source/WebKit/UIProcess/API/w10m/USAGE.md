@@ -1,4 +1,4 @@
-# Embedding WebKitWebView on W10M / Windows 10 Mobile
+# Embedding WebKitWebView in a W10M application
 
 ## Contract and current integration state
 

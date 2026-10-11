@@ -322,7 +322,7 @@ if ($projectionHits) {
 Write-Host '    neutral owner header carries no CX/WinRT token'
 
 $engineHits = Get-ChildItem -LiteralPath $script:EngineDir -Filter '*.h' |
-    Select-String -Pattern 'RuntimeOwnerUWP\.h'
+    Select-String -Pattern 'RuntimeOwnerW10M\.h'
 if ($engineHits) {
     throw "Engine header reaches for the new owner header:`n$($engineHits -join "`n")"
 }

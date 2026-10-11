@@ -27,12 +27,12 @@ Core only: `WTF + JSC CLoop + WebCore`. No browser chrome here.
 
 ## Layout
 
-- `Tools/w10m/` (here) — Windows 10 Mobile tooling: triplet, toolchain, compiler wrapper,
+- `Tools/w10m/` (here) — W10M tooling: triplet, toolchain, compiler wrapper,
   ARM C/C++ runtime sources + prebuilt `lib/`, env script, this doc set.
 - `WebKitLibraries/triplets|toolchains/` — vcpkg triplet + cmake toolchain.
-- `Source/WebKit/UIProcess/API/w10m/` — current native wrapper; M10 places the
-  C++/CX public control and decomposed native/input/rendering/platform services here.
-- `Tools/MiniBrowser/w10m/csharp/` — C# Windows 10 Mobile sample-browser application over `WebKit.winmd`. The retired WRL sample shell has been removed.
+- `Source/WebKit/UIProcess/API/w10m/` — authored C++/CX public control and its
+  decomposed native/input/rendering/platform services.
+- `Tools/MiniBrowser/w10m/csharp/` — C# W10M sample-browser application over `WebKit.winmd`. The retired WRL sample shell has been removed.
 - Patches generated via `git diff upstream...HEAD -- Source/`.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the ownership boundary between the
@@ -52,6 +52,25 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File Tools\w10m\build\test-wk
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File Tools\w10m\build\check-wkw10m-legacy-surface.ps1 -OutDir "$env:TEMP\opencode\m10-legacy-check"
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File Tools\w10m\build\build-arm32-cx-compiled-probe.ps1 -OutDir "$env:TEMP\opencode\m10-cx-package" -SignThumbprint <development-certificate-thumbprint>
 ```
+
+For a fresh end-to-end M10 build, use the orchestration entry point (each run
+requires a new output root):
+
+```powershell
+pwsh -NoProfile -File Tools\w10m\build\build-m10-clean.ps1 -OutRoot "$env:TEMP\opencode\m10-clean-01" -SdkVersion 10.0.19041.0 -SkipSign
+```
+
+It resolves and records the VS/MSVC/SDK identities, builds the named native
+targets (`WebCore`, `JavaScriptCore`) with eight jobs by default, then builds the
+CX component and compiled-XAML app. Use `-DryRun` to inspect all resolved
+commands without creating output. On a memory-limited host, `-NativeParallel 2`
+reduces native concurrency while retaining the same fresh-build and identity
+checks; this does not establish that the eight-job build passes on that host.
+If a build is interrupted, rerun with `-Resume` and the same `-OutRoot` and
+explicit tool versions; the script validates recorded discovery and the W10M
+CMake cache, resumes native targets, and reuses only completed CX phases with
+their build identities. The individual component/app commands above remain
+supported for targeted builds.
 
 The ABI layout check compiles the frozen `Source/WebKit/Shared/w10m` assertions with
 both boundary compilers **as C and as C++**, and inspects all four objects with

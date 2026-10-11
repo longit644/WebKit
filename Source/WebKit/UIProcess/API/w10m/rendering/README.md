@@ -49,9 +49,10 @@ at least eight paints across one second. Reporting is supplied by the consumer;
 neither metrics nor diagnostic strings synthesize public browser events.
 
 The compatibility header `../WebKitWebViewPresenterW10M.h` aliases the former
-native name, including nested FrameTiming. Native smoke/prototype application
-builds now compile the extracted sources; the authored CX driver compiles them
-without `/ZW`. MSVC CX and native ARM clang remain separate domains.
+native presenter name (including nested `FrameTiming`) for existing consumers.
+Native smoke/prototype application builds now compile the extracted sources; the
+authored CX driver compiles them without `/ZW`. MSVC CX and native ARM clang
+remain separate domains.
 
 Run `Tools/w10m/build/test-rendering-contract.ps1 -ComponentDirectory <built-component>
 -OutDir <fresh-output>` for real WARP CPU resources, observed COM lifetime,

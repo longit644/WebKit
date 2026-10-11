@@ -96,7 +96,7 @@ def check(idl: Path, api: Path) -> None:
         for extension in ("h", "cpp"):
             assert (api / f"{basename}.{extension}").is_file(), f"Wrong authored filename: {basename}.{extension}"
     assert (api / "WebKitNavigationTypes.h").is_file()
-    for hidden in ("EngineToken", "IssuedBy", "EndDispatch", "WKUWPCertificateToken", "controlIdentity", "CopyToNative", "PrepareConfiguration",
+    for hidden in ("EngineToken", "IssuedBy", "EndDispatch", "WKW10MCertificateToken", "controlIdentity", "CopyToNative", "PrepareConfiguration",
                    "SetCommandHandler", "CompleteInitialization", "HandleStarting", "HandleNotification", "ControlPhase", "HandlerFailures",
                    "BuildPageCallbacks", "LastPageCallbackResult", "IsCurrentCertificateToken", "InvalidateCertificateToken",
                    "BindPageController", "ExecutePageCommand", "QueuePageCommand", "QueueAfterInitialization",

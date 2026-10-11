@@ -11,7 +11,7 @@ Application shells and diagnostic hosts SHALL be C# UWP applications that refere
 
 #### Scenario: A new application shell is added
 - **WHEN** it embeds the browser
-- **THEN** it references `WebKit.winmd`, constructs `WebKitWebView` from compiled markup, and compiles no `Source/WebKit/UIProcess/API/uwp/` source
+- **THEN** it references `WebKit.winmd`, constructs `WebKitWebView` from compiled markup, and compiles no `Source/WebKit/UIProcess/API/w10m/` source
 
 ### Requirement: Component-consuming application
 MiniBrowser SHALL embed the public control declaratively and consume its properties/events rather than compile private framework implementations or maintain its own downloader/history/completion inference.

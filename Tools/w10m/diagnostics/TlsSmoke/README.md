@@ -1,6 +1,7 @@
 # TlsSmoke diagnostic
 
-The C# UWP application host and native transport payload are built separately:
+The C# W10M application host (using the UWP model) and native transport payload
+are built separately:
 
 - `TlsSmoke.csproj` builds the ARM Release host through .NET Native and stages
   the payload DLLs as AppX content. `Properties/Default.rd.xml` is also AppX

@@ -114,6 +114,7 @@ unsigned engineEnsureInitializedW10M(const wchar_t* fontDirectory, WKPageLogW10M
         }
         return FirstPageResultOkW10M;
     }
+
     // Emits a stage with a success value unless an API supplies an error code.
     auto report = [log](const char* stage, unsigned long result = WKPageLogFalseW10M) {
         if (log)

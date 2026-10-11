@@ -306,7 +306,7 @@ if ($projectionHits) {
 Write-Host '    neutral route header carries no CX/WinRT token'
 
 $engineHits = Get-ChildItem -LiteralPath $script:EngineDir -Filter '*.h' |
-    Select-String -Pattern 'ClipboardRouteUWP\.h'
+    Select-String -Pattern 'ClipboardRouteW10M\.h'
 if ($engineHits) {
     throw "Engine header reaches for the new route header:`n$($engineHits -join "`n")"
 }
@@ -337,8 +337,8 @@ Write-Host '    COFF-ARM / IMAGE_FILE_MACHINE_ARMNT / APPCONTAINER'
 # ---------------------------------------------------------------------------
 Write-Host '5/6 clipboard routing behaviour on this x64 host'
 $x64Exe = Join-Path $OutDir 'ClipboardRouteTests.exe'
-$x64ServiceObject = Join-Path $OutDir 'ClipboardServiceUWP-x64.obj'
-$x64RouteObject = Join-Path $OutDir 'ClipboardRouteUWP-x64.obj'
+$x64ServiceObject = Join-Path $OutDir 'ClipboardServiceW10M-x64.obj'
+$x64RouteObject = Join-Path $OutDir 'ClipboardRouteW10M-x64.obj'
 $x64HarnessObject = Join-Path $OutDir 'ClipboardRouteTests.obj'
 
 # The x64 host builds below deliberately omit /DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP:

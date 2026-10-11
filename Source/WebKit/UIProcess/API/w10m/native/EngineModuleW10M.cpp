@@ -38,11 +38,13 @@ constexpr WKW10MPageHandle kInvalidPageHandle = 0;
 // mechanism for the real consumer, while desktop test builds keep the ordinary
 // loader. Both spellings return the same module handle contract.
 #if defined(WINAPI_FAMILY) && (WINAPI_FAMILY == WINAPI_FAMILY_PC_APP)
+// Load only a packaged engine module in the AppContainer process.
 HMODULE loadEngineModule(const wchar_t* modulePath)
 {
     return LoadPackagedLibrary(modulePath, 0);
 }
 #else
+// Use the desktop loader for the host-side contract-test configuration.
 HMODULE loadEngineModule(const wchar_t* modulePath)
 {
     return LoadLibraryW(modulePath);

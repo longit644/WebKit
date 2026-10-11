@@ -55,8 +55,10 @@
 namespace {
 
 #ifdef XAML_PROBE_LIFETIME_LIBRARY
+// Library-mode callback persists device-check progress in the host app.
 extern "C" void XamlProbeRecordStage(int);
 #else
+// Standalone host mode has no app-local-state writer.
 void XamlProbeRecordStage(int) { }
 #endif
 
@@ -78,6 +80,7 @@ constexpr unsigned int kExpectedProbeId = 0x0001U;
 int gChecksRun = 0;
 int gChecksFailed = 0;
 
+// Counts and prints one assertion result without allowing a skipped check to vanish.
 void ReportCheck(const char* name, bool passed, const char* detail)
 {
     ++gChecksRun;
@@ -125,6 +128,7 @@ std::wstring WidenUtf8(const char* narrow)
     return wide;
 }
 
+// Loads the component from the UTF-8 path and optionally returns its factory export.
 HMODULE LoadComponent(const char* componentPath, GetActivationFactoryFn* outEntry)
 {
     const std::wstring wide = WidenUtf8(componentPath);
@@ -428,8 +432,10 @@ void TestInterleavedRejection(HMODULE module, GetActivationFactoryFn entry)
 
 } // namespace
 
+// Runs activation, XAML binding and lifetime assertions against a loaded module.
 int RunXamlProbeLifetimeChecks(HMODULE module, const char* componentDescription);
 
+// Standalone entry point initializes WinRT and loads the component supplied by the caller.
 #ifndef XAML_PROBE_LIFETIME_LIBRARY
 int __cdecl main(int argc, char** argv)
 {
@@ -467,6 +473,7 @@ int __cdecl main(int argc, char** argv)
 }
 #endif
 
+// Executes the shared checks for either the package host or desktop harness.
 int RunXamlProbeLifetimeChecks(HMODULE module, const char* componentDescription)
 {
     std::printf("M10 gate 2.4 activation and lifetime verification\n");

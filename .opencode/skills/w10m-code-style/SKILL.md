@@ -18,9 +18,9 @@ Use this skill for Windows 10 Mobile implementation, toolchain, MiniBrowser, Win
 ## Constants and error values
 
 - Replace unexplained numeric literals with named constants or enums, documenting every enum value. Keep ABI-mandated numeric values explicit and stable.
-- Use existing semantic constants first: `CURLE_*` for curl transport errors, `httpStatus*` from `HTTPStatusCodes.h` for HTTP response statuses, Win32 constants for Win32 flags/errors, and the UWP bridge result/error enums for adapter-local values.
-- Do not confuse curl error codes with `UWPNetwork` adapter error codes or `WKPageResultUWP` HRESULT bridge codes. Keep each domain named at its source.
-- For booleans written to diagnostic logs, use `WKPageLogTrueUWP` and `WKPageLogFalseUWP`; distinguish diagnostic success values from boolean values.
+- Use existing semantic constants first: `CURLE_*` for curl transport errors, `httpStatus*` from `HTTPStatusCodes.h` for HTTP response statuses, Win32 constants for Win32 flags/errors, and the W10M bridge result/error enums for adapter-local values.
+- Do not confuse curl error codes with `W10MNetwork` adapter error codes or `WKPageResultW10M` HRESULT bridge codes. Keep each domain named at its source. The historical `WKUWP*` ABI names remain frozen compatibility identifiers; do not rename them.
+- For booleans written to diagnostic logs, use `WKPageLogTrueW10M` and `WKPageLogFalseW10M`; distinguish diagnostic success values from boolean values. Preserve the corresponding legacy `WKUWP*` ABI spellings where they are part of the frozen interface.
 - Keep temporary test phase numbers named and documented, especially when they are part of the device-log protocol.
 
 ## UI, HTML and application customization
@@ -34,10 +34,8 @@ Use this skill for Windows 10 Mobile implementation, toolchain, MiniBrowser, Win
 
 - Preserve the acronym `CX` in authored names for C++/CX code, namespaces, types, project names and metadata/resource names: use `CXCompileProbe`, not `CxCompileProbe`. Lowercase file/script slugs such as `cx-probe` may remain lowercase. Regenerate derived XAML/WinMD outputs after renaming their authored inputs; do not hand-edit generated files or rewrite historical package evidence.
 
-- `Tools/w10m/CXComponent/WebKitWebView.idl` is the source of truth for the WinRT contract and its documentation. Regenerate `.winmd` and MIDL outputs using the durable recipe in `Tools/w10m/CXComponent/README.md`. Do not manually edit generated MIDL outputs: changes will be overwritten.
-- The component uses C++/CX, not C++/WinRT: the SDK's C++/WinRT base header rejects 32-bit ARM. Authored public control sources live in `Source/WebKit/UIProcess/API/w10m/`; `Tools/w10m/CXComponent/` holds only the prototype being replaced, the browser-free gate probe, and build support. Generate nothing into the source tree.
+- The M10 public control contract is authored in `Source/WebKit/UIProcess/API/w10m/`; the shipping `WebKit.winmd` is generated from the same `/ZW` objects as `WebKit.dll` by `Tools/w10m/build/build-arm32-cx-component.ps1`. `Tools/w10m/CXComponent/` contains component activation support and the independent browser-free XAML probe, not a competing control contract. Generate nothing into the source tree.
 - `/ZW` does not generate the activation entry point. A `/ZW` component has no `DllGetActivationFactory` and no `/EXPORT` directive, so the link must pass `/export:DllGetActivationFactory` explicitly and the activation factory is hand-written. Never feed an IDL-generated WinMD back into the `/ZW` compilation; the header's `runtimeclass` collides with the CX `ref class` (C2011/C3094).
-- Put WRL implementation details and their documentation in `WebKitWebViewComponent.cpp`; use the minimal async declarations in `WebKitWinRTBase.h` only where the installed SDK projection is unavailable.
 - Preserve ABI names, IIDs, enum numerics, threading/marshaling metadata and exports unless the task explicitly changes the public contract.
 - For C# Windows 10 Mobile consumers, use XML `///` documentation on public APIs, `x:Bind` for view bindings, and the repository's MVVM/dependency-injection patterns.
 

@@ -44,11 +44,13 @@ namespace {
 LONG gExitCode = 1;
 char gDiagnostics[4096] = "version=1.0.0.27\r\n";
 
+// Stores the final process result consumed by the package-level harness.
 void SetExitCode(int result)
 {
     InterlockedExchange(&gExitCode, result);
 }
 
+// Persists a lifetime-check stage in the app's local state for device collection.
 void WriteResultToLocalState(LONG result, HRESULT detail = S_OK)
 {
     ComPtr<Storage::IApplicationDataStatics> statics;
@@ -90,16 +92,19 @@ void WriteResultToLocalState(LONG result, HRESULT detail = S_OK)
     CloseHandle(handle);
 }
 
+// Records a probe stage without an HRESULT detail value.
 extern "C" void XamlProbeRecordStage(int stage)
 {
     WriteResultToLocalState(stage);
 }
 
+// Records a probe stage together with the HRESULT that explains it.
 extern "C" void XamlProbeRecordHResult(int stage, HRESULT detail)
 {
     WriteResultToLocalState(stage, detail);
 }
 
+// Compares an HSTRING to an expected literal without requiring termination.
 bool HStringEquals(HSTRING actual, const wchar_t* expected)
 {
     UINT32 length = 0;
@@ -108,6 +113,7 @@ bool HStringEquals(HSTRING actual, const wchar_t* expected)
         && wcsncmp(value, expected, length) == 0;
 }
 
+// Activates the probe's runtime class from the explicitly loaded component.
 HRESULT ActivateProbe(HMODULE component, IInspectable** instance)
 {
     if (!instance)
@@ -127,11 +133,13 @@ HRESULT ActivateProbe(HMODULE component, IInspectable** instance)
     return factory->ActivateInstance(instance);
 }
 
+// Owns the XAML window and writes the binding/lifetime outcome for the host.
 class ProbeApplication final
     : public RuntimeClass<RuntimeClassFlags<WinRtClassicComMix>, Xaml::IApplicationOverrides, ComposableBase<>> {
     InspectableClass(L"WebKitProbe.XamlLifetimeHost.App", BaseTrust);
 
 public:
+    // Creates the XAML application object and adopts its composable base.
     HRESULT RuntimeClassInitialize()
     {
         ComPtr<Xaml::IApplicationFactory> factory;
@@ -148,6 +156,7 @@ public:
         return SetComposableBasePointers(inner.Get());
     }
 
+    // Opens the probe window after the application has launched.
     HRESULT STDMETHODCALLTYPE OnLaunched(Activation::ILaunchActivatedEventArgs*) override
     {
         HRESULT result = OpenWindow();
@@ -156,6 +165,7 @@ public:
         return S_OK;
     }
 
+    // Re-activates the existing window when the application is resumed.
     HRESULT STDMETHODCALLTYPE OnActivated(Activation::IActivatedEventArgs*) override
     {
         if (m_window)
@@ -163,15 +173,23 @@ public:
         return S_OK;
     }
 
+    // File activation is outside this probe's launch-only contract.
     HRESULT STDMETHODCALLTYPE OnFileActivated(Activation::IFileActivatedEventArgs*) override { return S_OK; }
+    // Search activation is outside this probe's launch-only contract.
     HRESULT STDMETHODCALLTYPE OnSearchActivated(Activation::ISearchActivatedEventArgs*) override { return S_OK; }
+    // Share-target activation is outside this probe's launch-only contract.
     HRESULT STDMETHODCALLTYPE OnShareTargetActivated(Activation::IShareTargetActivatedEventArgs*) override { return S_OK; }
+    // Picker activation is outside this probe's launch-only contract.
     HRESULT STDMETHODCALLTYPE OnFileOpenPickerActivated(Activation::IFileOpenPickerActivatedEventArgs*) override { return S_OK; }
+    // Picker activation is outside this probe's launch-only contract.
     HRESULT STDMETHODCALLTYPE OnFileSavePickerActivated(Activation::IFileSavePickerActivatedEventArgs*) override { return S_OK; }
+    // Cache-updater activation is outside this probe's launch-only contract.
     HRESULT STDMETHODCALLTYPE OnCachedFileUpdaterActivated(Activation::ICachedFileUpdaterActivatedEventArgs*) override { return S_OK; }
+    // No work is required when XAML creates the probe window.
     HRESULT STDMETHODCALLTYPE OnWindowCreated(Xaml::IWindowCreatedEventArgs*) override { return S_OK; }
 
 private:
+    // Captures direct and bound values after the asynchronous XAML binding settles.
     void RecordBindingSnapshot(const char* phase)
     {
         ComPtr<ProbeInterface> probe;
@@ -198,6 +216,7 @@ private:
         XamlProbeRecordStage(-112);
     }
 
+    // Combines deferred binding and component-lifetime outcomes into final status.
     HRESULT FinishChecks()
     {
         RecordBindingSnapshot("deferred-final");
@@ -210,16 +229,19 @@ private:
         return S_OK;
     }
 
+    // Updates the visible summary line when the UI has been created.
     HRESULT SetStatus(const wchar_t* status)
     {
         return m_status ? m_status->put_Text(HStringReference(status).Get()) : E_UNEXPECTED;
     }
 
+    // Updates the visible details text when the UI has been created.
     HRESULT SetDetails(const wchar_t* details)
     {
         return m_details ? m_details->put_Text(HStringReference(details).Get()) : E_UNEXPECTED;
     }
 
+    // Verifies XAML inheritance, binding, layout and content reinsertion.
     bool RunMarkupChecks(IInspectable* probeObject, Controls::IContentControl* probeHost,
         Controls::ITextBlock* boundText)
     {
@@ -291,6 +313,7 @@ private:
         return passed;
     }
 
+    // Loads the component, creates the test markup and starts lifetime checks.
     HRESULT OpenWindow()
     {
         XamlProbeRecordStage(-101);
@@ -426,6 +449,7 @@ private:
 
 } // namespace
 
+// Windows entry point initializes the apartment and runs the XAML lifetime probe.
 extern "C" void __stdcall WKProbeLifetimeStartup()
 {
     const HRESULT apartment = RoInitialize(RO_INIT_MULTITHREADED);

@@ -268,7 +268,7 @@ try {
     # engine build disables C++ unwinding (/EHs-c-), the service is written for
     # that model, and appending /EHsc after /EHs-c- trips an LLVM 19.1.5 ARM
     # backend crash (cleanupret selection) on this translation unit.
-    $armServiceObject = Join-Path $OutDir 'ClipboardServiceUWP-arm-native.obj'
+    $armServiceObject = Join-Path $OutDir 'ClipboardServiceW10M-arm-native.obj'
     $run = Invoke-Captured -Exe $clangCl -Arguments (@($armCompileFlags) + @(
             '/nologo', '/c', '/W4', '/WX',
             ('/I' + $script:AbiHeaderDir), ('/I' + $script:PlatformDir), ('/I' + $script:NativeDir),
@@ -282,7 +282,7 @@ try {
 
     # ---------------------------------------------------------------------------
     Write-Host '2/6 ARM32 compile of the neutral service with the MSVC ARM32 compiler'
-    $armCxServiceObject = Join-Path $OutDir 'ClipboardServiceUWP-arm-cx.obj'
+    $armCxServiceObject = Join-Path $OutDir 'ClipboardServiceW10M-arm-cx.obj'
     $run = Invoke-Captured -Exe $armCl -Arguments @(
         '/nologo', '/c', '/W4', '/WX', '/EHsc', '/MD',
         '/DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP', '/D_WIN32_WINNT=0x0A00',
@@ -363,7 +363,7 @@ if ($projectionHits) {
 Write-Host '    neutral service header carries no CX/WinRT token'
 
 $engineHits = Get-ChildItem -LiteralPath $script:EngineDir -Filter '*.h' |
-    Select-String -Pattern 'DispatcherUWP\.h|ClipboardPlatformUWP\.h|ClipboardServiceUWP\.h'
+    Select-String -Pattern 'DispatcherW10M\.h|ClipboardPlatformW10M\.h|ClipboardServiceW10M\.h'
 if ($engineHits) {
     throw "Engine header reaches for the new service headers:`n$($engineHits -join "`n")"
 }
@@ -372,7 +372,7 @@ Write-Host '    no engine header includes the dispatcher/service headers'
 # ---------------------------------------------------------------------------
 Write-Host '6/6 clipboard service behaviour on this x64 host'
 $x64Exe = Join-Path $OutDir 'ClipboardServiceTests.exe'
-$x64ServiceObject = Join-Path $OutDir 'ClipboardServiceUWP-x64.obj'
+$x64ServiceObject = Join-Path $OutDir 'ClipboardServiceW10M-x64.obj'
 $x64HarnessObject = Join-Path $OutDir 'ClipboardServiceTests.obj'
 
 # The x64 host builds below deliberately omit /DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP:

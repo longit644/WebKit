@@ -33,7 +33,7 @@ their separate gates.
 ## Shared initialization actions
 
 Add `-InitializationTests` to the build command to include the diagnostic-only
-`WKUWPTestInitialization` entry and run it after the Source/state suite. The host
+`WKW10MTestInitialization` entry and run it after the Source/state suite. The host
 shows `INITIALIZATION / STATE PASS` only if both suites pass. This flavor stages
 actual fixture `cacert.pem` and required DejaVu faces; override `-FontDirectory`
 when the preserved package fonts are not available at the default path.
@@ -55,7 +55,7 @@ Fetch `LocalState/event-callback-result.txt` as well as the other two reports.
 
 Version 1.0.0.5 passes **37/37** callback/token assertions, **33/33** initialization
 and **42/42** state assertions on Lumia 950 XL. It exercises the actual retained
-WKUWPPageCallbacks table and copied real-control event objects, including
+WKW10MPageCallbacks table and copied real-control event objects, including
 borrowed-buffer scrambling, late Cancel, handler HRESULT precedence, trace
 ordering, cross-control token identity and malformed-packet rejection.
 `artifact/structured-callbacks.md` in the M10 change records exact payload/report
@@ -64,7 +64,7 @@ hashes and scope. All diagnostic exports are excluded from production builds.
 ## Public commands through the engine table
 
 Add `-CommandTests` with both previous switches to bind the real control through
-`native/PageControllerUWP` to a deterministic frozen engine table. The test
+`native/PageControllerW10M` to a deterministic frozen engine table. The test
 provider owns its page registry, history cursor and decision ledger; none of those
 fixtures become framework code. Fetch `LocalState/command-result.txt` as well as
 the three regression files.
@@ -120,7 +120,7 @@ V1 responses; real WebCore/renderer/platform integration retains its own gates.
 Add `-SchedulerTests -SchedulerBaseUrl <fixture-http-base> -EngineDirectory
 <actual-arm-engine-bin> -DependencyBaseline <audited-dependency-stage>` with all
 earlier switches. The package includes the real native engine/import closure and
-internetClient. `WKUWPTestScheduler` returns a real asynchronous SDK action; the
+internetClient. `WKW10MTestScheduler` returns a real asynchronous SDK action; the
 host displays aggregate PASS only after that action and every earlier suite passes.
 
 Version 1.0.0.14 passes **22/22** scheduler plus **198/198** regression assertions.

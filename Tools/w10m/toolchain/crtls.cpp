@@ -34,6 +34,7 @@ __declspec(allocate(".tls$ZZZ")) char _tls_end = kTlsGuardUninitialized;
 __declspec(allocate(".CRT$XLA")) PIMAGE_TLS_CALLBACK __xl_a = nullptr;
 __declspec(allocate(".CRT$XLZ")) PIMAGE_TLS_CALLBACK __xl_z = nullptr;
 #pragma section(".rdata$T", read)
+// PE TLS directory consumed by the loader for this module's static TLS block.
 extern __declspec(allocate(".rdata$T")) const IMAGE_TLS_DIRECTORY32 _tls_used = {
     reinterpret_cast<ULONG_PTR>(&_tls_start),
     reinterpret_cast<ULONG_PTR>(&_tls_end),

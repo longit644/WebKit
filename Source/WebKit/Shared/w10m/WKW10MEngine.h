@@ -70,12 +70,14 @@ typedef uint64_t WKW10MPageHandle;
 
 /* Borrowed UTF-8 byte span. Length is authoritative; no terminator is implied. */
 typedef struct {
+    /* Pointer to length-counted UTF-8 bytes; ownership stays with the caller. */
     const uint8_t* data;
     uint32_t length;
 } WKW10MString;
 
 /* Borrowed UTF-16 code-unit span used for filesystem paths. */
 typedef struct {
+    /* Pointer to length-counted UTF-16 code units; ownership stays with caller. */
     const uint16_t* data;
     uint32_t length;
 } WKW10MPath;

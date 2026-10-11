@@ -78,7 +78,7 @@ Toolchain: `WebKitLibraries/toolchains/Toolchain-ARM32-W10M-clang.cmake` v0.3 +
   DWrite font backend disabled too (entangled with GDI fallback/blits).
   Fonts v0 = FreeType; DWrite returns via WebKit in phase 2.
 - Duplicate CRT aliases across DLLs (cairo's strdup vs fontconfig's copy):
-  `/FORCE:MULTIPLE` in `WK_UWP_LINK_FLAGS` (+ pthreads XLIBS). Copies are
+  `/FORCE:MULTIPLE` in `WK_W10M_LINK_FLAGS` (+ pthreads XLIBS). Copies are
   identical wrappers; proper fix later = shared wkrt.dll.
 - Result: cairo 1.18.6 + full dep set installed to
   `C:/vcpkg/installed/arm-w10m-webkit` (COFF-ARM/ARMNT, APPCONTAINER);

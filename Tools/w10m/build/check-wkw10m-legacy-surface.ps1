@@ -107,6 +107,23 @@ function Get-ToolchainSetting {
     return $match.Matches[0].Groups[1].Value -replace '^"|"$', ''
 }
 
+function ConvertTo-QuotedArgument {
+    # Modern PowerShell preserves argument boundaries; only legacy native passing
+    # needs embedded path quotes, with a compiler option's prefix outside them.
+    param([Parameter(Mandatory = $true)][string]$Argument)
+
+    if ($PSVersionTable.PSVersion -ge [version]'7.3' -and $PSNativeCommandArgumentPassing -ne 'Legacy') {
+        return $Argument
+    }
+    if ($Argument -notmatch '[\s()]') {
+        return $Argument
+    }
+    if ($Argument -match '^(/[A-Za-z]+:?)(.+)$') {
+        return $Matches[1] + '"' + $Matches[2] + '"'
+    }
+    return '"' + $Argument + '"'
+}
+
 function Get-ArmSdk {
     # Newest Windows SDK that can still build this target, returned as its version
     # directory name so callers can reach both the header and library trees.
@@ -169,10 +186,11 @@ function Invoke-LayoutCheck {
 
     try {
         Write-Host "    $Exe $($Arguments -join ' ')"
+        $invocation = @($Arguments | ForEach-Object { ConvertTo-QuotedArgument -Argument $_ })
         $previousPreference = $ErrorActionPreference
         $ErrorActionPreference = 'Continue'
         try {
-            $output = & $Exe @Arguments 2>&1
+            $output = & $Exe @invocation 2>&1
             $exitCode = $LASTEXITCODE
         }
         finally {

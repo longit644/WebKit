@@ -365,6 +365,6 @@ if ($harnessExit -ne 0) {
 }
 
 Write-Host 'Task 3.2 discovery verification passed.'
-Write-Host 'Not claimed here: a full WebCore rebuild, the EngineModuleUWP consumer,'
+Write-Host 'Not claimed here: a full WebCore rebuild, the EngineModuleW10M consumer,'
 Write-Host 'module pinning (task 3.3) or device behaviour of any engine table slot.'
 exit 0

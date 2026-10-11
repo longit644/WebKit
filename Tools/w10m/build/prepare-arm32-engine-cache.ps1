@@ -31,8 +31,11 @@ foreach ($line in [IO.File]::ReadAllLines($source)) {
     # These cached values overrule *_INIT and would reintroduce SDK 22621/msvcurt.
     if ($name -eq 'CMAKE_RC_COMPILER' -or $name -match 'LINKER_FLAGS|^CMAKE_C_FLAGS|^CMAKE_CXX_FLAGS') { continue }
     if ($value.IndexOf($oldNormalized, [StringComparison]::OrdinalIgnoreCase) -ge 0) { continue }
-    # Source tree moved Tools/uwp -> Tools/w10m; remap surviving source paths.
-    $value = $value.Replace('Tools/uwp/', 'Tools/w10m/')
+    # The source-port cache option was renamed together with the port guard.
+    if ($name.StartsWith('WK_UWP', [StringComparison]::Ordinal)) { $name = 'WK_W10M' + $name.Substring(6) }
+    # Source tree moved Tools/uwp -> Tools/w10m; remap surviving source paths
+    # in both slash styles, including a value that ends at the directory name.
+    $value = [regex]::Replace($value, 'Tools[\\/]uwp(?=[\\/]|$)', 'Tools/w10m', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
     $value = $value.Replace('"', '\"').Replace('$', '\$')
     $lines += 'set({0} "{1}" CACHE {2} "")' -f $name, $value, $kind
 }

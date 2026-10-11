@@ -3,12 +3,13 @@
 **M10 authority:** [DESIGN.md](DESIGN.md) specifies the complete C++/CX design,
 Windows 10 Mobile naming, target source tree and build/lifecycle contracts. Its
 [OpenSpec change](../../openspec/changes/wkview-m10-w10m-cppcx-restructure/README.md)
-supersedes M9's unfinished architecture. This note summarizes ownership and
-retains useful current cleanup observations; target design is not implementation.
+supersedes M9's unfinished architecture. This note summarizes implemented
+ownership and the current cleanup boundary.
 
-This note defines ownership before the XAML `WebKitWebView` control is completed.
-The framework provides reusable browser behavior; applications provide chrome and
-product policy; test harnesses own fixtures, sequencing and assertions.
+This note defines ownership for the implemented XAML `WebKitWebView` control and
+its remaining engine-integration gates. The framework provides reusable browser
+behavior; applications provide chrome and product policy; test harnesses own
+fixtures, sequencing and assertions.
 
 ## Layers
 
@@ -30,8 +31,8 @@ surface, and typed browser event projection. It must not own MiniBrowser
 address-bar/status-bar UI, blocked-page product copy, test URLs, fixture
 sequencing, or app-specific consent policy. `Tools/w10m/CXComponent/` owns
 MIDLRT/build/packaging support only; generated products belong in build output.
-The current prototype remains in its existing location until deliberately
-replaced.
+The public authored control is in the API directory; `Tools/w10m/CXComponent/`
+retains build support and explicitly identified prototype sources.
 
 The directory is named for the projection it actually uses. It was
 `WinRTComponent/` while the prototype was C++/WinRT; M10 adopts C++/CX because
@@ -71,11 +72,12 @@ passed.
 separate platform/build-support layer. They support every W10M app and are
 neither browser features nor MiniBrowser application behavior.
 
-## Decisions required before implementing the XAML control
+## Current implementation and remaining gates
 
-The full target contract is specified by M10; its implementation gates remain
-pending. Apply the dependency order in M10 tasks, particularly complete CX
-DLL/runtime/metadata/compiled-XAML phone feasibility before broad migration:
+M10 specifies the target contract. The C++/CX control, compiled metadata/XAML
+identity, neutral ABI, native services and C# MiniBrowser host are implemented.
+The production engine page forward still fails closed as unsupported; complete
+remaining integration in the dependency order recorded by M10:
 
 1. **One authoritative API specification.** M10 `public-api.md` defines the
    current target and deferred capabilities. CX declarations generate component
@@ -106,12 +108,10 @@ DLL/runtime/metadata/compiled-XAML phone feasibility before broad migration:
    into whichever document loader happens to be active is not a substitute-data
    contract.
 
-The minimum visual feasibility probe should activate the proposed type, query
-its inherited XAML interfaces, construct it through the intended XAML path,
-measure/layout it, bind its source and close it. Browser navigation integration
-follows only after that passes. A child `SwapChainPanel` inside a native wrapper
-proves that the wrapper can own a visual; it does not by itself prove that the
-outer WinRT object is a XAML element.
+The compiled-XAML phone probe has established activation, inherited XAML
+interfaces, declarative construction, binding/layout and ordinary Close. Keep
+that proof distinct from production browser readiness: a child `SwapChainPanel`
+proves visual ownership, not a functioning engine page/navigation path.
 
 ## Current cleanup boundary
 
@@ -160,13 +160,13 @@ the device harness when the XAML control is exercised there.
 
 ## XAML control contract
 
-The intended control is a reusable browser view, not a complete browser
-application. It owns one visual child for rendering and routes its measured
-size, DPI, pointer, keyboard/focus and lifecycle changes to its native view. Its
-public API exposes navigation, history, source and navigation events. It does
-not create its own address bar, status UI, fixture runner or product-specific
-interstitial. The current implementation has not yet proven that its WinRT
-runtime identity is a constructible XAML control.
+The control is a reusable browser view, not a complete browser application. It
+owns one visual child for rendering and routes its measured size, DPI,
+pointer, keyboard/focus and lifecycle changes to its native view. Its public API
+exposes navigation, history, source and navigation events. It does not create its
+own address bar, status UI, fixture runner or product-specific interstitial.
+Compiled-XAML device evidence proves its WinRT runtime identity is a constructible
+XAML control; production engine page creation remains a separate open gate.
 
 The MiniBrowser app will host that control inside its own layout and provide
 chrome around it. The device test app will host the same control and drive it

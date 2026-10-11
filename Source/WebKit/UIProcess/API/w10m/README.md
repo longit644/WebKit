@@ -137,8 +137,13 @@ reference traces, plus all 163 existing device assertions. See
 reference ordering and payload/report identities.
 
 All authored functions/methods, constants, enums and types require documentation
-comments. `Tools/w10m/audit-source-docs.py --check <authored-paths>` checks CX/native
-declarations and spacing, including this directory's authored `WebKitWebView.h`.
+comments. `python Tools/w10m/audit-source-docs.py --check <authored-paths>` (or the
+`Tools/w10m/audit-source-docs.ps1`/`.sh` forwarding wrappers) checks CX/native
+declarations and spacing across the implemented M10 placement
+(`Source/WebKit/Shared/w10m/`, `Source/WebCore/platform/w10m/`, this directory
+and `Tools/w10m/`), including this directory's authored `WebKitWebView.h`.
+MIDLRT outputs, `legacy-generated/` directories and `*.g.*` XAML/MIDL sources
+are excluded as generator-owned build outputs; never hand-edit them.
 
 ## Native presentation extraction
 

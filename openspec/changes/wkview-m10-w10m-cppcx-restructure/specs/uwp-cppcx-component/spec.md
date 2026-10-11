@@ -1,6 +1,6 @@
 ## Purpose
 
-Provide an ARM32 UWP component whose public projection, runtime metadata, activation and XAML identity agree and can be consumed on Windows 10 Mobile.
+Provide an ARM32 W10M component whose public projection, runtime metadata, activation and XAML identity agree and can be consumed on Windows 10 Mobile.
 
 ## ADDED Requirements
 

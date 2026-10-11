@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Verifies the M10 task 3.3 EngineModuleUWP consumer: pinning and page ownership.
+    Verifies the M10 task 3.3 EngineModuleW10M consumer: pinning and page ownership.
 
 .DESCRIPTION
     Four checks, all from repository sources, in the order a consumer meets them:
@@ -233,7 +233,7 @@ $x64Include = @(
 
 New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
 
-Write-Host 'M10 task 3.3 EngineModuleUWP verification'
+Write-Host 'M10 task 3.3 EngineModuleW10M verification'
 Write-Host "  consumer        : $script:ModuleSource"
 Write-Host "  test provider   : $script:ProviderSource"
 Write-Host "  native compiler : $clangCl"
@@ -317,11 +317,11 @@ Write-Host '4/4 ownership behaviour on this x64 host'
 $x64ProviderDll = Join-Path $OutDir 'WKW10MModuleTestProvider-x64.dll'
 $x64LifecycleDll = Join-Path $OutDir 'WKW10MModuleLifecycle-x64.dll'
 $x64RejectionDll = Join-Path $OutDir 'WKW10MModuleRejection-x64.dll'
-$x64Exe = Join-Path $OutDir 'EngineModuleUWPTests.exe'
-$x64ModuleObj = Join-Path $OutDir 'EngineModuleUWP-x64.obj'
+$x64Exe = Join-Path $OutDir 'EngineModuleW10MTests.exe'
+$x64ModuleObj = Join-Path $OutDir 'EngineModuleW10M-x64.obj'
 $x64ProviderObj = Join-Path $OutDir 'WKW10MModuleTestProvider-x64.obj'
 $x64RejectionProviderObj = Join-Path $OutDir 'WKW10MModuleTestProvider-rejection-x64.obj'
-$harnessObj = Join-Path $OutDir 'EngineModuleUWPTests.obj'
+$harnessObj = Join-Path $OutDir 'EngineModuleW10MTests.obj'
 
 # The x64 host builds below deliberately omit /DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP:
 # a desktop test process is not an AppContainer, so the consumer takes its
@@ -427,6 +427,6 @@ if ($harnessExit -ne 0) {
 }
 
 Write-Host 'Task 3.3 ownership verification passed.'
-Write-Host 'Not claimed here: a full WebCore or WebKit rebuild, EngineModuleUWP target'
+Write-Host 'Not claimed here: a full WebCore or WebKit rebuild, EngineModuleW10M target'
 Write-Host 'wiring (deferred to component integration), or device behaviour of any slot.'
 exit 0
