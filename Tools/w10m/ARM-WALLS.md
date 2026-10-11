@@ -1,7 +1,7 @@
-# ARM32-UWP walls (probe log, 2026-09-30; link recipe closed same day)
+# ARM32-W10M walls (probe log, 2026-09-30; link recipe closed same day)
 
-Toolchain: `WebKitLibraries/toolchains/Toolchain-ARM32-UWP-clang.cmake` v0.3 +
-`Tools/UWP/arm32-uwp-env.ps1`. clang-cl 19.15, SDK 22621 ARM libs present.
+Toolchain: `WebKitLibraries/toolchains/Toolchain-ARM32-W10M-clang.cmake` v0.3 +
+`Tools/w10m/arm32-w10m-env.ps1`. clang-cl 19.15, SDK 22621 ARM libs present.
 
 ## Solved
 
@@ -18,7 +18,7 @@ Toolchain: `WebKitLibraries/toolchains/Toolchain-ARM32-UWP-clang.cmake` v0.3 +
    thumb2 base + optfp + sync + aeabi RT/CLIB + idivmod/ldivmod/uidivmod/
    uldivmod/chkstk), `CMAKE_ASM_COMPILER_TARGET` set for .S files.
    Result: 180 objects, `__aeabi_*`/`__divsi3`/`__addsf3` present.
-   Committed: `Tools/UWP/lib/clang_rt.builtins-arm.lib` (143 KB).
+   Committed: `Tools/w10m/lib/clang_rt.builtins-arm.lib` (143 KB).
    Rebuild recipe: sparse llvm-project (compiler-rt, cmake, llvm/cmake),
    `cmake -S compiler-rt/lib/builtins -B build-rt-arm -G Ninja
    -DCMAKE_C_COMPILER=clang -DCMAKE_C_COMPILER_TARGET=armv7-unknown-windows-msvc
@@ -40,12 +40,12 @@ Toolchain: `WebKitLibraries/toolchains/Toolchain-ARM32-UWP-clang.cmake` v0.3 +
    only portable deps (CURL, HarfBuzz, ICU, JPEG, LibXml2, OpenSSL, PNG,
    SQLite3, ZLIB, LibPSL→stub, WebP) — all vcpkg-available for host and
    prebuildable for ARM. Same tree holds both ports; use `-DPORT=Win`.
-   MiniBrowser `uwp/` skeleton stays valid (based on `win/`).
+   MiniBrowser `w10m/` skeleton stays valid (based on `win/`).
 
 ## Next (M3)
 
 - Acquire/produce `builtins-arm.lib`, prebuilt ARM icu/curl/xml2/zlib/png.
-- First `WK_WEBKITVIEW` source shims per `Tools/UWP/SHIM-PLAN.md`
+- First `WK_WEBKITVIEW` source shims per `Tools/w10m/SHIM-PLAN.md`
   (generic RunLoop, no-BSTR, curl caps, thread stacks).
 
 ## Solved (M3-deps-3: cairo stack, 2026-10-01)
@@ -54,7 +54,7 @@ Toolchain: `WebKitLibraries/toolchains/Toolchain-ARM32-UWP-clang.cmake` v0.3 +
   ICU` (harfbuzz-icu). Rebuilt `harfbuzz[freetype,icu]`.
 - `wchar_t` is a distinct builtin in C++: header's `unsigned short` LPCWSTR
   conflicted once windows.h loaded. `#ifdef __cplusplus` spelling in
-  `uwp-desktop-apis.h`.
+  `w10m-desktop-apis.h`.
 - `__u64tos` missing at link (no ARM-store vcruntime): implemented in
   `crrt.cpp` (expat proven).
 - fontconfig file-mapping: desktop `CreateFileMapping`/`MapViewOfFile` hidden
@@ -63,26 +63,26 @@ Toolchain: `WebKitLibraries/toolchains/Toolchain-ARM32-UWP-clang.cmake` v0.3 +
   toolchain (meson harvests flags from CMAKE_*_FLAGS_INIT, not VCPKG_C_FLAGS).
 - fontconfig gperf: `-FI intrin.h` expands into meson's preprocess->cutout
   flow; gperf copies the junk into its header (`_JUMP_BUFFER` clash). Overlay
-  port `Tools/uwp/ports/fontconfig` patches cutout.py to drop pre-`%` lines.
+  port `Tools/w10m/ports/fontconfig` patches cutout.py to drop pre-`%` lines.
 - meson llvm-lib `/MACHINE:thumbv7` rejected: target spelling changed to
   `armv7-unknown-windows-msvc` (verified byte-identical COFF-ARM/ARMNT
   objects); meson maps 'arm' in target to /MACHINE:arm.
 - fontconfig needs `_mbsrchr`, `GetWindowsDirectoryA` (+unsuffixed macro),
-  `unlink/rmdir/strdup/access/chmod`: declared in `uwp-desktop-apis.h`,
+  `unlink/rmdir/strdup/access/chmod`: declared in `w10m-desktop-apis.h`,
   implemented in `crrt.cpp` (all absent from ARM ucrt/msvcurt).
 - pthreads (nmake under cmd.exe): extensionless wrapper unusable as CC; raw
   clang-cl + full flags via `CC=` macro, link recipe via `XLIBS=`. Portfile
   scope uses `TARGET_TRIPLET`, not `VCPKG_TARGET_TRIPLET`.
 - cairo win32 GDI surface+font backends cannot compile/link on UWP: overlay
-  port `Tools/uwp/ports/cairo` skips them when `WINAPI_FAMILY == 2` (PC_APP);
+  port `Tools/w10m/ports/cairo` skips them when `WINAPI_FAMILY == 2` (PC_APP);
   DWrite font backend disabled too (entangled with GDI fallback/blits).
   Fonts v0 = FreeType; DWrite returns via WebKit in phase 2.
 - Duplicate CRT aliases across DLLs (cairo's strdup vs fontconfig's copy):
   `/FORCE:MULTIPLE` in `WK_UWP_LINK_FLAGS` (+ pthreads XLIBS). Copies are
   identical wrappers; proper fix later = shared wkrt.dll.
 - Result: cairo 1.18.6 + full dep set installed to
-  `C:/vcpkg/installed/arm-uwp-webkit` (COFF-ARM/ARMNT, APPCONTAINER);
-  ARM WebCore configure green (PORT=Win + Cairo, `build-arm-uwp`).
+  `C:/vcpkg/installed/arm-w10m-webkit` (COFF-ARM/ARMNT, APPCONTAINER);
+  ARM WebCore configure green (PORT=Win + Cairo, `build-arm-w10m-fresh`).
 
 ## Graphics direction (owner directive, 2026-10-01): GPU-first, never CPU present
 
@@ -95,4 +95,4 @@ Toolchain: `WebKitLibraries/toolchains/Toolchain-ARM32-UWP-clang.cmake` v0.3 +
 - Phase 2 (committed, not dropped): GPU compositing via ANGLE (GLES-on-D3D11,
   FL 9_3) as the GL provider behind TextureMapperGL. Rasterization stays CPU
   (Cairo); compositing + presentation move to GPU. Prereq: ANGLE overlay port
-  (GN toolchain, armv7-UWP) after v0 first pixels.
+  (GN toolchain, armv7-W10M) after v0 first pixels.

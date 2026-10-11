@@ -40,12 +40,12 @@
     Explicit ARM32 MSVC toolset directory name; defaults to the newest installed.
 
 .EXAMPLE
-    .\test-wkuwp-callback-ownership.ps1
-    .\test-wkuwp-callback-ownership.ps1 -OutDir D:\m10\callbacks
+    .\test-wkw10m-callback-ownership.ps1
+    .\test-wkw10m-callback-ownership.ps1 -OutDir D:\m10\callbacks
 #>
 [CmdletBinding()]
 param(
-    [string]$OutDir = (Join-Path $env:TEMP 'opencode\wkuwp-callback-ownership'),
+    [string]$OutDir = (Join-Path $env:TEMP 'opencode\w10m-callback-ownership'),
     [string]$MsvcVersion
 )
 
@@ -59,20 +59,23 @@ $script:ModuleDir = Join-Path $script:RepoRoot 'Source\WebKit\UIProcess\API\w10m
 $script:CallbackSource = Join-Path $script:ModuleDir 'CallbackContextW10M.cpp'
 $script:ServiceSource = Join-Path $script:ModuleDir 'PlatformServiceW10M.cpp'
 $script:ModuleSource = Join-Path $script:ModuleDir 'EngineModuleW10M.cpp'
-$script:ProviderSource = Join-Path $PSScriptRoot 'WKUWPModuleTestProvider.cpp'
+$script:ProviderSource = Join-Path $PSScriptRoot 'WKW10MModuleTestProvider.cpp'
 $script:HarnessSource = Join-Path $PSScriptRoot 'CallbackOwnershipTests.cpp'
 $script:WindowsKitsRoot = 'C:\Program Files (x86)\Windows Kits\10'
 $script:VsRoot = 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools'
 
 function ConvertTo-QuotedArgument {
-    # PowerShell does not quote arguments for native commands, so a path under
-    # "Program Files (x86)" would otherwise arrive split at the space.
+    # Modern PowerShell preserves argument boundaries; only legacy native passing
+    # needs embedded path quotes, with a linker option's colon outside them.
     param([Parameter(Mandatory = $true)][string]$Argument)
 
+    if ($PSVersionTable.PSVersion -ge [version]'7.3' -and $PSNativeCommandArgumentPassing -ne 'Legacy') {
+        return $Argument
+    }
     if ($Argument -notmatch '[\s()]') {
         return $Argument
     }
-    if ($Argument -match '^(/[A-Za-z]+)(.+)$') {
+    if ($Argument -match '^(/[A-Za-z]+:?)(.+)$') {
         return $Matches[1] + '"' + $Matches[2] + '"'
     }
     return '"' + $Argument + '"'
@@ -290,7 +293,7 @@ Write-Host '    no warnings'
 
 # ---------------------------------------------------------------------------
 Write-Host '3/4 ARM32 module export inspection'
-$armDll = Join-Path $OutDir 'WKUWPCallbackPair-arm.dll'
+$armDll = Join-Path $OutDir 'WKW10MCallbackPair-arm.dll'
 $armLinkRun = Invoke-Captured -Exe $lldLink -Arguments (@(
         '/nologo', '/dll', '/NOENTRY', ('/out:' + $armDll)) + ($nativeLinkFlags -split ' ') + $armNativeObjects)
 $armLinkRun.Output | ForEach-Object { Write-Host "    $_" }
@@ -310,15 +313,15 @@ if ($headers -notmatch 'IMAGE_DLL_CHARACTERISTICS_APPCONTAINER') {
 }
 
 $exports = (& $readObj '--coff-exports' $armDll 2>&1) -join "`n"
-if ($exports -notmatch '(?m)^\s*Name: WKUWPGetEngineAPI\s*$') {
-    throw "ARM32 module does not export the unmangled WKUWPGetEngineAPI name:`n$exports"
+if ($exports -notmatch '(?m)^\s*Name: WKW10MGetEngineAPI\s*$') {
+    throw "ARM32 module does not export the unmangled WKW10MGetEngineAPI name:`n$exports"
 }
 Write-Host '    COFF-ARM / IMAGE_FILE_MACHINE_ARMNT / APPCONTAINER'
-Write-Host '    export WKUWPGetEngineAPI (unmangled)'
+Write-Host '    export WKW10MGetEngineAPI (unmangled)'
 
 # ---------------------------------------------------------------------------
 Write-Host '4/4 ownership behaviour on this x64 host'
-$x64ProviderDll = Join-Path $OutDir 'WKUWPCallbackTestProvider-x64.dll'
+$x64ProviderDll = Join-Path $OutDir 'WKW10MCallbackTestProvider-x64.dll'
 $x64Exe = Join-Path $OutDir 'CallbackOwnershipTests.exe'
 $x64Objects = @()
 foreach ($source in $armSources) {

@@ -1,4 +1,4 @@
-# UWP architecture boundaries
+# W10M architecture boundaries
 
 **M10 authority:** [DESIGN.md](DESIGN.md) specifies the complete C++/CX design,
 Windows 10 Mobile naming, target source tree and build/lifecycle contracts. Its
@@ -68,7 +68,7 @@ the test server; the framework must not read their DOM to decide whether a test
 passed.
 
 `Tools/w10m/toolchain/`, CMake presets/toolchains and packaging scripts form a
-separate platform/build-support layer. They support every UWP app and are
+separate platform/build-support layer. They support every W10M app and are
 neither browser features nor MiniBrowser application behavior.
 
 ## Decisions required before implementing the XAML control
@@ -117,7 +117,7 @@ outer WinRT object is a XAML element.
 
 The following are test-only and must leave `PageW10M.cpp`:
 
-- `PageHostUWP` fixture suite state (`fixtureSuiteStarted`, fixture base URL,
+- `PageHostW10M` fixture suite state (`fixtureSuiteStarted`, fixture base URL,
   phase/reload/scroll state) and probe-only load generation state.
 - `fixtureBodyText`, `probeFixtureMarkers`, delayed settle probes, the
   `FixtureSuitePhase` enum, `scheduleFixtureSuite`, and all DOM, cookie, font,

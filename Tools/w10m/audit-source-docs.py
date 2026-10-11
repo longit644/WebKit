@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Report documentation and spacing candidates in authored UWP C/C++ and IDL."""
+"""Report documentation and spacing candidates in authored W10M C/C++ and IDL."""
 import argparse
 import re
 from pathlib import Path
@@ -7,7 +7,7 @@ from pathlib import Path
 
 # Repository-relative root used to distinguish authored and generated headers.
 ROOT = Path(__file__).resolve().parents[2]
-# Authored UWP areas included by the default report.
+# Authored W10M areas included by the default report.
 SOURCE_DIRECTORIES = (
     ROOT / "Source/WebCore/platform/w10m",
     ROOT / "Source/WebKit/UIProcess/API/w10m",
@@ -72,7 +72,7 @@ def inspect(path):
 def main():
     """Report candidates, or fail a targeted --check gate, without editing files."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("paths", nargs="*", type=Path, help="Authored files/directories to inspect; defaults to all UWP areas")
+    parser.add_argument("paths", nargs="*", type=Path, help="Authored files/directories to inspect; defaults to all W10M areas")
     parser.add_argument("--check", action="store_true", help="Exit nonzero if any documentation/spacing candidate remains")
     args = parser.parse_args()
     paths = set()

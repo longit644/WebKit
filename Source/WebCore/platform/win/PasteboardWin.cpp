@@ -130,8 +130,8 @@ void Pasteboard::createForCopyAndPasteAsync(std::unique_ptr<PasteboardContext>&&
             return;
         }
         auto pasteboard = makeUnique<Pasteboard>(WTF::move(context));
-        pasteboard->m_uwpHasText = result == S_OK;
-        pasteboard->m_uwpText = WTF::move(text);
+        pasteboard->m_w10mHasText = result == S_OK;
+        pasteboard->m_w10mText = WTF::move(text);
         completion(result, WTF::move(pasteboard));
     });
 }
@@ -214,8 +214,8 @@ Pasteboard::Pasteboard(std::unique_ptr<PasteboardContext>&& context, const DragD
 void Pasteboard::clear()
 {
 #if PLATFORM(W10M)
-    m_uwpText = emptyString();
-    m_uwpHasText = false;
+    m_w10mText = emptyString();
+    m_w10mHasText = false;
     ClipboardW10M::clearAsync([](HRESULT result) {
         if (FAILED(result))
             LOG_ERROR("W10M clipboard clear failed: 0x%08lx", static_cast<unsigned long>(result));
@@ -263,7 +263,7 @@ void Pasteboard::clear(const String& type)
 bool Pasteboard::hasData()
 {
 #if PLATFORM(W10M)
-    if (m_uwpHasText)
+    if (m_w10mHasText)
         return true;
 #endif
     if (!m_dataObject && m_dragDataMap.isEmpty())
@@ -385,8 +385,8 @@ String Pasteboard::readOrigin()
 String Pasteboard::readString(const String& type)
 {
 #if PLATFORM(W10M)
-    if (m_uwpHasText && clipboardTypeFromMIMEType(type) == ClipboardDataTypeText)
-        return m_uwpText;
+    if (m_w10mHasText && clipboardTypeFromMIMEType(type) == ClipboardDataTypeText)
+        return m_w10mText;
 #endif
     if (!m_dataObject && m_dragDataMap.isEmpty())
         return emptyString();
@@ -639,8 +639,8 @@ void Pasteboard::writePlainText(const String& text, SmartReplaceOption smartRepl
 {
 #if PLATFORM(W10M)
     // SetContent replaces the package atomically; no separate clear is needed.
-    m_uwpText = text;
-    m_uwpHasText = true;
+    m_w10mText = text;
+    m_w10mHasText = true;
     ClipboardW10M::writeTextAsync(text, [](HRESULT result) {
         if (FAILED(result))
             LOG_ERROR("W10M clipboard write failed: 0x%08lx", static_cast<unsigned long>(result));
@@ -939,7 +939,7 @@ bool Pasteboard::canSmartReplace()
 void Pasteboard::read(PasteboardPlainText& text, PlainTextURLReadingPolicy, std::optional<size_t>)
 {
 #if PLATFORM(W10M)
-    text.text = m_uwpText;
+    text.text = m_w10mText;
 #else
     if (::IsClipboardFormatAvailable(CF_UNICODETEXT) && ::OpenClipboard(m_owner)) {
         if (HANDLE cbData = ::GetClipboardData(CF_UNICODETEXT)) {
@@ -969,9 +969,9 @@ RefPtr<DocumentFragment> Pasteboard::documentFragment(LocalFrame& frame, const S
     chosePlainText = false;
 #if PLATFORM(W10M)
     UNUSED_PARAM(frame);
-    if (allowPlainText && m_uwpHasText) {
+    if (allowPlainText && m_w10mHasText) {
         chosePlainText = true;
-        return createFragmentFromText(context, m_uwpText);
+        return createFragmentFromText(context, m_w10mText);
     }
     return nullptr;
 #else

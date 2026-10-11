@@ -32,7 +32,7 @@ struct OwnerLog {
     // Cut marker carried by the most recent completion.
     bool lastCut { false };
     // Result carried by the most recent completion.
-    WKUWPResult lastResult { WKUWPResultOK };
+    WKW10MResult lastResult { WKW10MResultOK };
     // Text bytes copied out of the borrowed span during the call.
     std::string lastText;
     // Context carried by the most recent completion.
@@ -45,7 +45,7 @@ static OwnerLog g_log;
 
 // Record one clipboard completion and prove the borrowed span stays readable.
 static void __stdcall RecordOwner(void* context, uint64_t operationId, uint32_t kind, bool cut,
-    WKUWPResult result, const WKUWPString* text)
+    WKW10MResult result, const WKW10MString* text)
 {
     std::lock_guard<std::mutex> guard(g_log.lock);
     ++g_log.count;
@@ -73,7 +73,7 @@ static void ResetLog()
     g_log.lastId = 0;
     g_log.lastKind = 0;
     g_log.lastCut = false;
-    g_log.lastResult = WKUWPResultOK;
+    g_log.lastResult = WKW10MResultOK;
     g_log.lastText.clear();
     g_log.lastContext = nullptr;
     g_log.spanReadable = false;
@@ -82,11 +82,11 @@ static void ResetLog()
 // Hook revocation record; every revocation runs on the owner thread.
 static unsigned g_hookCount = 0;
 static uint64_t g_hookLastId = 0;
-static WKUWPResult g_hookLastResult = WKUWPResultOK;
+static WKW10MResult g_hookLastResult = WKW10MResultOK;
 static void* g_hookLastContext = nullptr;
 
 // Record one hook revocation.
-static void __stdcall RecordHook(void* context, uint64_t hookId, WKUWPResult result)
+static void __stdcall RecordHook(void* context, uint64_t hookId, WKW10MResult result)
 {
     ++g_hookCount;
     g_hookLastId = hookId;
@@ -99,7 +99,7 @@ static void ResetHooks()
 {
     g_hookCount = 0;
     g_hookLastId = 0;
-    g_hookLastResult = WKUWPResultOK;
+    g_hookLastResult = WKW10MResultOK;
     g_hookLastContext = nullptr;
 }
 
@@ -107,7 +107,7 @@ static void ResetHooks()
 static unsigned g_engineCompletions = 0;
 
 // Record one engine-side table completion without retaining anything.
-static void __stdcall RecordEngine(void*, uint64_t, WKUWPResult, const WKUWPString*)
+static void __stdcall RecordEngine(void*, uint64_t, WKW10MResult, const WKW10MString*)
 {
     ++g_engineCompletions;
 }
@@ -128,7 +128,7 @@ static int g_failures = 0;
     } while (0)
 
 // Dispatcher double with inline, capture and refuse delivery modes.
-class FakeDispatcherUWP final : public IServiceDispatcherUWP {
+class FakeDispatcherW10M final : public IServiceDispatcherW10M {
 public:
     // Delivery behavior selected per test case.
     enum class Mode { Inline, Capture, Refuse };
@@ -161,7 +161,7 @@ public:
 };
 
 // Transport double with scripted writes and controllable read completions.
-class FakeTransportUWP final : public IClipboardTransportUWP {
+class FakeTransportW10M final : public IClipboardTransportW10M {
 public:
     // Answer one write with the scripted result.
     HRESULT writeText(const std::string& utf8) override
@@ -195,36 +195,36 @@ public:
 };
 
 // Borrowed span over a caller-owned buffer for copy/cut requests.
-static WKUWPString MakeSpan(const std::string& bytes)
+static WKW10MString MakeSpan(const std::string& bytes)
 {
-    WKUWPString span { reinterpret_cast<const uint8_t*>(bytes.data()), static_cast<uint32_t>(bytes.size()) };
+    WKW10MString span { reinterpret_cast<const uint8_t*>(bytes.data()), static_cast<uint32_t>(bytes.size()) };
     return span;
 }
 
 // Port pair behind one owner generation.
 struct OwnerPorts {
     // Dispatcher observed through the service stack.
-    FakeDispatcherUWP* dispatcher { nullptr };
+    FakeDispatcherW10M* dispatcher { nullptr };
     // Transport observed through the service stack.
-    FakeTransportUWP* transport { nullptr };
+    FakeTransportW10M* transport { nullptr };
 };
 
 // Build one owner with scripted doubles owned down the whole stack.
-static std::unique_ptr<RuntimeOwnerUWP> MakeOwner(OwnerPorts& ports)
+static std::unique_ptr<RuntimeOwnerW10M> MakeOwner(OwnerPorts& ports)
 {
-    auto ownedDispatcher = std::make_unique<FakeDispatcherUWP>();
-    auto ownedTransport = std::make_unique<FakeTransportUWP>();
+    auto ownedDispatcher = std::make_unique<FakeDispatcherW10M>();
+    auto ownedTransport = std::make_unique<FakeTransportW10M>();
     ports.dispatcher = ownedDispatcher.get();
     ports.transport = ownedTransport.get();
-    return std::make_unique<RuntimeOwnerUWP>(9, std::move(ownedDispatcher), std::move(ownedTransport));
+    return std::make_unique<RuntimeOwnerW10M>(9, std::move(ownedDispatcher), std::move(ownedTransport));
 }
 
 // Fresh ports for one clipboard recreation.
-static void FreshPorts(std::unique_ptr<IServiceDispatcherUWP>& dispatcher,
-    std::unique_ptr<IClipboardTransportUWP>& transport, OwnerPorts& ports)
+static void FreshPorts(std::unique_ptr<IServiceDispatcherW10M>& dispatcher,
+    std::unique_ptr<IClipboardTransportW10M>& transport, OwnerPorts& ports)
 {
-    auto ownedDispatcher = std::make_unique<FakeDispatcherUWP>();
-    auto ownedTransport = std::make_unique<FakeTransportUWP>();
+    auto ownedDispatcher = std::make_unique<FakeDispatcherW10M>();
+    auto ownedTransport = std::make_unique<FakeTransportW10M>();
     ports.dispatcher = ownedDispatcher.get();
     ports.transport = ownedTransport.get();
     dispatcher = std::move(ownedDispatcher);
@@ -232,7 +232,7 @@ static void FreshPorts(std::unique_ptr<IServiceDispatcherUWP>& dispatcher,
 }
 
 // Provider shutdown-result setter behind the legacy-surface gate.
-typedef void(__stdcall* SetProviderShutdownResult)(WKUWPResult);
+typedef void(__stdcall* SetProviderShutdownResult)(WKW10MResult);
 
 // Convert a narrow module path for the engine bind and pin observations.
 static std::wstring WidePath(const char* narrow)
@@ -269,17 +269,17 @@ int main(int argc, char** argv)
     EXPECT_TRUE(owner->droppedTotal() == 0, "no drops initially");
     EXPECT_TRUE(owner->hooksRevokedTotal() == 0, "no revocations initially");
     EXPECT_TRUE(owner->tableRefCount() == 0, "no table retains initially");
-    EXPECT_TRUE(owner->engineShutdownResult() == WKUWPResultOK, "no engine shutdown forwarded initially");
+    EXPECT_TRUE(owner->engineShutdownResult() == WKW10MResultOK, "no engine shutdown forwarded initially");
     EXPECT_TRUE(!owner->isEngineBound(), "engine unbound initially");
 
     // Each accepted operation opens a ticket that its completion acknowledges.
     ResetLog();
     std::string copied = "owner copy";
-    WKUWPString copySpan = MakeSpan(copied);
+    WKW10MString copySpan = MakeSpan(copied);
     int token = 5;
     EXPECT_TRUE(owner->copy(&copySpan, &RecordOwner, &token) == S_OK, "owner copy accepted");
     EXPECT_TRUE(g_log.count == 1, "owner copy completes exactly once");
-    EXPECT_TRUE(g_log.lastResult == WKUWPResultOK && g_log.lastKind == WKUWPClipboardWrite, "owner copy completes OK as write");
+    EXPECT_TRUE(g_log.lastResult == WKW10MResultOK && g_log.lastKind == WKW10MClipboardWrite, "owner copy completes OK as write");
     EXPECT_TRUE(!g_log.lastCut && g_log.lastContext == &token, "owner copy carries context without cut");
     EXPECT_TRUE(ports.transport->m_written == copied, "transport receives owner copy bytes");
     EXPECT_TRUE(owner->openTickets() == 0, "copy ticket acknowledged");
@@ -289,7 +289,7 @@ int main(int argc, char** argv)
     // Cut and paste ride the same ticket machinery with their own markers.
     ResetLog();
     std::string cutBytes = "owner cut";
-    WKUWPString cutSpan = MakeSpan(cutBytes);
+    WKW10MString cutSpan = MakeSpan(cutBytes);
     EXPECT_TRUE(owner->cut(&cutSpan, &RecordOwner, &token) == S_OK, "owner cut accepted");
     EXPECT_TRUE(g_log.count == 1 && g_log.lastCut, "owner cut completes marked cut");
     ports.transport->m_readResult = S_OK;
@@ -316,7 +316,7 @@ int main(int argc, char** argv)
 
     // The engine-facing table carries owner context with a working postWake.
     ResetLog();
-    WKUWPPlatformServices table { };
+    WKW10MPlatformServices table { };
     EXPECT_TRUE(owner->buildTable(&table) == S_OK, "owner table built");
     EXPECT_TRUE(table.header.structureSize == sizeof(table), "owner table header size");
     EXPECT_TRUE(table.context == owner.get(), "owner table context is the owner");
@@ -327,16 +327,16 @@ int main(int argc, char** argv)
     EXPECT_TRUE(owner->tableRefCount() == 1, "table retain counted");
     table.releaseContext(table.context);
     EXPECT_TRUE(owner->tableRefCount() == 0, "table release counted");
-    EXPECT_TRUE(owner->postWake() == WKUWPResultOK, "healthy postWake succeeds");
+    EXPECT_TRUE(owner->postWake() == WKW10MResultOK, "healthy postWake succeeds");
     EXPECT_TRUE(ports.dispatcher->m_posts == 1, "postWake enqueues one wake");
     g_engineCompletions = 0;
-    WKUWPString empty { nullptr, 0 };
-    EXPECT_TRUE(table.requestClipboard(table.context, 9, 900, WKUWPClipboardWrite, &empty,
-        &RecordEngine, &token) == WKUWPResultOK, "engine write through owner table accepted");
+    WKW10MString empty { nullptr, 0 };
+    EXPECT_TRUE(table.requestClipboard(table.context, 9, 900, WKW10MClipboardWrite, &empty,
+        &RecordEngine, &token) == WKW10MResultOK, "engine write through owner table accepted");
     EXPECT_TRUE(g_engineCompletions == 1, "engine write completes without a ticket");
     EXPECT_TRUE(owner->openTickets() == 0, "engine operations open no ticket");
-    EXPECT_TRUE(table.requestClipboard(nullptr, 9, 901, WKUWPClipboardWrite, &empty,
-        &RecordEngine, &token) == WKUWPResultInvalidArgument, "null table context rejected");
+    EXPECT_TRUE(table.requestClipboard(nullptr, 9, 901, WKW10MClipboardWrite, &empty,
+        &RecordEngine, &token) == WKW10MResultInvalidArgument, "null table context rejected");
 
     // Hooks open tickets that revocation acknowledges exactly once.
     ResetHooks();
@@ -349,7 +349,7 @@ int main(int argc, char** argv)
     EXPECT_TRUE(!owner->quiescent(), "open hooks break quiescence");
     EXPECT_TRUE(owner->revokeHook(firstHook) == S_OK, "first hook revoked");
     EXPECT_TRUE(g_hookCount == 1 && g_hookLastId == firstHook, "revocation acknowledges once with ID");
-    EXPECT_TRUE(g_hookLastResult == WKUWPResultClosed && g_hookLastContext == &hookToken, "revocation carries Closed and context");
+    EXPECT_TRUE(g_hookLastResult == WKW10MResultClosed && g_hookLastContext == &hookToken, "revocation carries Closed and context");
     EXPECT_TRUE(owner->hooksRevokedTotal() == 1, "revocation counted");
     EXPECT_TRUE(owner->revokeHook(777) == E_INVALIDARG, "unknown hook rejected");
     EXPECT_TRUE(owner->registerHook(nullptr, &hookToken, &secondHook) == E_INVALIDARG, "null hook rejected");
@@ -369,7 +369,7 @@ int main(int argc, char** argv)
     EXPECT_TRUE(owner->pendingCount() == 2 && owner->openTickets() == 2, "two tickets open before close");
     EXPECT_TRUE(!owner->quiescent(), "pending tickets break quiescence");
     EXPECT_TRUE(owner->closeClipboard() == S_OK, "clipboard closed");
-    EXPECT_TRUE(g_log.count == 2 && g_log.lastResult == WKUWPResultClosed, "close acknowledges every ticket Closed");
+    EXPECT_TRUE(g_log.count == 2 && g_log.lastResult == WKW10MResultClosed, "close acknowledges every ticket Closed");
     EXPECT_TRUE(owner->canceledTotal() == 2, "cancellations counted");
     EXPECT_TRUE(owner->openTickets() == 0 && owner->pendingCount() == 0, "close drains everything");
     EXPECT_TRUE(owner->closeClipboard() == S_OK, "clipboard close is idempotent");
@@ -378,8 +378,8 @@ int main(int argc, char** argv)
 
     // Recreation advances the generation with totals carried and pending reset.
     OwnerPorts fresh;
-    std::unique_ptr<IServiceDispatcherUWP> freshDispatcher;
-    std::unique_ptr<IClipboardTransportUWP> freshTransport;
+    std::unique_ptr<IServiceDispatcherW10M> freshDispatcher;
+    std::unique_ptr<IClipboardTransportW10M> freshTransport;
     FreshPorts(freshDispatcher, freshTransport, fresh);
     EXPECT_TRUE(owner->recreateClipboard(std::move(freshDispatcher), std::move(freshTransport)) == S_OK, "clipboard recreated");
     EXPECT_TRUE(owner->generation() == generation + 1, "generation advances on recreate");
@@ -391,11 +391,11 @@ int main(int argc, char** argv)
     fresh.transport->m_manual = true;
     EXPECT_TRUE(owner->paste(&RecordOwner, &token) == S_OK, "recreate-pending paste accepted");
     OwnerPorts newer;
-    std::unique_ptr<IServiceDispatcherUWP> newerDispatcher;
-    std::unique_ptr<IClipboardTransportUWP> newerTransport;
+    std::unique_ptr<IServiceDispatcherW10M> newerDispatcher;
+    std::unique_ptr<IClipboardTransportW10M> newerTransport;
     FreshPorts(newerDispatcher, newerTransport, newer);
     EXPECT_TRUE(owner->recreateClipboard(std::move(newerDispatcher), std::move(newerTransport)) == S_OK, "recreate with pending closes first");
-    EXPECT_TRUE(g_log.count == 2 && g_log.lastResult == WKUWPResultClosed, "recreate acknowledges the pending ticket");
+    EXPECT_TRUE(g_log.count == 2 && g_log.lastResult == WKW10MResultClosed, "recreate acknowledges the pending ticket");
     EXPECT_TRUE(owner->generation() == generation + 2, "second recreation advances again");
 
     // Shutdown acknowledges the last ticket, revokes the last hook, loses the
@@ -407,25 +407,25 @@ int main(int argc, char** argv)
     uint64_t shutdownHook = 0;
     EXPECT_TRUE(owner->registerHook(&RecordHook, &hookToken, &shutdownHook) == S_OK, "shutdown hook registered");
     EXPECT_TRUE(owner->beginShutdown() == S_OK, "shutdown accepted while unbound");
-    EXPECT_TRUE(g_log.count == 1 && g_log.lastResult == WKUWPResultClosed, "shutdown acknowledges the ticket Closed");
-    EXPECT_TRUE(g_hookCount == 1 && g_hookLastResult == WKUWPResultClosed, "shutdown revokes the hook Closed");
+    EXPECT_TRUE(g_log.count == 1 && g_log.lastResult == WKW10MResultClosed, "shutdown acknowledges the ticket Closed");
+    EXPECT_TRUE(g_hookCount == 1 && g_hookLastResult == WKW10MResultClosed, "shutdown revokes the hook Closed");
     EXPECT_TRUE(owner->isShuttingDown() && owner->dispatcherLost(), "shutdown latches both flags");
     EXPECT_TRUE(owner->quiescent(), "quiescent after shutdown");
     EXPECT_TRUE(owner->hooksRevokedTotal() == 3, "all three revocations counted");
     EXPECT_TRUE(owner->copy(&copySpan, &RecordOwner, &token) == RO_E_CLOSED, "post-shutdown copy rejected");
     EXPECT_TRUE(owner->registerHook(&RecordHook, &hookToken, &shutdownHook) == RO_E_CLOSED, "post-shutdown hook rejected");
-    std::unique_ptr<IServiceDispatcherUWP> lateDispatcher;
-    std::unique_ptr<IClipboardTransportUWP> lateTransport;
+    std::unique_ptr<IServiceDispatcherW10M> lateDispatcher;
+    std::unique_ptr<IClipboardTransportW10M> lateTransport;
     OwnerPorts late;
     FreshPorts(lateDispatcher, lateTransport, late);
     EXPECT_TRUE(owner->recreateClipboard(std::move(lateDispatcher), std::move(lateTransport)) == RO_E_CLOSED, "post-shutdown recreate rejected");
-    EXPECT_TRUE(owner->postWake() == WKUWPResultDispatcherUnavailable, "post-loss wake unavailable");
+    EXPECT_TRUE(owner->postWake() == WKW10MResultDispatcherUnavailable, "post-loss wake unavailable");
     EXPECT_TRUE(owner->buildTable(&table) == S_OK, "table still builds for engine cancels");
-    EXPECT_TRUE(table.requestClipboard(table.context, 9, 902, WKUWPClipboardWrite, &empty,
-        &RecordEngine, &token) == WKUWPResultShuttingDown, "post-shutdown engine request refused");
-    EXPECT_TRUE(table.cancelClipboard(table.context, 902) == static_cast<WKUWPResult>(E_INVALIDARG), "engine cancel still passes through");
+    EXPECT_TRUE(table.requestClipboard(table.context, 9, 902, WKW10MClipboardWrite, &empty,
+        &RecordEngine, &token) == WKW10MResultShuttingDown, "post-shutdown engine request refused");
+    EXPECT_TRUE(table.cancelClipboard(table.context, 902) == static_cast<WKW10MResult>(E_INVALIDARG), "engine cancel still passes through");
     EXPECT_TRUE(owner->beginShutdown() == S_OK, "shutdown is idempotent");
-    EXPECT_TRUE(owner->pollShutdown() == WKUWPResultOK, "unbound shutdown poll succeeds");
+    EXPECT_TRUE(owner->pollShutdown() == WKW10MResultOK, "unbound shutdown poll succeeds");
     newer.transport->m_pending.clear();
 
     // Dispatcher loss drops marshaled completions loudly: counted, pending,
@@ -434,14 +434,14 @@ int main(int argc, char** argv)
     {
         OwnerPorts lost;
         auto parted = MakeOwner(lost);
-        lost.dispatcher->setMode(FakeDispatcherUWP::Mode::Refuse);
+        lost.dispatcher->setMode(FakeDispatcherW10M::Mode::Refuse);
         lost.transport->m_manual = true;
         ResetLog();
         EXPECT_TRUE(parted->paste(&RecordOwner, &token) == S_OK, "loss-pending paste accepted");
         EXPECT_TRUE(parted->loseDispatcher() == S_OK, "dispatcher lost");
         EXPECT_TRUE(parted->loseDispatcher() == S_OK, "loss is idempotent");
         EXPECT_TRUE(parted->dispatcherLost(), "loss latched");
-        EXPECT_TRUE(parted->postWake() == WKUWPResultDispatcherUnavailable, "lost wake unavailable");
+        EXPECT_TRUE(parted->postWake() == WKW10MResultDispatcherUnavailable, "lost wake unavailable");
         auto dropped = std::move(lost.transport->m_pending[0]);
         lost.transport->m_pending.clear();
         std::thread worker([taken = std::move(dropped)]() mutable { taken(S_OK, "unheard"); });
@@ -450,7 +450,7 @@ int main(int argc, char** argv)
         EXPECT_TRUE(parted->droppedTotal() == 1, "refused completion counted");
         EXPECT_TRUE(parted->pendingCount() == 1 && parted->openTickets() == 1, "dropped operation stays open");
         EXPECT_TRUE(parted->closeClipboard() == S_OK, "loss-pending close accepted");
-        EXPECT_TRUE(g_log.count == 1 && g_log.lastResult == WKUWPResultClosed, "close acknowledges without dispatcher");
+        EXPECT_TRUE(g_log.count == 1 && g_log.lastResult == WKW10MResultClosed, "close acknowledges without dispatcher");
         EXPECT_TRUE(parted->quiescent(), "quiescent after loss close");
     }
 
@@ -461,8 +461,8 @@ int main(int argc, char** argv)
         ResetLog();
         HRESULT threadCopy = S_OK, threadPaste = S_OK, threadClose = S_OK, threadHook = S_OK;
         HRESULT threadShutdown = S_OK, threadTable = S_OK;
-        WKUWPResult threadBind = WKUWPResultOK;
-        WKUWPPlatformServices foreignTable { };
+        WKW10MResult threadBind = WKW10MResultOK;
+        WKW10MPlatformServices foreignTable { };
         std::thread stranger([&] {
             threadCopy = outlier->copy(&copySpan, &RecordOwner, &token);
             threadPaste = outlier->paste(&RecordOwner, &token);
@@ -479,7 +479,7 @@ int main(int argc, char** argv)
         EXPECT_TRUE(threadHook == RPC_E_WRONG_THREAD, "foreign hook rejected");
         EXPECT_TRUE(threadShutdown == RPC_E_WRONG_THREAD, "foreign shutdown rejected");
         EXPECT_TRUE(threadTable == RPC_E_WRONG_THREAD, "foreign table rejected");
-        EXPECT_TRUE(threadBind == static_cast<WKUWPResult>(RPC_E_WRONG_THREAD), "foreign bind rejected");
+        EXPECT_TRUE(threadBind == static_cast<WKW10MResult>(RPC_E_WRONG_THREAD), "foreign bind rejected");
         EXPECT_TRUE(g_log.count == 0 && outlier->openTickets() == 0, "foreign calls open nothing");
         EXPECT_TRUE(outlier->quiescent() && !outlier->isShuttingDown(), "foreign calls latch nothing");
     }
@@ -490,32 +490,32 @@ int main(int argc, char** argv)
     {
         OwnerPorts wired;
         auto engine = MakeOwner(wired);
-        EXPECT_TRUE(engine->bindEngine(L"missing-engine-75.dll", 0, 0) != WKUWPResultOK, "missing engine rejected");
+        EXPECT_TRUE(engine->bindEngine(L"missing-engine-75.dll", 0, 0) != WKW10MResultOK, "missing engine rejected");
         EXPECT_TRUE(!engine->isEngineBound(), "failed bind leaves engine unbound");
-        EXPECT_TRUE(engine->bindEngine(providerPath.c_str(), 0, 0) == WKUWPResultOK, "provider engine bound");
+        EXPECT_TRUE(engine->bindEngine(providerPath.c_str(), 0, 0) == WKW10MResultOK, "provider engine bound");
         EXPECT_TRUE(engine->isEngineBound(), "bound flag set");
         HMODULE firstHandle = nullptr;
         EXPECT_TRUE(GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, providerPath.c_str(), &firstHandle) && firstHandle, "bound image observable");
-        EXPECT_TRUE(engine->bindEngine(providerPath.c_str(), 0, 0) == WKUWPResultOK, "second bind idempotent");
+        EXPECT_TRUE(engine->bindEngine(providerPath.c_str(), 0, 0) == WKW10MResultOK, "second bind idempotent");
         HMODULE secondHandle = nullptr;
         EXPECT_TRUE(GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, providerPath.c_str(), &secondHandle) && secondHandle == firstHandle, "rebind pins the same image");
         HMODULE setterLibrary = LoadLibraryW(providerPath.c_str());
         EXPECT_TRUE(!!setterLibrary, "provider image reloadable for setters");
         auto setShutdownResult = reinterpret_cast<SetProviderShutdownResult>(
-            GetProcAddress(setterLibrary, "WKUWPTestProviderSetShutdownResult"));
+            GetProcAddress(setterLibrary, "WKW10MTestProviderSetShutdownResult"));
         EXPECT_TRUE(!!setShutdownResult, "shutdown setter resolved");
         ResetLog();
         wired.transport->m_manual = true;
         EXPECT_TRUE(engine->paste(&RecordOwner, &token) == S_OK, "engine-shutdown paste accepted");
-        setShutdownResult(static_cast<WKUWPResult>(E_FAIL));
+        setShutdownResult(static_cast<WKW10MResult>(E_FAIL));
         HRESULT shutdownResult = engine->beginShutdown();
-        setShutdownResult(WKUWPResultOK);
+        setShutdownResult(WKW10MResultOK);
         EXPECT_TRUE(shutdownResult == E_FAIL, "engine shutdown failure preserved");
-        EXPECT_TRUE(g_log.count == 1 && g_log.lastResult == WKUWPResultClosed, "ticket acknowledged despite engine failure");
+        EXPECT_TRUE(g_log.count == 1 && g_log.lastResult == WKW10MResultClosed, "ticket acknowledged despite engine failure");
         EXPECT_TRUE(engine->quiescent(), "quiescent despite engine failure");
-        EXPECT_TRUE(engine->engineShutdownResult() == static_cast<WKUWPResult>(E_FAIL), "engine result recorded");
-        EXPECT_TRUE(engine->pollShutdown() == WKUWPResultOK, "shutdown poll passes through");
-        EXPECT_TRUE(engine->bindEngine(providerPath.c_str(), 0, 0) == WKUWPResultShuttingDown, "bind after shutdown refused");
+        EXPECT_TRUE(engine->engineShutdownResult() == static_cast<WKW10MResult>(E_FAIL), "engine result recorded");
+        EXPECT_TRUE(engine->pollShutdown() == WKW10MResultOK, "shutdown poll passes through");
+        EXPECT_TRUE(engine->bindEngine(providerPath.c_str(), 0, 0) == WKW10MResultShuttingDown, "bind after shutdown refused");
         wired.transport->m_pending.clear();
         // Drop the setter reference: the only remaining load is the owner's
         // pin, so survival past this scope proves process pinning.

@@ -1,8 +1,8 @@
-# UWP public component
+# W10M public component
 
 The M10 public namespace is `WebKit`, with `WebKitWebView : UserControl` authored
 in this directory. Public filenames follow the runtime-class names without a
-`UWP` suffix; native implementation helpers in `native/` retain that suffix.
+`W10M` suffix; native implementation helpers in `native/` retain that suffix.
 
 ## Metadata revision 2
 
@@ -11,7 +11,7 @@ The control's default interface is `IWebKitWebViewV2`, IID
 historical WRL prototype: `Source` is a `Windows.Foundation.Uri`, events use SDK
 `TypedEventHandler<WebKitWebView, Args>`, and certificate consent uses an opaque
 object. The full contract is
-`openspec/changes/wkview-m10-uwp-cppcx-restructure/artifact/public-api.md`.
+`openspec/changes/wkview-m10-w10m-cppcx-restructure/artifact/public-api.md`.
 
 `WebKit.dll` and `WebKit.winmd` are built from the same MSVC ARM32 `/ZW` objects.
 The build's `ContractRevision=2` identifies the M10 revision. The compiler's
@@ -33,9 +33,9 @@ These drivers require PowerShell 7 and discover the installed ARM32 MSVC/SDK
 inputs. Use a separate fresh output directory for each command.
 
 ```powershell
-.\Tools\uwp\build\build-arm32-cx-component.ps1 -OutDir <fresh-output-directory>
-.\Tools\uwp\build\test-cx-component-contract.ps1 -OutDir <fresh-test-directory>
-.\Tools\uwp\build\test-webview-configuration.ps1 -OutDir <fresh-configuration-test-directory> -FontDirectory <bundled-font-directory>
+.\Tools\w10m\build\build-arm32-cx-component.ps1 -OutDir <fresh-output-directory>
+.\Tools\w10m\build\test-cx-component-contract.ps1 -OutDir <fresh-test-directory>
+.\Tools\w10m\build\test-webview-configuration.ps1 -OutDir <fresh-configuration-test-directory> -FontDirectory <bundled-font-directory>
 ```
 
 The first command verifies the ARMNT/AppContainer image, activation exports and
@@ -43,12 +43,12 @@ compiler-derived signatures. The second builds an x64 test copy, compiles an
 external consumer using only the generated WinMD, checks that forbidden
 construction/setters fail compilation, and tests factories and projected
 defaults. This is host contract evidence; compiled-XAML phone identity/binding
-evidence is provided separately by `Tools/uwp/CXWebViewCompiledProbe`.
+evidence is provided separately by `Tools/w10m/CXWebViewCompiledProbe`.
 
 ## Configuration snapshots
 
 The options constructor copies all six values into a private immutable native
-`WebViewConfigurationUWP`. Later mutations of the application's options object
+`WebViewConfigurationW10M`. Later mutations of the application's options object
 cannot alter it. Empty/null paths select `cacert.pem` and `Fonts` in the
 containing package; relative custom paths also resolve against that package.
 Paths are lexically canonicalized with Windows case normalization, rather than
@@ -80,16 +80,16 @@ generation-bound shared attempt. Independent Cancel and IAsyncInfo.Close affect
 only that observation; control Close cancels all pending actions. Validated options
 and retained CA bytes survive retry. Every live joiner resolves before latest-Source
 navigation is queued; success is page/controller readiness rather than first-load
-completion. `platform/InitializationActionUWP` owns the private CX action state.
+completion. `platform/InitializationActionW10M` owns the private CX action state.
 
 Production page forwarding remains the next integration step; the current default
 reports E_NOTIMPL through a failed action instead of successful placeholder readiness.
 Public navigation/HTML/retry commands now dispatch through a bound frozen page table.
-The real-control diagnostic in `Tools/uwp/CXStateTests/` passes 33 async and 42
+The real-control diagnostic in `Tools/w10m/CXStateTests/` passes 33 async and 42
 property/transaction assertions with controlled readiness/V1 signals and actual
 package-default validation. See the task checklist for behavioral gates.
 
-`platform/PageCallbacksUWP` now supplies the actual retained frozen V1 attachment
+`platform/PageCallbacksW10M` now supplies the actual retained frozen V1 attachment
 with a weak per-control target and active-dispatch lifetime protection. Copied
 typed arguments preserve error domains/codes, content policy and explicit HTTP
 presence; all public state is installed before property/typed-event delivery.
@@ -98,7 +98,7 @@ token objects. Old event token presence remains a snapshot after current consent
 is invalidated. The version-1.0.0.5 diagnostic passes 37 retained-table callback/
 token assertions in addition to both existing device suites.
 
-`native/PageControllerUWP` consumes a negotiated/runtime-pinned V1 page table.
+`native/PageControllerW10M` consumes a negotiated/runtime-pinned V1 page table.
 Back/Forward/Reload/Stop and both host-HTML overloads use copied, revalidated
 deferred commands. Host HTML has no remote base URI; retained text is adopted
 only on commit and reloaded history-neutrally. Warning association requires the
@@ -111,7 +111,7 @@ forwarding retain their integration gates.
 
 Ordinary Close now finishes owed property/policy/terminal transactions before
 revoking subscriber roots and releasing instance-owned contexts/configuration.
-`platform/EventHandlersUWP` snapshots invocation and supports explicit final
+`platform/EventHandlersW10M` snapshots invocation and supports explicit final
 revocation, including captured-object/control cycles. Native Pending close keeps
 ownership until the engine releases its retained callback attachment; repeat Close
 does not reissue cleanup. All mutation/event-add paths enforce owner thread and
@@ -137,12 +137,12 @@ reference traces, plus all 163 existing device assertions. See
 reference ordering and payload/report identities.
 
 All authored functions/methods, constants, enums and types require documentation
-comments. `Tools/uwp/audit-source-docs.py --check <authored-paths>` checks CX/native
+comments. `Tools/w10m/audit-source-docs.py --check <authored-paths>` checks CX/native
 declarations and spacing, including this directory's authored `WebKitWebView.h`.
 
 ## Native presentation extraction
 
-Task 6.1 adds `rendering/SwapChainPresenterUWP` and `FrameMetricsUWP`, compiled
+Task 6.1 adds `rendering/SwapChainPresenterW10M` and `FrameMetricsW10M`, compiled
 without `/ZW`. CPU owns DirectX upload/swap-chain resources; GPU uses the frozen
 table with engine-owned compositor resources. Active mode replacement requires
 detach, and Pending release acknowledgement is bound to an attachment cookie.
@@ -153,8 +153,8 @@ ownership, builds and device identities. Horizontal rendering remains incorrect
 and task 6.3 stays open. New-control visual/service/runtime integration retains
 the later rendering and cleanup gates.
 
-Task 6.2 adds `rendering/FrameSchedulerUWP` and the private CX
-`platform/FrameSchedulerDriverUWP`: shared service epochs, independent view
+Task 6.2 adds `rendering/FrameSchedulerW10M` and the private CX
+`platform/FrameSchedulerDriverW10M`: shared service epochs, independent view
 visibility/leases, one owner service timer and weak rendering/wake hooks.
 Service-capable bound pages join automatically and retain service through Pending
 Close. The real engine's negotiated service/suspension slots now forward native
@@ -163,14 +163,14 @@ still prevents false readiness. Native checks pass 34/34; Lumia v1.0.0.14 passes
 22 actual paused-resource/timer/peer assertions and all 198 existing assertions.
 See M10 `artifact/shared-frame-scheduling.md`; horizontal rendering remains 6.3.
 
-Task 6.5 adds `rendering/RenderSubscriptionUWP`: exactly-once Rendering
+Task 6.5 adds `rendering/RenderSubscriptionW10M`: exactly-once Rendering
 subscription across unload/load, suspension, frame failure and Close. The native
 wrapper pauses/resumes callbacks on root Loaded/Unloaded and OS suspend without
 tearing down page state; the MiniBrowser shell forwards Suspending/Resuming.
 Native checks pass 35/35; Lumia v1.0.0.43 passes power-button suspend/resume
 cycles with continued rendering. See M10 `artifact/lifecycle-subscriptions.md`.
 
-Task 6.4 adds `input/InputAdapterUWP` and `input/ScrollControllerUWP`: gesture
+Task 6.4 adds `input/InputAdapterW10M` and `input/ScrollControllerW10M`: gesture
 classification with tap slop/offset/cancel semantics plus kinetic/edge physics
 behind narrow engine ports. The native wrapper delegates with identical log
 stages; V1 keyboard/focus forward with validation and explicit `E_NOTIMPL`
@@ -191,8 +191,8 @@ single attachment and exactly one counted recovery. The landscape system-bar
 overlay stays shell chrome for task 8.1. See M10
 `artifact/resize-recovery.md`; G4 is complete.
 
-Task 7.1 adds `platform/DispatcherUWP`, `platform/ClipboardServiceUWP` and
-`platform/ClipboardPlatformUWP`: an internal owner-thread dispatcher hop, a
+Task 7.1 adds `platform/DispatcherW10M`, `platform/ClipboardServiceW10M` and
+`platform/ClipboardPlatformW10M`: an internal owner-thread dispatcher hop, a
 neutral host-side V1 clipboard service with exactly-once completion/cancel
 semantics, and the CX WinRT text-transport boundary. The service compiles
 without `/ZW` on both ARM compilers and without C++ unwinding under the native
@@ -201,14 +201,14 @@ table leaves `postWake` null until the 7.5 runtime owner wires it. Host checks
 pass 83/83 with the engine purity gate; WinRT copy/paste behavior stays 7.2.
 See M10 `artifact/clipboard-service.md`.
 
-Task 7.2 adds `platform/ClipboardRouteUWP`: owner-side copy/cut/paste routing
+Task 7.2 adds `platform/ClipboardRouteW10M`: owner-side copy/cut/paste routing
 over the service with retained per-operation tokens, monotonic IDs and
 erase-before-delivery. Close cancels every pending route operation exactly
 once and latches idempotently; later calls fail Closed. Host checks pass
 89/89; Lumia v1.0.0.44 passes 27 real round-trip/worker/close-race assertions
 plus all 220 existing assertions. See M10 `artifact/clipboard-routing.md`.
 
-Task 7.5 adds `platform/RuntimeOwnerUWP`: ticketed clipboard routing with
+Task 7.5 adds `platform/RuntimeOwnerW10M`: ticketed clipboard routing with
 acknowledged cancellation, hook revocation, shutdown with quiescence,
 dispatcher-loss drops with synchronous close release, engine pin survival and
 close/recreate generations. It builds the engine-facing table with owner
@@ -217,7 +217,7 @@ passes 37 owner assertions plus all 247 existing assertions. Production control
 adoption belongs to section 8; G4 waits solely on task 6.3. See M10
 `artifact/runtime-owner.md`.
 
-Native acronym spelling uses CPU/GPU/OK (`PresentationModeUWP::CPU/GPU`,
-`WKUWPResultOK`, `WKUWPCapabilityCPUPaint/GPUCompositor`). Mixed-case spellings are
+Native acronym spelling uses CPU/GPU/OK (`PresentationModeW10M::CPU/GPU`,
+`WKW10MResultOK`, `WKW10MCapabilityCPUPaint/GPUCompositor`). Mixed-case spellings are
 fully replaced without aliases, per owner instruction. See M10
 `artifact/acronym-conventions.md` for the convention and unchanged binary layout proof.

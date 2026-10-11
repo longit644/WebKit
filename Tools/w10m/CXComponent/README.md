@@ -1,4 +1,4 @@
-# UWP C++/CX component sources
+# W10M C++/CX component sources
 
 The projection in use is C++/CX, not C++/WinRT, because the SDK's C++/WinRT base
 header rejects 32-bit ARM. This directory is named for that projection. It was

@@ -48,11 +48,11 @@ constexpr uint64_t kUntouchedHandle = 0xFEEDFACECAFEBEEFull;
 
 // Setter and counter signatures resolved from the test provider by name.
 typedef void(__stdcall* ResetFunction)();
-typedef void(__stdcall* SetResult)(WKUWPResult);
+typedef void(__stdcall* SetResult)(WKW10MResult);
 typedef void(__stdcall* SetU32)(uint32_t);
-typedef WKUWPResult(__stdcall* FireReleaseFunction)(WKUWPPageHandle);
-typedef WKUWPResult(__stdcall* DispatchNotifyFunction)(WKUWPPageHandle, uint32_t, const char*, const char*);
-typedef WKUWPResult(__stdcall* DispatchStartingFunction)(WKUWPPageHandle, const char*, uint32_t*);
+typedef WKW10MResult(__stdcall* FireReleaseFunction)(WKW10MPageHandle);
+typedef WKW10MResult(__stdcall* DispatchNotifyFunction)(WKW10MPageHandle, uint32_t, const char*, const char*);
+typedef WKW10MResult(__stdcall* DispatchStartingFunction)(WKW10MPageHandle, const char*, uint32_t*);
 
 // Live configuration handles for the test provider module.
 struct BridgeProvider {
@@ -91,57 +91,57 @@ bool loadBridgeProvider(const wchar_t* path, BridgeProvider* provider)
     provider->library = LoadLibraryW(path);
     if (!provider->library)
         return false;
-    return resolveSetter(provider->library, "WKUWPTestProviderReset",
+    return resolveSetter(provider->library, "WKW10MTestProviderReset",
                reinterpret_cast<void**>(&provider->reset))
-        && resolveSetter(provider->library, "WKUWPTestProviderSetCreateResult",
+        && resolveSetter(provider->library, "WKW10MTestProviderSetCreateResult",
             reinterpret_cast<void**>(&provider->setCreateResult))
-        && resolveSetter(provider->library, "WKUWPTestProviderSetDispatching",
+        && resolveSetter(provider->library, "WKW10MTestProviderSetDispatching",
             reinterpret_cast<void**>(&provider->setDispatching))
-        && resolveSetter(provider->library, "WKUWPTestProviderSetEnforceThread",
+        && resolveSetter(provider->library, "WKW10MTestProviderSetEnforceThread",
             reinterpret_cast<void**>(&provider->setEnforceThread))
-        && resolveSetter(provider->library, "WKUWPTestProviderFireRelease",
+        && resolveSetter(provider->library, "WKW10MTestProviderFireRelease",
             reinterpret_cast<void**>(&provider->fireRelease))
-        && resolveSetter(provider->library, "WKUWPTestProviderDispatchNotify",
+        && resolveSetter(provider->library, "WKW10MTestProviderDispatchNotify",
             reinterpret_cast<void**>(&provider->dispatchNotify))
-        && resolveSetter(provider->library, "WKUWPTestProviderDispatchStarting",
+        && resolveSetter(provider->library, "WKW10MTestProviderDispatchStarting",
             reinterpret_cast<void**>(&provider->dispatchStarting));
 }
 
 // Valid creation options accepted by the working test slot.
-void writeTestPageOptions(WKUWPPageOptions* options)
+void writeTestPageOptions(WKW10MPageOptions* options)
 {
     memset(options, 0, sizeof(*options));
     options->header.structureSize = sizeof(*options);
-    options->header.structureVersion = WKUWP_STRUCTURE_VERSION;
+    options->header.structureVersion = WKW10M_STRUCTURE_VERSION;
 }
 
 // Binds a module with a working createPage slot for bridge tests.
-bool bindBridgeModule(BridgeProvider* provider, const wchar_t* path, WebKit::EngineModuleUWP* module)
+bool bindBridgeModule(BridgeProvider* provider, const wchar_t* path, WebKit::EngineModuleW10M* module)
 {
     provider->reset();
-    provider->setCreateResult(WKUWPResultOK);
-    return module->bind(path, 0, 0) == WKUWPResultOK;
+    provider->setCreateResult(WKW10MResultOK);
+    return module->bind(path, 0, 0) == WKW10MResultOK;
 }
 
 // Opens one page, reporting failure instead of touching an invalid handle.
-bool openBridgePage(WebKit::EngineModuleUWP* module, WKUWPPageHandle* page)
+bool openBridgePage(WebKit::EngineModuleW10M* module, WKW10MPageHandle* page)
 {
-    WKUWPPageOptions options;
+    WKW10MPageOptions options;
     writeTestPageOptions(&options);
     *page = kUntouchedHandle;
-    return module->createPage(&options, page) == WKUWPResultOK && *page != 0;
+    return module->createPage(&options, page) == WKW10MResultOK && *page != 0;
 }
 
 // Attaches a fresh context, reporting failure without leaking the setup ref.
-bool attachBridgeContext(WebKit::EngineModuleUWP* module, WKUWPPageHandle page,
-    WebKit::PageCallbackContextUWP* context)
+bool attachBridgeContext(WebKit::EngineModuleW10M* module, WKW10MPageHandle page,
+    WebKit::PageCallbackContextW10M* context)
 {
-    WKUWPPageCallbacks table;
-    if (context->buildTable(&table) != WKUWPResultOK) {
+    WKW10MPageCallbacks table;
+    if (context->buildTable(&table) != WKW10MResultOK) {
         context->release();
         return false;
     }
-    if (module->setPageCallbacks(page, &table) != WKUWPResultOK) {
+    if (module->setPageCallbacks(page, &table) != WKW10MResultOK) {
         context->release();
         return false;
     }
@@ -151,12 +151,12 @@ bool attachBridgeContext(WebKit::EngineModuleUWP* module, WKUWPPageHandle page,
 // Reentrant close state for the close-during-policy tests.
 struct CloseHookState {
     // Module the hook closes through, on the page under test.
-    WebKit::EngineModuleUWP* module;
-    WKUWPPageHandle page;
+    WebKit::EngineModuleW10M* module;
+    WKW10MPageHandle page;
 };
 
 // Policy hook that closes the page reentrantly from inside a dispatch.
-WKUWPResult __stdcall closeDuringPolicy(void* hookContext, WKUWPPageHandle, const WKUWPPageEvent*)
+WKW10MResult __stdcall closeDuringPolicy(void* hookContext, WKW10MPageHandle, const WKW10MPageEvent*)
 {
     CloseHookState* state = static_cast<CloseHookState*>(hookContext);
     return state->module->closePage(state->page);
@@ -165,20 +165,20 @@ WKUWPResult __stdcall closeDuringPolicy(void* hookContext, WKUWPPageHandle, cons
 // Two pages interleave without routing, and closing one spares the other.
 void checkInterleavedPages(BridgeProvider* provider, const wchar_t* path)
 {
-    WebKit::EngineModuleUWP module;
+    WebKit::EngineModuleW10M module;
     if (!bindBridgeModule(provider, path, &module)) {
         reportCheck("interleaved/bind", false, "cannot bind the test provider");
         return;
     }
-    WKUWPPageHandle first = kUntouchedHandle;
-    WKUWPPageHandle second = kUntouchedHandle;
+    WKW10MPageHandle first = kUntouchedHandle;
+    WKW10MPageHandle second = kUntouchedHandle;
     if (!openBridgePage(&module, &first) || !openBridgePage(&module, &second) || first == second) {
         reportCheck("interleaved/open", false, "cannot open two distinct pages");
         return;
     }
 
-    WebKit::PageCallbackContextUWP* firstContext = new (std::nothrow) WebKit::PageCallbackContextUWP();
-    WebKit::PageCallbackContextUWP* secondContext = new (std::nothrow) WebKit::PageCallbackContextUWP();
+    WebKit::PageCallbackContextW10M* firstContext = new (std::nothrow) WebKit::PageCallbackContextW10M();
+    WebKit::PageCallbackContextW10M* secondContext = new (std::nothrow) WebKit::PageCallbackContextW10M();
     if (!attachBridgeContext(&module, first, firstContext)
         || !attachBridgeContext(&module, second, secondContext)) {
         reportCheck("interleaved/attach", false, "cannot attach both contexts");
@@ -186,14 +186,14 @@ void checkInterleavedPages(BridgeProvider* provider, const wchar_t* path)
     }
 
     char message[256];
-    provider->dispatchNotify(first, WKUWPEventSourceChanged, "https://one.test/", "One");
-    provider->dispatchNotify(second, WKUWPEventSourceChanged, "https://two.test/", "Two");
-    provider->dispatchNotify(first, WKUWPEventTitleChanged, "https://one.test/", "One retitled");
+    provider->dispatchNotify(first, WKW10MEventSourceChanged, "https://one.test/", "One");
+    provider->dispatchNotify(second, WKW10MEventSourceChanged, "https://two.test/", "Two");
+    provider->dispatchNotify(first, WKW10MEventTitleChanged, "https://one.test/", "One retitled");
 
     const bool firstOwnsOnlyIts = firstContext->notifyCalls() == 2 && firstContext->lastSequence() == 3
         && firstContext->lastUriLength() == strlen("https://one.test/")
         && memcmp(firstContext->lastUriBytes(), "https://one.test/", firstContext->lastUriLength()) == 0
-        && firstContext->lastEventKind() == WKUWPEventTitleChanged;
+        && firstContext->lastEventKind() == WKW10MEventTitleChanged;
     const bool secondOwnsOnlyIts = secondContext->notifyCalls() == 1 && secondContext->lastSequence() == 2
         && secondContext->lastUriLength() == strlen("https://two.test/")
         && memcmp(secondContext->lastUriBytes(), "https://two.test/", secondContext->lastUriLength()) == 0;
@@ -201,15 +201,15 @@ void checkInterleavedPages(BridgeProvider* provider, const wchar_t* path)
         firstOwnsOnlyIts ? 1 : 0, secondOwnsOnlyIts ? 1 : 0);
     reportCheck("interleaved/no-routing", firstOwnsOnlyIts && secondOwnsOnlyIts, message);
 
-    WKUWPResult result = module.closePage(first);
+    WKW10MResult result = module.closePage(first);
     snprintf(message, sizeof(message), "close first -> result=%d expected=0, open=%u expected=1",
         static_cast<int>(result), module.openPageCount());
-    reportCheck("interleaved/close-one", result == WKUWPResultOK && module.openPageCount() == 1, message);
+    reportCheck("interleaved/close-one", result == WKW10MResultOK && module.openPageCount() == 1, message);
 
     // The closed page's attachment was released by the close itself, so only
     // the setup reference remains; the surviving page keeps delivering.
     firstContext->release();
-    provider->dispatchNotify(second, WKUWPEventTitleChanged, "https://two.test/", "Two retitled");
+    provider->dispatchNotify(second, WKW10MEventTitleChanged, "https://two.test/", "Two retitled");
     snprintf(message, sizeof(message), "survivor delivers=%d, open=%u",
         secondContext->notifyCalls() == 2 ? 1 : 0, module.openPageCount());
     reportCheck("interleaved/survivor",
@@ -225,17 +225,17 @@ void checkInterleavedPages(BridgeProvider* provider, const wchar_t* path)
 // Calls a worker thread attempts; the engine rejects each before reading args.
 struct WrongThreadProbe {
     // Module under test, bound on the owning thread before the worker runs.
-    WebKit::EngineModuleUWP* module;
+    WebKit::EngineModuleW10M* module;
 
     // Page the owner opened; the worker must not be able to close it.
-    WKUWPPageHandle page;
+    WKW10MPageHandle page;
 
     // Answers the worker observed, all expected to be WrongThread.
-    WKUWPResult createResult;
-    WKUWPPageHandle createHandle;
-    WKUWPResult closeResult;
-    WKUWPResult detachResult;
-    WKUWPResult stateResult;
+    WKW10MResult createResult;
+    WKW10MPageHandle createHandle;
+    WKW10MResult closeResult;
+    WKW10MResult detachResult;
+    WKW10MResult stateResult;
 
     // Open-page count the worker observed after its rejected creation.
     uint32_t openCount;
@@ -245,14 +245,14 @@ struct WrongThreadProbe {
 DWORD __stdcall wrongThreadWorker(void* parameter)
 {
     WrongThreadProbe* probe = static_cast<WrongThreadProbe*>(parameter);
-    WKUWPPageOptions options;
+    WKW10MPageOptions options;
     writeTestPageOptions(&options);
     probe->createHandle = kUntouchedHandle;
     probe->createResult = probe->module->createPage(&options, &probe->createHandle);
     probe->openCount = probe->module->openPageCount();
     probe->closeResult = probe->module->closePage(probe->page);
     probe->detachResult = probe->module->detachPageCallbacks(probe->page);
-    WKUWPPageState state;
+    WKW10MPageState state;
     memset(&state, 0, sizeof(state));
     uint8_t storage[16];
     uint32_t required = 0;
@@ -263,7 +263,7 @@ DWORD __stdcall wrongThreadWorker(void* parameter)
 // Off-owner-thread calls fail with WrongThread and change nothing.
 void checkWrongThreadCalls(BridgeProvider* provider, const wchar_t* path)
 {
-    WebKit::EngineModuleUWP module;
+    WebKit::EngineModuleW10M module;
     if (!bindBridgeModule(provider, path, &module)) {
         reportCheck("thread/bind", false, "cannot bind the test provider");
         return;
@@ -271,7 +271,7 @@ void checkWrongThreadCalls(BridgeProvider* provider, const wchar_t* path)
     provider->setEnforceThread(1);
 
     char message[256];
-    WKUWPPageHandle page = kUntouchedHandle;
+    WKW10MPageHandle page = kUntouchedHandle;
     const bool ownerWorks = openBridgePage(&module, &page);
     snprintf(message, sizeof(message), "owner creates while enforced=%d", ownerWorks ? 1 : 0);
     reportCheck("thread/owner-works", ownerWorks, message);
@@ -300,27 +300,27 @@ void checkWrongThreadCalls(BridgeProvider* provider, const wchar_t* path)
         static_cast<int>(probe.detachResult), static_cast<int>(probe.stateResult),
         probe.createHandle == kUntouchedHandle ? 1 : 0, probe.openCount);
     reportCheck("thread/worker-rejected",
-        probe.createResult == WKUWPResultWrongThread && probe.closeResult == WKUWPResultWrongThread
-            && probe.detachResult == WKUWPResultWrongThread && probe.stateResult == WKUWPResultWrongThread
+        probe.createResult == WKW10MResultWrongThread && probe.closeResult == WKW10MResultWrongThread
+            && probe.detachResult == WKW10MResultWrongThread && probe.stateResult == WKW10MResultWrongThread
             && probe.createHandle == kUntouchedHandle && probe.openCount == 1,
         message);
 
     provider->setEnforceThread(0);
-    WKUWPResult result = module.closePage(page);
+    WKW10MResult result = module.closePage(page);
     snprintf(message, sizeof(message), "owner closes after unenforced=%d, open=%u", static_cast<int>(result),
         module.openPageCount());
-    reportCheck("thread/owner-recovers", result == WKUWPResultOK && module.openPageCount() == 0, message);
+    reportCheck("thread/owner-recovers", result == WKW10MResultOK && module.openPageCount() == 0, message);
 }
 
 // A close reentrant from inside policy still completes with the verdict intact.
 void checkCloseDuringPolicy(BridgeProvider* provider, const wchar_t* path)
 {
-    WebKit::EngineModuleUWP module;
+    WebKit::EngineModuleW10M module;
     if (!bindBridgeModule(provider, path, &module)) {
         reportCheck("close-during-policy/close", false, "cannot bind the test provider");
         return;
     }
-    WKUWPPageHandle page = kUntouchedHandle;
+    WKW10MPageHandle page = kUntouchedHandle;
     if (!openBridgePage(&module, &page)) {
         reportCheck("close-during-policy/close", false, "cannot open a test page");
         return;
@@ -328,7 +328,7 @@ void checkCloseDuringPolicy(BridgeProvider* provider, const wchar_t* path)
     CloseHookState hookState;
     hookState.module = &module;
     hookState.page = page;
-    WebKit::PageCallbackContextUWP* context = new (std::nothrow) WebKit::PageCallbackContextUWP();
+    WebKit::PageCallbackContextW10M* context = new (std::nothrow) WebKit::PageCallbackContextW10M();
     context->setPolicyHook(closeDuringPolicy, &hookState);
     if (!attachBridgeContext(&module, page, context)) {
         reportCheck("close-during-policy/close", false, "cannot attach the test context");
@@ -337,14 +337,14 @@ void checkCloseDuringPolicy(BridgeProvider* provider, const wchar_t* path)
 
     char message[256];
     uint32_t cancel = 0xDEADBEEFu;
-    WKUWPResult result = provider->dispatchStarting(page, "https://example.test/", &cancel);
+    WKW10MResult result = provider->dispatchStarting(page, "https://example.test/", &cancel);
     snprintf(message, sizeof(message),
         "starting with reentrant close -> result=%d expected=0, cancel=%u expected=0, hook fired=%d, hook answer=%d",
         static_cast<int>(result), cancel, context->policyFired() ? 1 : 0,
         static_cast<int>(context->lastPolicyResult()));
     reportCheck("close-during-policy/close",
-        result == WKUWPResultOK && cancel == 0 && context->policyFired()
-            && context->lastPolicyResult() == WKUWPResultOK && module.openPageCount() == 0,
+        result == WKW10MResultOK && cancel == 0 && context->policyFired()
+            && context->lastPolicyResult() == WKW10MResultOK && module.openPageCount() == 0,
         message);
 
     snprintf(message, sizeof(message), "attachment released by the close=%u expected=1, storage alive=%u",
@@ -354,26 +354,26 @@ void checkCloseDuringPolicy(BridgeProvider* provider, const wchar_t* path)
 
     context->release();
     snprintf(message, sizeof(message), "no stale access after close: attach on closed page=%d expected=%d",
-        static_cast<int>(WKUWPResultInvalidArgument), static_cast<int>(WKUWPResultInvalidArgument));
-    WebKit::PageCallbackContextUWP* lateContext = new (std::nothrow) WebKit::PageCallbackContextUWP();
-    WKUWPPageCallbacks lateTable;
+        static_cast<int>(WKW10MResultInvalidArgument), static_cast<int>(WKW10MResultInvalidArgument));
+    WebKit::PageCallbackContextW10M* lateContext = new (std::nothrow) WebKit::PageCallbackContextW10M();
+    WKW10MPageCallbacks lateTable;
     lateContext->buildTable(&lateTable);
     result = module.setPageCallbacks(page, &lateTable);
     snprintf(message, sizeof(message), "attach on closed page -> result=%d expected=%d", static_cast<int>(result),
-        static_cast<int>(WKUWPResultInvalidArgument));
-    reportCheck("close-during-policy/no-stale-attach", result == WKUWPResultInvalidArgument, message);
+        static_cast<int>(WKW10MResultInvalidArgument));
+    reportCheck("close-during-policy/no-stale-attach", result == WKW10MResultInvalidArgument, message);
     lateContext->release();
 }
 
 // A close during dispatch defers the release exactly like a detach does.
 void checkCloseDuringDispatchDeferred(BridgeProvider* provider, const wchar_t* path)
 {
-    WebKit::EngineModuleUWP module;
+    WebKit::EngineModuleW10M module;
     if (!bindBridgeModule(provider, path, &module)) {
         reportCheck("close-deferred/close", false, "cannot bind the test provider");
         return;
     }
-    WKUWPPageHandle page = kUntouchedHandle;
+    WKW10MPageHandle page = kUntouchedHandle;
     if (!openBridgePage(&module, &page)) {
         reportCheck("close-deferred/close", false, "cannot open a test page");
         return;
@@ -381,7 +381,7 @@ void checkCloseDuringDispatchDeferred(BridgeProvider* provider, const wchar_t* p
     CloseHookState hookState;
     hookState.module = &module;
     hookState.page = page;
-    WebKit::PageCallbackContextUWP* context = new (std::nothrow) WebKit::PageCallbackContextUWP();
+    WebKit::PageCallbackContextW10M* context = new (std::nothrow) WebKit::PageCallbackContextW10M();
     context->setPolicyHook(closeDuringPolicy, &hookState);
     if (!attachBridgeContext(&module, page, context)) {
         reportCheck("close-deferred/close", false, "cannot attach the test context");
@@ -391,13 +391,13 @@ void checkCloseDuringDispatchDeferred(BridgeProvider* provider, const wchar_t* p
     char message[256];
     provider->setDispatching(1);
     uint32_t cancel = 0xDEADBEEFu;
-    WKUWPResult result = provider->dispatchStarting(page, "https://example.test/", &cancel);
+    WKW10MResult result = provider->dispatchStarting(page, "https://example.test/", &cancel);
     snprintf(message, sizeof(message),
         "close in dispatch -> starting=%d, hook answer=%d expected=0, releases=%u expected=0, open=%u",
         static_cast<int>(result), static_cast<int>(context->lastPolicyResult()), context->releaseCalls(),
         module.openPageCount());
     reportCheck("close-deferred/close",
-        result == WKUWPResultOK && context->lastPolicyResult() == WKUWPResultOK
+        result == WKW10MResultOK && context->lastPolicyResult() == WKW10MResultOK
             && context->releaseCalls() == 0 && module.openPageCount() == 0,
         message);
 
@@ -405,7 +405,7 @@ void checkCloseDuringDispatchDeferred(BridgeProvider* provider, const wchar_t* p
     result = provider->fireRelease(page);
     snprintf(message, sizeof(message), "unwind release -> result=%d expected=0, releases=%u expected=1",
         static_cast<int>(result), context->releaseCalls());
-    reportCheck("close-deferred/release", result == WKUWPResultOK && context->releaseCalls() == 1, message);
+    reportCheck("close-deferred/release", result == WKW10MResultOK && context->releaseCalls() == 1, message);
 
     context->release();
 }

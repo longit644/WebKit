@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Windows 10 Mobile MiniBrowser shell (M10 tasks 8.1 and 8.2): C#/XAML UWP application hosting the public
+  Windows 10 Mobile MiniBrowser shell (M10 tasks 8.1 and 8.2): C#/XAML W10M application hosting the public
   WebKit.WebKitWebView control from the compiled component metadata
-  (WebKit.winmd). No Source/WebKit/UIProcess/API/uwp/ source is compiled here;
+  (WebKit.winmd). No Source/WebKit/UIProcess/API/w10m/ source is compiled here;
   the only contract is the referenced WinMD plus its matching WebKit.dll.
   Targets the phone-era platform (MinVersion 15063) with the 19041 SDK and
   compiles ARM Release through .NET Native.

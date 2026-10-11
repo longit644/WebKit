@@ -182,7 +182,7 @@ void engineServiceW10M()
 }
 
 // Real frozen service slot, linked only in the configured engine target.
-extern "C" WKW10MResult __stdcall wkuwpEngineServiceW10M()
+extern "C" WKW10MResult __stdcall wkw10mEngineServiceW10M()
 {
     if (!engineInitialized.load()) return WKW10MResultNotInitialized;
     if (GetCurrentThreadId() != engineThread.load()) return WKW10MResultWrongThread;
@@ -191,7 +191,7 @@ extern "C" WKW10MResult __stdcall wkuwpEngineServiceW10M()
 }
 
 // Apply explicit app suspension once to process resource queue/deadline accounting.
-extern "C" WKW10MResult __stdcall wkuwpEngineSetSuspendedW10M(uint32_t suspended)
+extern "C" WKW10MResult __stdcall wkw10mEngineSetSuspendedW10M(uint32_t suspended)
 {
     if (!engineInitialized.load()) return WKW10MResultNotInitialized;
     if (GetCurrentThreadId() != engineThread.load()) return WKW10MResultWrongThread;

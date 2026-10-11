@@ -21,7 +21,7 @@ if(NOT DEFINED VCPKG_INSTALLED_DIR)
   endif()
 endif()
 target_include_directories(WebKitTlsProbe PRIVATE "${VCPKG_INSTALLED_DIR}/include")
-# bcrypt resolves through the ARM UWP toolchain's um/arm library path, so the
+# bcrypt resolves through the ARM W10M toolchain's um/arm library path, so the
 # SDK version stays discovered (arm32-w10m-env.ps1) instead of hard-coded here.
 target_link_libraries(WebKitTlsProbe PRIVATE runtimeobject "${VCPKG_INSTALLED_DIR}/lib/libcurl.lib" "${VCPKG_INSTALLED_DIR}/lib/libcrypto.lib" bcrypt)
 get_filename_component(W10M_TOOLS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)

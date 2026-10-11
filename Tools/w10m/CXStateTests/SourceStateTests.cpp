@@ -126,10 +126,10 @@ struct Driver {
     }
 
     // Create a current-page V1 event with explicit generation/sequence/history state.
-    WKUWPPageEvent event(uint32_t kind)
+    WKW10MPageEvent event(uint32_t kind)
     {
-        WKUWPPageEvent result { };
-        result.header = { sizeof(result), WKUWP_STRUCTURE_VERSION };
+        WKW10MPageEvent result { };
+        result.header = { sizeof(result), WKW10M_STRUCTURE_VERSION };
         result.pageId = page;
         result.callbackSequence = ++sequence;
         result.documentGeneration = generation;
@@ -144,16 +144,16 @@ struct Driver {
     // Resolve controlled initialization so the latest initial Source may start.
     void ready()
     {
-        if (view->ControlPhase() == ControlPhaseUWP::Created)
+        if (view->ControlPhase() == ControlPhaseW10M::Created)
             view->Source = target(L"https://example.test/initial");
         view->CompleteInitialization(page, S_OK);
     }
 
     // Deliver one structured terminal; clear driver activity before reentrant callbacks.
-    void finish(uint32_t outcome = WKUWPOutcomeCompleted, uint32_t domain = WKUWPErrorDomainNone, int code = 0)
+    void finish(uint32_t outcome = WKW10MOutcomeCompleted, uint32_t domain = WKW10MErrorDomainNone, int code = 0)
     {
         if (!active) return;
-        auto data = event(WKUWPEventCompleted);
+        auto data = event(WKW10MEventCompleted);
         data.outcome = outcome;
         data.errorDomain = domain;
         data.errorCode = code;
@@ -169,7 +169,7 @@ struct Driver {
     {
         ++generation;
         title = documentTitle;
-        auto data = event(WKUWPEventSourceChanged);
+        auto data = event(WKW10MEventSourceChanged);
         auto uriBytes = bytes(effective);
         auto titleBytes = bytes(title);
         data.uri = { reinterpret_cast<const uint8_t*>(uriBytes.data()), static_cast<uint32_t>(uriBytes.size()) };
@@ -184,7 +184,7 @@ struct Driver {
     // Emit a genuine kind/generation-shaped same-document signal without a new main ID.
     HRESULT sameDocument(const wchar_t* effective, uint32_t kind)
     {
-        auto data = event(WKUWPEventSourceChanged);
+        auto data = event(WKW10MEventSourceChanged);
         data.navigationId = 0;
         data.changeKind = kind;
         auto uriBytes = bytes(effective);
@@ -195,14 +195,14 @@ struct Driver {
     }
 
     // Execute deterministic instance work and honor the real synchronous policy verdict.
-    static HRESULT __stdcall command(void* context, SourceActionUWP action, const WKUWPString* span)
+    static HRESULT __stdcall command(void* context, SourceActionW10M action, const WKW10MString* span)
     {
         auto& self = *static_cast<Driver*>(context);
-        if (action == SourceActionUWP::Initialize) { ++self.initializes; return S_OK; }
-        if (action == SourceActionUWP::Stop) { ++self.stops; self.finish(WKUWPOutcomeCancelled); return S_OK; }
-        if (action == SourceActionUWP::Close) { ++self.closes; self.finish(WKUWPOutcomeCancelled); return S_OK; }
-        if (action != SourceActionUWP::Navigate) return E_INVALIDARG;
-        self.finish(WKUWPOutcomeCancelled);
+        if (action == SourceActionW10M::Initialize) { ++self.initializes; return S_OK; }
+        if (action == SourceActionW10M::Stop) { ++self.stops; self.finish(WKW10MOutcomeCancelled); return S_OK; }
+        if (action == SourceActionW10M::Close) { ++self.closes; self.finish(WKW10MOutcomeCancelled); return S_OK; }
+        if (action != SourceActionW10M::Navigate) return E_INVALIDARG;
+        self.finish(WKW10MOutcomeCancelled);
         ++self.navigates;
         auto length = MultiByteToWideChar(CP_UTF8, 0, reinterpret_cast<const char*>(span->data), static_cast<int>(span->length), nullptr, 0);
         self.requested.resize(length);
@@ -210,13 +210,13 @@ struct Driver {
         self.targets.push_back(self.requested);
         self.trace.push_back("navigate:" + std::to_string(self.nextId + 1));
         self.active = ++self.nextId;
-        auto data = self.event(WKUWPEventStarting);
+        auto data = self.event(WKW10MEventStarting);
         auto uriBytes = bytes(self.requested);
         data.uri = { reinterpret_cast<const uint8_t*>(uriBytes.data()), static_cast<uint32_t>(uriBytes.size()) };
         uint32_t cancel = 0;
         auto result = self.view->HandleStarting(data, &cancel);
-        if (cancel) self.finish(WKUWPOutcomeCancelled);
-        else if (result != WKUWPResultOK) self.finish(WKUWPOutcomeFailed, WKUWPErrorDomainPlatform, result);
+        if (cancel) self.finish(WKW10MOutcomeCancelled);
+        else if (result != WKW10MResultOK) self.finish(WKW10MOutcomeFailed, WKW10MErrorDomainPlatform, result);
         return S_OK;
     }
 };
@@ -241,7 +241,7 @@ void run(Report& report, WebKitWebView^ primary, TextBlock^ titleBinding, Button
         f.view->Source = target(L"https://example.test/b");
         report.check(f.initializes == 1 && !f.navigates && source(f.view) == L"https://example.test/b" && !f.view->IsLoading, "Initializing retains latest requested Source without main ID");
         f.view->Source = nullptr;
-        report.check(f.view->ControlPhase() == ControlPhaseUWP::Initializing && !f.navigates && !f.stops && !f.view->Source, "Initializing null keeps shared attempt alive and clears queued Source");
+        report.check(f.view->ControlPhase() == ControlPhaseW10M::Initializing && !f.navigates && !f.stops && !f.view->Source, "Initializing null keeps shared attempt alive and clears queued Source");
         f.view->CompleteInitialization(f.page, S_OK);
         report.check(!f.navigates && !f.view->Source, "cleared initialization queue starts nothing at readiness");
     }
@@ -249,7 +249,7 @@ void run(Report& report, WebKitWebView^ primary, TextBlock^ titleBinding, Button
         Driver f(102);
         f.view->Source = target(L"https://example.test/a");
         f.view->CompleteInitialization(0, E_ACCESSDENIED);
-        report.check(f.view->ControlPhase() == ControlPhaseUWP::Faulted && !f.view->Source && !f.navigates, "initialization failure restores null without navigation terminal");
+        report.check(f.view->ControlPhase() == ControlPhaseW10M::Faulted && !f.view->Source && !f.navigates, "initialization failure restores null without navigation terminal");
         f.view->Source = nullptr;
         report.check(f.initializes == 1 && !f.stops, "Faulted null starts no retry");
         f.view->Source = target(L"https://example.test/retry");
@@ -277,19 +277,19 @@ void run(Report& report, WebKitWebView^ primary, TextBlock^ titleBinding, Button
         report.check(failsWith([&] { f.view->SetValue(WebKitWebView::SourceProperty, target(L"about:blank")); }, E_INVALIDARG), "invalid direct DP assignment reports E_INVALIDARG");
         report.check(source(f.view) == before && dpMatches(f.view) && f.navigates == 1, "invalid DP assignment rolls back under internal guard");
         f.view->Source = target(L"https://example.test/failing");
-        f.finish(WKUWPOutcomeFailed, WKUWPErrorDomainTransport, 60);
+        f.finish(WKW10MOutcomeFailed, WKW10MErrorDomainTransport, 60);
         report.check(source(f.view) == before && !f.view->IsLoading && f.completions == 2 && f.commits == 1, "provisional failure restores prior commit without SourceChanged");
         f.view->Source = target(L"https://example.test/stopped");
         f.view->Source = nullptr;
         report.check(source(f.view) == before && f.completions == 3 && !f.view->IsLoading, "provisional null restores previous committed Source");
         auto count = f.navigates;
-        for (auto kind : { WKUWPChangeFragment, WKUWPChangePushState, WKUWPChangeReplaceState, WKUWPChangeHistoryTraversal })
+        for (auto kind : { WKW10MChangeFragment, WKW10MChangePushState, WKW10MChangeReplaceState, WKW10MChangeHistoryTraversal })
             report.check(f.sameDocument(L"https://example.test/redirected#same", kind) == S_OK && dpMatches(f.view), "same-document URI uses structured signal");
         report.check(f.navigates == count, "same-document publication never recursively navigates");
-        auto stale = f.event(WKUWPEventTitleChanged);
+        auto stale = f.event(WKW10MEventTitleChanged);
         stale.documentGeneration = 0;
         report.check(f.view->HandleNotification(stale) == S_FALSE && f.view->DocumentTitle == L"Copied title", "stale document signal preserves copied title");
-        auto foreign = f.event(WKUWPEventHistoryChanged);
+        auto foreign = f.event(WKW10MEventHistoryChanged);
         foreign.pageId = 999;
         report.check(f.view->HandleNotification(foreign) == S_FALSE && !f.view->CanGoBack, "foreign-page state cannot leak into control");
     }
@@ -404,10 +404,10 @@ void run(Report& report, WebKitWebView^ primary, TextBlock^ titleBinding, Button
         f.commit(L"https://example.test/bound", L"Bound committed title");
         f.finish();
         f.back = true;
-        auto history = f.event(WKUWPEventHistoryChanged);
+        auto history = f.event(WKW10MEventHistoryChanged);
         history.navigationId = 0;
         f.view->HandleNotification(history);
-        auto titled = f.event(WKUWPEventTitleChanged);
+        auto titled = f.event(WKW10MEventTitleChanged);
         auto titleBytes = bytes(L"Bound updated title");
         titled.title = { reinterpret_cast<const uint8_t*>(titleBytes.data()), static_cast<uint32_t>(titleBytes.size()) };
         f.view->HandleNotification(titled);
@@ -423,7 +423,7 @@ void run(Report& report, WebKitWebView^ primary, TextBlock^ titleBinding, Button
 } // namespace
 
 // Diagnostic-only native entry: run on the XAML owner and save a fail-closed report.
-extern "C" __declspec(dllexport) HRESULT __stdcall WKUWPTestSourceState(IInspectable* control, IInspectable* title, IInspectable* back, const wchar_t* path)
+extern "C" __declspec(dllexport) HRESULT __stdcall WKW10MTestSourceState(IInspectable* control, IInspectable* title, IInspectable* back, const wchar_t* path)
 {
     Report report;
     try {

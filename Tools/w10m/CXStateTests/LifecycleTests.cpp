@@ -53,11 +53,11 @@ struct LifecyclePage {
     // Real authored XAML control whose public API/handlers are tested.
     WebKitWebView^ view { ref new WebKitWebView() };
     // Frozen engine table adopted by the production native controller.
-    WKUWPEngineAPI api { };
+    WKW10MEngineAPI api { };
     // Provider-owned retained callback attachment.
-    WKUWPPageCallbacks callbacks { };
+    WKW10MPageCallbacks callbacks { };
     // Extra native-only reference preserving a stale-table safety oracle after engine release.
-    PageCallbacksUWP* retained { nullptr };
+    PageCallbacksW10M* retained { nullptr };
     // Distinct page identity for peer isolation.
     uint64_t page;
     // Active provider navigation and monotonic main/sequence/document identities.
@@ -82,9 +82,9 @@ struct LifecyclePage {
     explicit LifecyclePage(uint64_t id, bool pending = false) : page(id), pendingClose(pending)
     {
         lifecyclePages[page] = this;
-        api.header = { sizeof(api), WKUWP_STRUCTURE_VERSION };
+        api.header = { sizeof(api), WKW10M_STRUCTURE_VERSION };
         api.abiMajor = 1;
-        api.capabilities = WKUWPCapabilityStructuredNotifications | WKUWPCapabilityHostHtml | WKUWPCapabilityCertificateDecisions;
+        api.capabilities = WKW10MCapabilityStructuredNotifications | WKW10MCapabilityHostHtml | WKW10MCapabilityCertificateDecisions;
         api.setCallbacks = &attach;
         api.navigate = &navigate;
         api.loadHtml = &html;
@@ -97,7 +97,7 @@ struct LifecyclePage {
         view->SetCommandHandler(&initialize, this);
         auto ready = view->EnsureInitializedAsync();
         if (FAILED(view->BindPageController(&api, page))) throw Exception::CreateException(E_FAIL);
-        retained = static_cast<PageCallbacksUWP*>(callbacks.context);
+        retained = static_cast<PageCallbacksW10M*>(callbacks.context);
         retained->retain();
         view->CompleteInitialization(view->InitializationAttemptId(), page, S_OK);
         ready->GetResults();
@@ -123,10 +123,10 @@ struct LifecyclePage {
     }
 
     // Build a strictly ordered current-page V1 signal.
-    WKUWPPageEvent event(uint32_t kind)
+    WKW10MPageEvent event(uint32_t kind)
     {
-        WKUWPPageEvent value { };
-        value.header = { sizeof(value), WKUWP_STRUCTURE_VERSION };
+        WKW10MPageEvent value { };
+        value.header = { sizeof(value), WKW10M_STRUCTURE_VERSION };
         value.pageId = page;
         value.navigationId = active;
         value.callbackSequence = ++sequence;
@@ -138,10 +138,10 @@ struct LifecyclePage {
     }
 
     // Emit one terminal with copied related URI before native identity can be reused.
-    void finish(uint32_t outcome = WKUWPOutcomeCompleted)
+    void finish(uint32_t outcome = WKW10MOutcomeCompleted)
     {
         if (!active) return;
-        auto value = event(WKUWPEventCompleted);
+        auto value = event(WKW10MEventCompleted);
         auto related = target;
         value.uri = { reinterpret_cast<const uint8_t*>(related.data()), static_cast<uint32_t>(related.size()) };
         value.outcome = outcome;
@@ -154,7 +154,7 @@ struct LifecyclePage {
     void commit()
     {
         ++generation;
-        auto value = event(WKUWPEventSourceChanged);
+        auto value = event(WKW10MEventSourceChanged);
         // Stable ASCII provider title whose copied final value is checked after cleanup.
         constexpr char title[] = "Final readable title";
         value.title = { reinterpret_cast<const uint8_t*>(title), sizeof(title) - 1 };
@@ -171,105 +171,105 @@ struct LifecyclePage {
     }
 
     // Controlled shared setup is separate from navigation and cleanup counters.
-    static HRESULT __stdcall initialize(void*, SourceActionUWP kind, const WKUWPString*)
+    static HRESULT __stdcall initialize(void*, SourceActionW10M kind, const WKW10MString*)
     {
-        return kind == SourceActionUWP::Initialize ? S_OK : E_NOTIMPL;
+        return kind == SourceActionW10M::Initialize ? S_OK : E_NOTIMPL;
     }
 
     // Attach one retained frozen callback reference exactly once.
-    static WKUWPResult __stdcall attach(uint64_t page, const WKUWPPageCallbacks* callbacks)
+    static WKW10MResult __stdcall attach(uint64_t page, const WKW10MPageCallbacks* callbacks)
     {
         auto self = find(page);
-        if (!self || self->attached) return WKUWPResultInvalidArgument;
+        if (!self || self->attached) return WKW10MResultInvalidArgument;
         self->callbacks = *callbacks;
         callbacks->retainContext(callbacks->context);
         self->attached = true;
-        return WKUWPResultOK;
+        return WKW10MResultOK;
     }
 
     // Start asynchronous work and honor real public policy without completing it early.
-    static WKUWPResult __stdcall navigate(uint64_t page, const WKUWPNavigationRequest* request, uint64_t* id)
+    static WKW10MResult __stdcall navigate(uint64_t page, const WKW10MNavigationRequest* request, uint64_t* id)
     {
         auto self = find(page);
-        if (!self || !request || !id) return WKUWPResultInvalidArgument;
+        if (!self || !request || !id) return WKW10MResultInvalidArgument;
         ++self->commands;
-        self->finish(WKUWPOutcomeCancelled);
+        self->finish(WKW10MOutcomeCancelled);
         self->target.assign(reinterpret_cast<const char*>(request->uri.data), request->uri.length);
         self->active = ++self->nextId;
         *id = self->active;
-        auto value = self->event(WKUWPEventStarting);
+        auto value = self->event(WKW10MEventStarting);
         uint32_t cancel = 0;
         auto result = self->callbacks.starting(self->callbacks.context, &value, &cancel);
-        if (cancel) self->finish(WKUWPOutcomeCancelled);
-        else if (result != WKUWPResultOK) {
-            auto failed = self->event(WKUWPEventCompleted);
-            failed.outcome = WKUWPOutcomeFailed;
-            failed.errorDomain = WKUWPErrorDomainPlatform;
+        if (cancel) self->finish(WKW10MOutcomeCancelled);
+        else if (result != WKW10MResultOK) {
+            auto failed = self->event(WKW10MEventCompleted);
+            failed.outcome = WKW10MOutcomeFailed;
+            failed.errorDomain = WKW10MErrorDomainPlatform;
             failed.errorCode = result;
             self->active = 0;
             self->callbacks.notify(self->callbacks.context, &failed);
         }
-        return WKUWPResultOK;
+        return WKW10MResultOK;
     }
 
     // Unsupported fixture HTML still provides a nonnull conforming negotiated slot.
-    static WKUWPResult __stdcall html(uint64_t, const WKUWPNavigationRequest*, uint64_t*) { return WKUWPResultUnsupported; }
+    static WKW10MResult __stdcall html(uint64_t, const WKW10MNavigationRequest*, uint64_t*) { return WKW10MResultUnsupported; }
 
     // Count only actual provider history/reload work for no-side-effect thread checks.
-    static WKUWPResult __stdcall operation(uint64_t page)
+    static WKW10MResult __stdcall operation(uint64_t page)
     {
         auto self = find(page);
-        if (!self) return WKUWPResultClosed;
+        if (!self) return WKW10MResultClosed;
         ++self->commands;
-        return WKUWPResultOK;
+        return WKW10MResultOK;
     }
 
     // Stop outstanding work without inserting a new navigation identity.
-    static WKUWPResult __stdcall stop(uint64_t page)
+    static WKW10MResult __stdcall stop(uint64_t page)
     {
         auto self = find(page);
-        if (!self) return WKUWPResultClosed;
+        if (!self) return WKW10MResultClosed;
         ++self->commands;
-        self->finish(WKUWPOutcomeCancelled);
-        return WKUWPResultOK;
+        self->finish(WKW10MOutcomeCancelled);
+        return WKW10MResultOK;
     }
 
     // Invalid tokens remain invalid and cannot produce a fixture navigation.
-    static WKUWPResult __stdcall proceed(uint64_t, const WKUWPCertificateToken*, uint64_t*) { return WKUWPResultInvalidCertificateToken; }
+    static WKW10MResult __stdcall proceed(uint64_t, const WKW10MCertificateToken*, uint64_t*) { return WKW10MResultInvalidCertificateToken; }
 
     // Cancel active work once, then acknowledge immediately or retain Pending ownership.
-    static WKUWPResult __stdcall close(uint64_t page)
+    static WKW10MResult __stdcall close(uint64_t page)
     {
         auto self = find(page);
-        if (!self) return WKUWPResultClosed;
+        if (!self) return WKW10MResultClosed;
         ++self->closes;
         self->trace.push_back("native-close");
-        self->finish(WKUWPOutcomeCancelled);
-        if (self->pendingClose) return WKUWPResultPending;
+        self->finish(WKW10MOutcomeCancelled);
+        if (self->pendingClose) return WKW10MResultPending;
         self->acknowledge();
-        return WKUWPResultOK;
+        return WKW10MResultOK;
     }
 };
 
 // Internal captured object with no public constructor/metadata, used for weak release oracles.
-ref class LifecycleCaptureUWP sealed {
+ref class LifecycleCaptureW10M sealed {
 internal:
     // Create a marker whose lifetime is controlled only by registered delegate captures.
-    LifecycleCaptureUWP() { }
+    LifecycleCaptureW10M() { }
 };
 
 // Shared native worker result/event ownership survives UI wait timeout without stack captures.
-struct LifecycleWorkerUWP {
+struct LifecycleWorkerW10M {
     // Auto-reset completion event for one bounded worker check.
     HANDLE done { CreateEventExW(nullptr, nullptr, 0, EVENT_ALL_ACCESS) };
     // Per-operation worker errors, written before the completion event signals.
     std::vector<HRESULT> results;
     // Frozen table with an extra native reference independent of engine ownership.
-    WKUWPPageCallbacks callbacks { };
+    WKW10MPageCallbacks callbacks { };
     // Protect the caller-supplied native context until worker execution actually ends.
-    PageCallbacksUWP* retained { nullptr };
+    PageCallbacksW10M* retained { nullptr };
     // Release only native event/context state, never XAML, on the last shared reference.
-    ~LifecycleWorkerUWP() { if (done) CloseHandle(done); if (retained) retained->release(); }
+    ~LifecycleWorkerW10M() { if (done) CloseHandle(done); if (retained) retained->release(); }
 };
 
 // Construct a real absolute URI for owner-thread/worker mutation inputs.
@@ -285,19 +285,19 @@ void runLifecycle(LifecycleReport& report)
         f.view->Close();
         report.check(f.closes == 1 && f.completions == 1 && f.completed->Outcome == WebKitNavigationOutcome::Cancelled,
             "ordinary Close cancels one committed loading navigation and closes native page once");
-        report.check(f.view->ControlPhase() == ControlPhaseUWP::Closed && !f.view->IsLoading
+        report.check(f.view->ControlPhase() == ControlPhaseW10M::Closed && !f.view->IsLoading
                 && f.view->Source->AbsoluteUri == L"https://example.test/lifecycle" && f.view->DocumentTitle == L"Final readable title",
             "Closed final Source title loading snapshot remains readable after instance release");
         f.view->Close(); f.view->Close();
         report.check(f.closes == 1 && f.completions == 1, "repeated Close never repeats page release or terminal delivery");
         report.check(!f.view->ValidatedInitializationOptions() && !f.retained->engineReferences(),
             "ordinary Close releases per-instance validated assets and engine attachment ownership");
-        auto late = f.event(WKUWPEventTitleChanged);
+        auto late = f.event(WKW10MEventTitleChanged);
         f.callbacks.notify(f.callbacks.context, &late);
         report.check(f.view->DocumentTitle == L"Final readable title" && f.completions == 1, "retained stale callback cannot mutate closed final snapshot");
         uint32_t cancel = 0;
-        late.eventKind = WKUWPEventStarting;
-        report.check(f.callbacks.starting(f.callbacks.context, &late, &cancel) == WKUWPResultOK && cancel == 1,
+        late.eventKind = WKW10MEventStarting;
+        report.check(f.callbacks.starting(f.callbacks.context, &late, &cancel) == WKW10MResultOK && cancel == 1,
             "inactive late policy fails closed without touching released page state");
         report.check(lifecycleResult([&] { f.view->Source = nullptr; }) == RO_E_CLOSED
                 && lifecycleResult([&] { f.view->GoBack(); }) == RO_E_CLOSED && lifecycleResult([&] { f.view->GoForward(); }) == RO_E_CLOSED
@@ -333,7 +333,7 @@ void runLifecycle(LifecycleReport& report)
             [&f](WebKitWebView^, WebKitNavigationStartingEventArgs^) { f.view->Close(); });
         f.view->Source = lifecycleUri();
         report.check(f.completions == 1 && f.completed->Outcome == WebKitNavigationOutcome::Cancelled && f.closes == 1
-                && f.view->ControlPhase() == ControlPhaseUWP::Closed,
+                && f.view->ControlPhase() == ControlPhaseW10M::Closed,
             "Close inside Starting delivers its sole cancellation before revocation");
     }
     {
@@ -352,12 +352,12 @@ void runLifecycle(LifecycleReport& report)
         f.view->Source = lifecycleUri();
         f.commit();
         f.view->Close();
-        report.check(f.view->ControlPhase() == ControlPhaseUWP::Closing && f.closes == 1 && f.completions == 1
+        report.check(f.view->ControlPhase() == ControlPhaseW10M::Closing && f.closes == 1 && f.completions == 1
                 && f.retained->engineReferences() == 1, "Pending native close keeps cleanup ownership after owed cancellation");
         f.view->Close();
-        report.check(f.closes == 1 && f.view->ControlPhase() == ControlPhaseUWP::Closing, "repeated pending Close does not reissue native close");
+        report.check(f.closes == 1 && f.view->ControlPhase() == ControlPhaseW10M::Closing, "repeated pending Close does not reissue native close");
         f.acknowledge();
-        report.check(f.view->ControlPhase() == ControlPhaseUWP::Closed && !f.retained->engineReferences()
+        report.check(f.view->ControlPhase() == ControlPhaseW10M::Closed && !f.retained->engineReferences()
                 && !f.view->ValidatedInitializationOptions(), "engine retained-context release acknowledges pending cleanup and releases instance once");
     }
     {
@@ -365,7 +365,7 @@ void runLifecycle(LifecycleReport& report)
         a.view->Source = lifecycleUri(); b.view->Source = lifecycleUri();
         a.commit(); b.commit();
         a.view->Close();
-        auto late = a.event(WKUWPEventHistoryChanged);
+        auto late = a.event(WKW10MEventHistoryChanged);
         late.canGoBack = 1;
         a.callbacks.notify(a.callbacks.context, &late);
         report.check(b.view->IsLoading && b.completions == 0 && b.closes == 0 && !b.view->CanGoBack,
@@ -375,14 +375,14 @@ void runLifecycle(LifecycleReport& report)
     }
     {
         auto control = ref new WebKitWebView();
-        auto captured = ref new LifecycleCaptureUWP();
+        auto captured = ref new LifecycleCaptureW10M();
         WeakReference weakCapture(captured);
         control->NavigationCompleted += ref new TypedEventHandler<WebKitWebView^, WebKitNavigationCompletedEventArgs^>(
             [captured](WebKitWebView^, WebKitNavigationCompletedEventArgs^) { (void)captured; });
         captured = nullptr;
-        report.check(weakCapture.Resolve<LifecycleCaptureUWP>() != nullptr, "live public subscription retains its captured object");
+        report.check(weakCapture.Resolve<LifecycleCaptureW10M>() != nullptr, "live public subscription retains its captured object");
         control->Close();
-        report.check(weakCapture.Resolve<LifecycleCaptureUWP>() == nullptr, "final Close revokes delegate roots and releases captured subscribers");
+        report.check(weakCapture.Resolve<LifecycleCaptureW10M>() == nullptr, "final Close revokes delegate roots and releases captured subscribers");
     }
     {
         auto control = ref new WebKitWebView();
@@ -395,23 +395,23 @@ void runLifecycle(LifecycleReport& report)
     }
     {
         auto control = ref new WebKitWebView();
-        WKUWPPageCallbacks callbacks { };
+        WKW10MPageCallbacks callbacks { };
         control->BuildPageCallbacks(&callbacks);
         callbacks.retainContext(callbacks.context);
         WeakReference weak(control);
         control = nullptr;
         report.check(weak.Resolve<WebKitWebView>() == nullptr, "retained native callback attachment holds only a weak control subscription");
-        WKUWPPageEvent late { };
+        WKW10MPageEvent late { };
         late.header = { sizeof(late), 1 };
-        late.eventKind = WKUWPEventStarting;
+        late.eventKind = WKW10MEventStarting;
         uint32_t cancel = 0;
-        report.check(callbacks.starting(callbacks.context, &late, &cancel) == WKUWPResultOK && cancel,
+        report.check(callbacks.starting(callbacks.context, &late, &cancel) == WKW10MResultOK && cancel,
             "expired weak callback target is rejected without resurrection or stale access");
         callbacks.releaseContext(callbacks.context);
     }
     {
         LifecyclePage f(508);
-        auto worker = std::make_shared<LifecycleWorkerUWP>();
+        auto worker = std::make_shared<LifecycleWorkerW10M>();
         worker->callbacks = f.callbacks;
         worker->retained = f.retained;
         worker->retained->retain();
@@ -430,7 +430,7 @@ void runLifecycle(LifecycleReport& report)
                 worker->results.push_back(lifecycleResult([&] { view->ProceedWithCertificateFailure(nullptr); }));
                 worker->results.push_back(lifecycleResult([&] { view->EnsureInitializedAsync(); }));
                 worker->results.push_back(lifecycleResult([&] { view->Close(); }));
-                WKUWPPageEvent value { };
+                WKW10MPageEvent value { };
                 uint32_t cancel = 0;
                 worker->results.push_back(worker->callbacks.starting(worker->callbacks.context, &value, &cancel));
                 worker->callbacks.notify(worker->callbacks.context, &value);
@@ -440,7 +440,7 @@ void runLifecycle(LifecycleReport& report)
         bool wrongThread = finished && worker->results.size() == 11;
         if (finished) for (auto result : worker->results) wrongThread = wrongThread && result == RPC_E_WRONG_THREAD;
         report.check(wrongThread, "all worker public mutations and frozen policy callbacks report RPC_E_WRONG_THREAD");
-        report.check(f.commands == commands && f.closes == 0 && f.view->ControlPhase() == ControlPhaseUWP::Ready
+        report.check(f.commands == commands && f.closes == 0 && f.view->ControlPhase() == ControlPhaseW10M::Ready
                 && f.retained->lastResult() == RPC_E_WRONG_THREAD, "wrong-thread attempts leave owner page registrations and snapshots unchanged");
     }
 }
@@ -448,7 +448,7 @@ void runLifecycle(LifecycleReport& report)
 } // namespace
 
 // Diagnostic-only owner-thread entry: verify ordinary close/weak/thread contracts.
-extern "C" __declspec(dllexport) HRESULT __stdcall WKUWPTestLifecycle(const wchar_t* path)
+extern "C" __declspec(dllexport) HRESULT __stdcall WKW10MTestLifecycle(const wchar_t* path)
 {
     LifecycleReport report;
     try { runLifecycle(report); }

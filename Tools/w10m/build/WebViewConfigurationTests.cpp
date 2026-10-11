@@ -56,7 +56,7 @@ int wmain(int argc, wchar_t** argv)
     auto expectedFonts = narrow(argv[3]);
     auto publicOptions = ref new WebKitWebViewOptions();
     auto copied = WebKitWebViewOptions::CopyToNative(publicOptions);
-    WebViewConfigurationUWP configuration(copied);
+    WebViewConfigurationW10M configuration(copied);
     publicOptions->CertificateAuthorityPath = L"missing.pem";
     publicOptions->FontDirectoryPath = L"missing-fonts";
     publicOptions->MaximumConcurrentRequests = 0;
@@ -64,7 +64,7 @@ int wmain(int argc, wchar_t** argv)
     publicOptions->MaximumBufferedBytes = 0;
     publicOptions->RequestTimeoutMilliseconds = 0;
     copied.maximumResourceBytes = 0;
-    std::unique_ptr<const ValidatedWebViewOptionsUWP> valid;
+    std::unique_ptr<const ValidatedWebViewOptionsW10M> valid;
     auto result = configuration.validate(package, valid);
     check(result == S_OK && valid, "all six options are copied independently of later public/native input mutation");
     if (!valid)
@@ -77,8 +77,8 @@ int wmain(int argc, wchar_t** argv)
     auto nullPaths = ref new WebKitWebViewOptions();
     nullPaths->CertificateAuthorityPath = nullptr;
     nullPaths->FontDirectoryPath = nullptr;
-    std::unique_ptr<const ValidatedWebViewOptionsUWP> defaults;
-    check(WebViewConfigurationUWP(WebKitWebViewOptions::CopyToNative(nullPaths)).validate(package, defaults) == S_OK
+    std::unique_ptr<const ValidatedWebViewOptionsW10M> defaults;
+    check(WebViewConfigurationW10M(WebKitWebViewOptions::CopyToNative(nullPaths)).validate(package, defaults) == S_OK
             && defaults->options().certificateAuthorityPath == valid->options().certificateAuthorityPath,
         "null option paths also select containing-package defaults");
     try {
@@ -88,7 +88,7 @@ int wmain(int argc, wchar_t** argv)
         check(exception->HResult == E_INVALIDARG, "null options object rejected before page creation");
     }
     auto page = valid->pageOptions();
-    check(page.header.structureSize == sizeof(page) && page.header.structureVersion == WKUWP_STRUCTURE_VERSION
+    check(page.header.structureSize == sizeof(page) && page.header.structureVersion == WKW10M_STRUCTURE_VERSION
             && page.maximumQueuedRequests == 128 && page.maximumRedirects == 10,
         "frozen page ABI views include fixed queue/redirect limits");
     check(page.caBundle.data == reinterpret_cast<const uint8_t*>(valid->caBundle().data()) && page.caBundle.length == valid->caBundle().size()
@@ -98,54 +98,54 @@ int wmain(int argc, wchar_t** argv)
     check(engine.header.structureSize == sizeof(engine) && engine.fontDirectory.length == valid->options().fontDirectoryPath.size()
             && engine.fontFingerprint.length == 64 && !engine.platformServices,
         "engine ABI view supplies canonical path/fingerprint without projections");
-    WebViewOptionsUWP relative;
+    WebViewOptionsW10M relative;
     relative.certificateAuthorityPath = L".\\cacert.pem";
     relative.fontDirectoryPath = L".\\Fonts\\";
-    std::unique_ptr<const ValidatedWebViewOptionsUWP> normalized;
-    result = WebViewConfigurationUWP(relative).validate(package, normalized);
+    std::unique_ptr<const ValidatedWebViewOptionsW10M> normalized;
+    result = WebViewConfigurationW10M(relative).validate(package, normalized);
     check(result == S_OK && normalized->options().certificateAuthorityPath == valid->options().certificateAuthorityPath
             && normalized->options().fontDirectoryPath == valid->options().fontDirectoryPath,
         "relative paths resolve against package and canonicalize dot segments/separators");
     relative.certificateAuthorityPath = L"CACERT.PEM";
     relative.fontDirectoryPath = L"FONTS";
-    result = WebViewConfigurationUWP(relative).validate(package, normalized);
+    result = WebViewConfigurationW10M(relative).validate(package, normalized);
     check(result == S_OK && normalized->options().fontDirectoryPath == valid->options().fontDirectoryPath,
         "case-equivalent package paths share canonical configuration");
 
-    auto reject = [&](WebViewOptionsUWP options, HRESULT expected, const char* description) {
+    auto reject = [&](WebViewOptionsW10M options, HRESULT expected, const char* description) {
         auto previous = valid.get();
-        auto rejected = WebViewConfigurationUWP(options).validate(package, valid);
+        auto rejected = WebViewConfigurationW10M(options).validate(package, valid);
         check(rejected == expected && valid.get() == previous, description);
     };
     for (auto value : { 0U, 17U, std::numeric_limits<uint32_t>::max() }) {
-        WebViewOptionsUWP options;
+        WebViewOptionsW10M options;
         options.maximumConcurrentRequests = value;
         reject(options, E_INVALIDARG, "concurrency outside 1..16 rejected with untouched output");
     }
     for (auto value : { 65535ULL, 64ULL * 1024 * 1024 + 1, std::numeric_limits<uint64_t>::max() }) {
-        WebViewOptionsUWP options;
+        WebViewOptionsW10M options;
         options.maximumResourceBytes = value;
         reject(options, E_INVALIDARG, "resource limit outside 64KiB..64MiB rejected");
     }
     for (auto value : { 1024ULL * 1024 - 1, 32ULL * 1024 * 1024 + 1, std::numeric_limits<uint64_t>::max() }) {
-        WebViewOptionsUWP options;
+        WebViewOptionsW10M options;
         options.maximumBufferedBytes = value;
         reject(options, E_INVALIDARG, "buffer limit outside 1MiB..32MiB rejected");
     }
     for (auto value : { 999U, 120001U, std::numeric_limits<uint32_t>::max() }) {
-        WebViewOptionsUWP options;
+        WebViewOptionsW10M options;
         options.requestTimeoutMilliseconds = value;
         reject(options, E_INVALIDARG, "timeout outside 1000..120000 rejected");
     }
     for (bool maximum : { false, true }) {
-        WebViewOptionsUWP options;
+        WebViewOptionsW10M options;
         options.maximumConcurrentRequests = maximum ? 16 : 1;
         options.maximumResourceBytes = maximum ? 64ULL * 1024 * 1024 : 65536;
         options.maximumBufferedBytes = maximum ? 32ULL * 1024 * 1024 : 1024 * 1024;
         options.requestTimeoutMilliseconds = maximum ? 120000 : 1000;
-        check(WebViewConfigurationUWP(options).validate(package, normalized) == S_OK, "inclusive range endpoints accepted");
+        check(WebViewConfigurationW10M(options).validate(package, normalized) == S_OK, "inclusive range endpoints accepted");
     }
-    WebViewOptionsUWP options;
+    WebViewOptionsW10M options;
     options.certificateAuthorityPath = L"missing.pem";
     reject(options, HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND), "missing CA file preserves originating error before page creation");
     options.certificateAuthorityPath = L"empty.pem";
@@ -172,18 +172,18 @@ int wmain(int argc, wchar_t** argv)
     reject(options, E_INVALIDARG, "CA option is a filesystem path rather than network URL");
     options.certificateAuthorityPath = L"cacert.pem";
     auto before = valid.get();
-    check(WebViewConfigurationUWP(options).validate(L"relative-package", valid) == E_INVALIDARG && valid.get() == before,
+    check(WebViewConfigurationW10M(options).validate(L"relative-package", valid) == E_INVALIDARG && valid.get() == before,
         "relative package root rejected instead of consulting working directory");
     options = { };
     options.certificateAuthorityPath = valid->options().certificateAuthorityPath;
     options.fontDirectoryPath = valid->options().fontDirectoryPath;
-    check(WebViewConfigurationUWP(options).validate(L"", normalized) == S_OK, "explicit absolute paths need no default-package resolution");
+    check(WebViewConfigurationW10M(options).validate(L"", normalized) == S_OK, "explicit absolute paths need no default-package resolution");
     auto original = valid->caBundle();
     check(overwrite(valid->options().certificateAuthorityPath, "changed invalid bundle"), "mutate only the temporary fixture CA path");
     check(valid->caBundle() == original && valid->trustFingerprint() == expectedTrust, "validated trust remains immutable after filesystem mutation");
     reject(options, HRESULT_FROM_WIN32(ERROR_INVALID_DATA), "failed revalidation cannot replace an existing validated snapshot");
     check(overwrite(valid->options().certificateAuthorityPath, original), "restore temporary fixture CA bytes");
-    check(WebViewConfigurationUWP(options).validate(L"", normalized) == S_OK && normalized->trustFingerprint() == expectedTrust,
+    check(WebViewConfigurationW10M(options).validate(L"", normalized) == S_OK && normalized->trustFingerprint() == expectedTrust,
         "new successful validation recovers same frozen option values");
     std::printf("M10 configuration: %u checks, %u failures\n", s_checks, s_failures);
     RoUninitialize();

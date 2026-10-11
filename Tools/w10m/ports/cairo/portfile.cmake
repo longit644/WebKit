@@ -14,7 +14,7 @@ vcpkg_extract_source_archive(
     ARCHIVE "${ARCHIVE}"
     PATCHES
         msvc-convenience.diff
-        uwp-skip-win32-gdi.patch # WebKitWebView: no GDI backends on UWP/Store
+        w10m-skip-win32-gdi.patch # WebKitWebView: no GDI backends on UWP/Store
         ${EXTRA_PATCHES}
 )
 

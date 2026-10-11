@@ -47,12 +47,12 @@ struct ClipboardDeviceLog {
     // Cut marker carried by the most recent completion.
     bool lastCut { false };
     // Result carried by the most recent completion.
-    WKUWPResult lastResult { WKUWPResultOK };
+    WKW10MResult lastResult { WKW10MResultOK };
     // Text bytes copied out of the borrowed span during the call.
     std::string lastText;
     // Record one delivery into the owning log.
     static void __stdcall record(void* context, uint64_t operationId, uint32_t kind, bool cut,
-        WKUWPResult result, const WKUWPString* text)
+        WKW10MResult result, const WKW10MString* text)
     {
         auto* self = static_cast<ClipboardDeviceLog*>(context);
         ++self->count;
@@ -69,34 +69,34 @@ struct ClipboardDeviceLog {
 // Engine-side service completion count for table-interop cases.
 unsigned g_engineWriteCompletions = 0;
 // Last engine-side service completion result.
-WKUWPResult g_engineWriteResult = WKUWPResultOK;
+WKW10MResult g_engineWriteResult = WKW10MResultOK;
 // Record one engine-side service completion without retaining anything.
-void __stdcall recordEngineWrite(void*, uint64_t, WKUWPResult result, const WKUWPString*)
+void __stdcall recordEngineWrite(void*, uint64_t, WKW10MResult result, const WKW10MString*)
 {
     ++g_engineWriteCompletions;
     g_engineWriteResult = result;
 }
 
 // Borrowed span over a caller-owned buffer for copy/cut requests.
-WKUWPString deviceSpan(const std::string& bytes)
+WKW10MString deviceSpan(const std::string& bytes)
 {
-    WKUWPString span { reinterpret_cast<const uint8_t*>(bytes.data()), static_cast<uint32_t>(bytes.size()) };
+    WKW10MString span { reinterpret_cast<const uint8_t*>(bytes.data()), static_cast<uint32_t>(bytes.size()) };
     return span;
 }
 
 // Build one route on the real dispatcher and WinRT clipboard transport.
-std::unique_ptr<ClipboardRouteUWP> makeDeviceRoute(DispatcherUWP^ dispatcher)
+std::unique_ptr<ClipboardRouteW10M> makeDeviceRoute(DispatcherW10M^ dispatcher)
 {
-    auto service = std::make_unique<ClipboardServiceUWP>(
+    auto service = std::make_unique<ClipboardServiceW10M>(
         CreatePlatformServiceDispatcher(dispatcher),
         CreateClipboardPlatformTransport());
-    return std::make_unique<ClipboardRouteUWP>(11, std::move(service));
+    return std::make_unique<ClipboardRouteW10M>(11, std::move(service));
 }
 
 // Pump the owner dispatcher until the route drains or the budget expires.
 // Async WinRT reads complete through RunAsync tasks, so the UI thread must
 // pump: blocking on an event here would deadlock the delivery it waits for.
-bool drainDeviceRoute(ClipboardRouteUWP& route, CoreDispatcher^ core, unsigned budgetMs = 8000)
+bool drainDeviceRoute(ClipboardRouteW10M& route, CoreDispatcher^ core, unsigned budgetMs = 8000)
 {
     for (unsigned waited = 0; route.pendingCount() && waited < budgetMs; waited += 10) {
         core->ProcessEvents(CoreProcessEventsOption::ProcessAllIfPresent);
@@ -113,7 +113,7 @@ void runClipboard(ClipboardReport& report)
     if (!window)
         return;
     auto core = window->Dispatcher;
-    auto dispatcher = ref new DispatcherUWP(core);
+    auto dispatcher = ref new DispatcherW10M(core);
     report.check(!!dispatcher->HasThreadAccess(), "diagnostic runs on the owning dispatcher thread");
 
     auto route = makeDeviceRoute(dispatcher);
@@ -127,32 +127,32 @@ void runClipboard(ClipboardReport& report)
         ClipboardDeviceLog saved;
         if (route->paste(&ClipboardDeviceLog::record, &saved) == S_OK && drainDeviceRoute(*route, core)) {
             savedText = saved.lastText;
-            savedOk = saved.count == 1 && saved.lastResult == WKUWPResultOK;
+            savedOk = saved.count == 1 && saved.lastResult == WKW10MResultOK;
         }
     }
     report.check(savedOk, "existing clipboard text saved before the run");
 
     // Copy publishes through the real transport and completes inline.
     std::string copyText = std::string("clipboard-") + TEST_PACKAGE_VERSION + "-copy";
-    WKUWPString copySpan = deviceSpan(copyText);
+    WKW10MString copySpan = deviceSpan(copyText);
     report.check(route->copy(&copySpan, &ClipboardDeviceLog::record, &log) == S_OK, "device copy accepted");
-    report.check(log.count == 1 && log.lastResult == WKUWPResultOK, "device copy completes OK");
+    report.check(log.count == 1 && log.lastResult == WKW10MResultOK, "device copy completes OK");
     report.check(route->pendingCount() == 0, "device copy leaves nothing pending");
 
     // Paste round-trips the exact published bytes through the real clipboard.
     ClipboardDeviceLog pasted;
     report.check(route->paste(&ClipboardDeviceLog::record, &pasted) == S_OK, "device paste accepted");
     report.check(drainDeviceRoute(*route, core), "device paste drains through the dispatcher");
-    report.check(pasted.count == 1 && pasted.lastResult == WKUWPResultOK, "device paste completes OK");
+    report.check(pasted.count == 1 && pasted.lastResult == WKW10MResultOK, "device paste completes OK");
     report.check(pasted.lastText == copyText, "device paste round-trips exact copy bytes");
 
     // Cut publishes like copy and marks the completion cut.
     std::string cutText = std::string("clipboard-") + TEST_PACKAGE_VERSION + "-cut";
-    WKUWPString cutSpan = deviceSpan(cutText);
+    WKW10MString cutSpan = deviceSpan(cutText);
     ClipboardDeviceLog cut;
     report.check(route->cut(&cutSpan, &ClipboardDeviceLog::record, &cut) == S_OK, "device cut accepted");
-    report.check(cut.count == 1 && cut.lastResult == WKUWPResultOK && cut.lastCut
-        && cut.lastKind == WKUWPClipboardWrite, "device cut completes OK marked cut");
+    report.check(cut.count == 1 && cut.lastResult == WKW10MResultOK && cut.lastCut
+        && cut.lastKind == WKW10MClipboardWrite, "device cut completes OK marked cut");
     ClipboardDeviceLog cutPaste;
     report.check(route->paste(&ClipboardDeviceLog::record, &cutPaste) == S_OK, "paste after cut accepted");
     report.check(drainDeviceRoute(*route, core) && cutPaste.count == 1
@@ -162,7 +162,7 @@ void runClipboard(ClipboardReport& report)
     HANDLE done { CreateEventExW(nullptr, nullptr, 0, EVENT_ALL_ACCESS) };
     std::vector<HRESULT> workerResults;
     auto routePtr = route.get();
-    WKUWPString workerSpan = deviceSpan(copyText);
+    WKW10MString workerSpan = deviceSpan(copyText);
     ThreadPool::RunAsync(ref new WorkItemHandler([&](IAsyncAction^) {
         workerResults.push_back(routePtr->copy(&workerSpan, &ClipboardDeviceLog::record, &log));
         workerResults.push_back(routePtr->paste(&ClipboardDeviceLog::record, &log));
@@ -184,7 +184,7 @@ void runClipboard(ClipboardReport& report)
     report.check(closing->close() == S_OK, "close-race route closed");
     report.check(drainDeviceRoute(*closing, core), "close-race route drains");
     bool singleTerminal = raced.count == 1
-        && (raced.lastResult == WKUWPResultOK || raced.lastResult == WKUWPResultClosed);
+        && (raced.lastResult == WKW10MResultOK || raced.lastResult == WKW10MResultClosed);
     report.check(singleTerminal, "close-race paste completes exactly once as OK or Closed");
     report.check(closing->pendingCount() == 0, "close-race route leaves nothing pending");
 
@@ -196,23 +196,23 @@ void runClipboard(ClipboardReport& report)
     report.check(closed.count == 0, "post-close paste never completes");
 
     // The borrowed table serves engine writes alongside route operations.
-    WKUWPPlatformServices table { };
+    WKW10MPlatformServices table { };
     report.check(route->buildTable(&table) == S_OK, "device route table built");
-    WKUWPString empty { nullptr, 0 };
+    WKW10MString empty { nullptr, 0 };
     g_engineWriteCompletions = 0;
-    g_engineWriteResult = WKUWPResultOK;
-    auto engineResult = table.requestClipboard(table.context, 11, 600, WKUWPClipboardWrite, &empty,
+    g_engineWriteResult = WKW10MResultOK;
+    auto engineResult = table.requestClipboard(table.context, 11, 600, WKW10MClipboardWrite, &empty,
         &recordEngineWrite, nullptr);
-    report.check(engineResult == WKUWPResultOK && g_engineWriteCompletions == 1
-        && g_engineWriteResult == WKUWPResultOK, "engine write through device table completes OK");
+    report.check(engineResult == WKW10MResultOK && g_engineWriteCompletions == 1
+        && g_engineWriteResult == WKW10MResultOK, "engine write through device table completes OK");
 
     // Restore the saved clipboard text without asserting user state beyond no-fault delivery.
     bool restored = false;
     if (savedOk) {
         ClipboardDeviceLog restore;
-        WKUWPString savedSpan = deviceSpan(savedText);
+        WKW10MString savedSpan = deviceSpan(savedText);
         restored = route->copy(&savedSpan, &ClipboardDeviceLog::record, &restore) == S_OK
-            && restore.count == 1 && restore.lastResult == WKUWPResultOK;
+            && restore.count == 1 && restore.lastResult == WKW10MResultOK;
     }
     report.check(restored, "saved clipboard text restored without fault");
 }
@@ -220,7 +220,7 @@ void runClipboard(ClipboardReport& report)
 } // namespace
 
 // Diagnostic-only owner-thread entry: verify real clipboard routing behavior.
-extern "C" __declspec(dllexport) HRESULT __stdcall WKUWPTestClipboard(const wchar_t* path)
+extern "C" __declspec(dllexport) HRESULT __stdcall WKW10MTestClipboard(const wchar_t* path)
 {
     ClipboardReport report;
     try { runClipboard(report); }

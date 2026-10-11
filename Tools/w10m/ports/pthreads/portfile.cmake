@@ -4,7 +4,7 @@ if(NOT VCPKG_TARGET_IS_WINDOWS OR VCPKG_TARGET_IS_MINGW)
 endif()
 
 if(VCPKG_TARGET_IS_UWP)
-  list(APPEND PATCH_FILES fix-uwp-linkage.patch)
+  list(APPEND PATCH_FILES fix-w10m-linkage.patch)
   # Inject linker option using the `LINK` environment variable
   # https://docs.microsoft.com/en-us/cpp/build/reference/linker-options
   # https://docs.microsoft.com/en-us/cpp/build/reference/linking#link-environment-variables

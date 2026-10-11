@@ -49,12 +49,12 @@ struct OwnerDeviceLog {
     // Cut marker carried by the most recent completion.
     bool lastCut { false };
     // Result carried by the most recent completion.
-    WKUWPResult lastResult { WKUWPResultOK };
+    WKW10MResult lastResult { WKW10MResultOK };
     // Text bytes copied out of the borrowed span during the call.
     std::string lastText;
     // Record one delivery into the owning log.
     static void __stdcall record(void* context, uint64_t operationId, uint32_t kind, bool cut,
-        WKUWPResult result, const WKUWPString* text)
+        WKW10MResult result, const WKW10MString* text)
     {
         auto* self = static_cast<OwnerDeviceLog*>(context);
         ++self->count;
@@ -71,10 +71,10 @@ struct OwnerDeviceLog {
 // Hook revocation record; every revocation runs on the UI owner thread.
 static unsigned g_ownerHookCount = 0;
 static uint64_t g_ownerHookLastId = 0;
-static WKUWPResult g_ownerHookLastResult = WKUWPResultOK;
+static WKW10MResult g_ownerHookLastResult = WKW10MResultOK;
 
 // Record one hook revocation.
-static void __stdcall recordOwnerHook(void*, uint64_t hookId, WKUWPResult result)
+static void __stdcall recordOwnerHook(void*, uint64_t hookId, WKW10MResult result)
 {
     ++g_ownerHookCount;
     g_ownerHookLastId = hookId;
@@ -82,16 +82,16 @@ static void __stdcall recordOwnerHook(void*, uint64_t hookId, WKUWPResult result
 }
 
 // Borrowed span over a caller-owned buffer for copy/cut requests.
-WKUWPString ownerSpan(const std::string& bytes)
+WKW10MString ownerSpan(const std::string& bytes)
 {
-    WKUWPString span { reinterpret_cast<const uint8_t*>(bytes.data()), static_cast<uint32_t>(bytes.size()) };
+    WKW10MString span { reinterpret_cast<const uint8_t*>(bytes.data()), static_cast<uint32_t>(bytes.size()) };
     return span;
 }
 
 // Build one runtime owner on the real dispatcher and WinRT clipboard transport.
-std::unique_ptr<RuntimeOwnerUWP> makeDeviceOwner(DispatcherUWP^ dispatcher)
+std::unique_ptr<RuntimeOwnerW10M> makeDeviceOwner(DispatcherW10M^ dispatcher)
 {
-    auto ports = std::make_unique<RuntimeOwnerUWP>(13,
+    auto ports = std::make_unique<RuntimeOwnerW10M>(13,
         CreatePlatformServiceDispatcher(dispatcher),
         CreateClipboardPlatformTransport());
     return ports;
@@ -100,7 +100,7 @@ std::unique_ptr<RuntimeOwnerUWP> makeDeviceOwner(DispatcherUWP^ dispatcher)
 // Pump the owner dispatcher until the owner drains or the budget expires.
 // Async WinRT reads complete through RunAsync tasks, so the UI thread must
 // pump: blocking on an event here would deadlock the delivery it waits for.
-bool drainDeviceOwner(RuntimeOwnerUWP& owner, CoreDispatcher^ core, unsigned budgetMs = 8000)
+bool drainDeviceOwner(RuntimeOwnerW10M& owner, CoreDispatcher^ core, unsigned budgetMs = 8000)
 {
     for (unsigned waited = 0; owner.pendingCount() && waited < budgetMs; waited += 10) {
         core->ProcessEvents(CoreProcessEventsOption::ProcessAllIfPresent);
@@ -117,7 +117,7 @@ void runOwner(OwnerReport& report)
     if (!window)
         return;
     auto core = window->Dispatcher;
-    auto dispatcher = ref new DispatcherUWP(core);
+    auto dispatcher = ref new DispatcherW10M(core);
     report.check(!!dispatcher->HasThreadAccess(), "diagnostic runs on the owning dispatcher thread");
 
     auto owner = makeDeviceOwner(dispatcher);
@@ -134,7 +134,7 @@ void runOwner(OwnerReport& report)
             ++accepted;
             if (drainDeviceOwner(*owner, core)) {
                 savedText = saved.lastText;
-                savedOk = saved.count == 1 && saved.lastResult == WKUWPResultOK;
+                savedOk = saved.count == 1 && saved.lastResult == WKW10MResultOK;
             }
         }
     }
@@ -142,10 +142,10 @@ void runOwner(OwnerReport& report)
 
     // Ticketed copy publishes through the real transport and completes inline.
     std::string copyText = std::string("owner-") + TEST_PACKAGE_VERSION + "-copy";
-    WKUWPString copySpan = ownerSpan(copyText);
+    WKW10MString copySpan = ownerSpan(copyText);
     report.check(owner->copy(&copySpan, &OwnerDeviceLog::record, &log) == S_OK, "device owner copy accepted");
     ++accepted;
-    report.check(log.count == 1 && log.lastResult == WKUWPResultOK, "device owner copy completes OK");
+    report.check(log.count == 1 && log.lastResult == WKW10MResultOK, "device owner copy completes OK");
     report.check(owner->openTickets() == 0, "copy ticket acknowledged");
     report.check(owner->quiescent(), "quiescent after copy");
 
@@ -154,22 +154,22 @@ void runOwner(OwnerReport& report)
     report.check(owner->paste(&OwnerDeviceLog::record, &pasted) == S_OK, "device owner paste accepted");
     ++accepted;
     report.check(drainDeviceOwner(*owner, core), "device owner paste drains through the dispatcher");
-    report.check(pasted.count == 1 && pasted.lastResult == WKUWPResultOK, "device owner paste completes OK");
+    report.check(pasted.count == 1 && pasted.lastResult == WKW10MResultOK, "device owner paste completes OK");
     report.check(pasted.lastText == copyText, "device owner paste round-trips exact copy bytes");
 
     // Cut publishes like copy and marks the completion cut.
     std::string cutText = std::string("owner-") + TEST_PACKAGE_VERSION + "-cut";
-    WKUWPString cutSpan = ownerSpan(cutText);
+    WKW10MString cutSpan = ownerSpan(cutText);
     OwnerDeviceLog cut;
     report.check(owner->cut(&cutSpan, &OwnerDeviceLog::record, &cut) == S_OK, "device owner cut accepted");
     ++accepted;
-    report.check(cut.count == 1 && cut.lastResult == WKUWPResultOK && cut.lastCut, "device owner cut completes OK marked cut");
+    report.check(cut.count == 1 && cut.lastResult == WKW10MResultOK && cut.lastCut, "device owner cut completes OK marked cut");
 
     // Worker-thread owner calls are rejected before any ticket exists.
     HANDLE done { CreateEventExW(nullptr, nullptr, 0, EVENT_ALL_ACCESS) };
     std::vector<HRESULT> workerResults;
     auto ownerPtr = owner.get();
-    WKUWPString workerSpan = ownerSpan(copyText);
+    WKW10MString workerSpan = ownerSpan(copyText);
     ThreadPool::RunAsync(ref new WorkItemHandler([&](IAsyncAction^) {
         workerResults.push_back(ownerPtr->copy(&workerSpan, &OwnerDeviceLog::record, &log));
         workerResults.push_back(ownerPtr->paste(&OwnerDeviceLog::record, &log));
@@ -186,15 +186,15 @@ void runOwner(OwnerReport& report)
     // Close and recreate generations keep totals with pending reset.
     unsigned completedBefore = owner->completedTotal();
     report.check(owner->closeClipboard() == S_OK, "device clipboard closed");
-    std::unique_ptr<IServiceDispatcherUWP> freshDispatcher = CreatePlatformServiceDispatcher(dispatcher);
-    std::unique_ptr<IClipboardTransportUWP> freshTransport = CreateClipboardPlatformTransport();
+    std::unique_ptr<IServiceDispatcherW10M> freshDispatcher = CreatePlatformServiceDispatcher(dispatcher);
+    std::unique_ptr<IClipboardTransportW10M> freshTransport = CreateClipboardPlatformTransport();
     report.check(owner->recreateClipboard(std::move(freshDispatcher), std::move(freshTransport)) == S_OK, "device clipboard recreated");
     report.check(owner->generation() == 1, "device generation advances on recreate");
     report.check(owner->completedTotal() == completedBefore, "recreate carries acknowledgment totals");
     OwnerDeviceLog recreated;
     report.check(owner->copy(&copySpan, &OwnerDeviceLog::record, &recreated) == S_OK, "post-recreate copy accepted");
     ++accepted;
-    report.check(recreated.count == 1 && recreated.lastResult == WKUWPResultOK, "post-recreate copy acknowledged");
+    report.check(recreated.count == 1 && recreated.lastResult == WKW10MResultOK, "post-recreate copy acknowledged");
 
     // Hooks revoke explicitly and at shutdown with exactly-once delivery.
     uint64_t firstHook = 0, secondHook = 0;
@@ -204,7 +204,7 @@ void runOwner(OwnerReport& report)
         && secondHook != firstHook, "second device hook registered with fresh ID");
     report.check(owner->revokeHook(firstHook) == S_OK, "first device hook revoked");
     report.check(g_ownerHookCount == 1 && g_ownerHookLastId == firstHook
-        && g_ownerHookLastResult == WKUWPResultClosed, "explicit revocation acknowledges Closed once with ID");
+        && g_ownerHookLastResult == WKW10MResultClosed, "explicit revocation acknowledges Closed once with ID");
 
     // Shutdown acknowledges every accepted ticket, revokes the open hook, loses
     // the dispatcher and stays quiescent; later work fails fail-closed.
@@ -212,35 +212,35 @@ void runOwner(OwnerReport& report)
     report.check(owner->isShuttingDown() && owner->dispatcherLost(), "device shutdown latches both flags");
     report.check(owner->quiescent(), "quiescent after device shutdown");
     report.check(g_ownerHookCount == 2 && g_ownerHookLastId == secondHook
-        && g_ownerHookLastResult == WKUWPResultClosed, "shutdown revokes the open hook Closed");
-    report.check(owner->postWake() == WKUWPResultDispatcherUnavailable, "post-shutdown wake unavailable");
+        && g_ownerHookLastResult == WKW10MResultClosed, "shutdown revokes the open hook Closed");
+    report.check(owner->postWake() == WKW10MResultDispatcherUnavailable, "post-shutdown wake unavailable");
     OwnerDeviceLog closed;
     report.check(owner->copy(&copySpan, &OwnerDeviceLog::record, &closed) == RO_E_CLOSED, "post-shutdown copy rejected");
     report.check(closed.count == 0, "post-shutdown copy never completes");
     report.check(owner->completedTotal() + owner->canceledTotal() == accepted, "every accepted ticket acknowledged exactly once");
 
     // The engine-facing table serves engine writes with a working postWake.
-    WKUWPPlatformServices table { };
+    WKW10MPlatformServices table { };
     report.check(owner->buildTable(&table) == S_OK, "device owner table built");
     report.check(table.context == owner.get() && table.postWake, "device table carries owner context and wake");
-    WKUWPString empty { nullptr, 0 };
+    WKW10MString empty { nullptr, 0 };
     OwnerDeviceLog engine;
-    auto engineResult = table.requestClipboard(table.context, 13, 1300, WKUWPClipboardWrite, &empty,
-        [](void* context, uint64_t, WKUWPResult result, const WKUWPString*) {
+    auto engineResult = table.requestClipboard(table.context, 13, 1300, WKW10MClipboardWrite, &empty,
+        [](void* context, uint64_t, WKW10MResult result, const WKW10MString*) {
             auto* log = static_cast<OwnerDeviceLog*>(context);
             ++log->count;
             log->lastResult = result;
         }, &engine);
-    report.check(engineResult == WKUWPResultShuttingDown, "post-shutdown engine request refused ShuttingDown");
+    report.check(engineResult == WKW10MResultShuttingDown, "post-shutdown engine request refused ShuttingDown");
 
     // Restore the saved clipboard text without asserting user state beyond no-fault delivery.
     bool restored = false;
     if (savedOk) {
         auto rescue = makeDeviceOwner(dispatcher);
         OwnerDeviceLog restore;
-        WKUWPString savedSpan = ownerSpan(savedText);
+        WKW10MString savedSpan = ownerSpan(savedText);
         restored = rescue->copy(&savedSpan, &OwnerDeviceLog::record, &restore) == S_OK
-            && restore.count == 1 && restore.lastResult == WKUWPResultOK;
+            && restore.count == 1 && restore.lastResult == WKW10MResultOK;
     }
     report.check(restored, "saved clipboard text restored without fault");
 }
@@ -248,7 +248,7 @@ void runOwner(OwnerReport& report)
 } // namespace
 
 // Diagnostic-only owner-thread entry: verify real runtime owner behavior.
-extern "C" __declspec(dllexport) HRESULT __stdcall WKUWPTestOwner(const wchar_t* path)
+extern "C" __declspec(dllexport) HRESULT __stdcall WKW10MTestOwner(const wchar_t* path)
 {
     OwnerReport report;
     try { runOwner(report); }

@@ -38,12 +38,12 @@
     Explicit ARM32 MSVC toolset directory name; defaults to the newest installed.
 
 .EXAMPLE
-    .\test-wkuwp-engine-module.ps1
-    .\test-wkuwp-engine-module.ps1 -OutDir D:\m10\module
+    .\test-wkw10m-engine-module.ps1
+    .\test-wkw10m-engine-module.ps1 -OutDir D:\m10\module
 #>
 [CmdletBinding()]
 param(
-    [string]$OutDir = (Join-Path $env:TEMP 'opencode\wkuwp-engine-module'),
+    [string]$OutDir = (Join-Path $env:TEMP 'opencode\w10m-engine-module'),
     [string]$MsvcVersion
 )
 
@@ -55,21 +55,24 @@ $script:RepoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $P
 $script:AbiHeaderDir = Join-Path $script:RepoRoot 'Source\WebKit\Shared\w10m'
 $script:ModuleDir = Join-Path $script:RepoRoot 'Source\WebKit\UIProcess\API\w10m\native'
 $script:ModuleSource = Join-Path $script:ModuleDir 'EngineModuleW10M.cpp'
-$script:ModuleHeader = Join-Path $script:ModuleDir 'EngineModuleUWP.h'
-$script:ProviderSource = Join-Path $PSScriptRoot 'WKUWPModuleTestProvider.cpp'
-$script:HarnessSource = Join-Path $PSScriptRoot 'EngineModuleUWPTests.cpp'
+$script:ModuleHeader = Join-Path $script:ModuleDir 'EngineModuleW10M.h'
+$script:ProviderSource = Join-Path $PSScriptRoot 'WKW10MModuleTestProvider.cpp'
+$script:HarnessSource = Join-Path $PSScriptRoot 'EngineModuleW10MTests.cpp'
 $script:WindowsKitsRoot = 'C:\Program Files (x86)\Windows Kits\10'
 $script:VsRoot = 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools'
 
 function ConvertTo-QuotedArgument {
-    # PowerShell does not quote arguments for native commands, so a path under
-    # "Program Files (x86)" would otherwise arrive split at the space.
+    # Modern PowerShell preserves argument boundaries; only legacy native passing
+    # needs embedded path quotes, with a linker option's colon outside them.
     param([Parameter(Mandatory = $true)][string]$Argument)
 
+    if ($PSVersionTable.PSVersion -ge [version]'7.3' -and $PSNativeCommandArgumentPassing -ne 'Legacy') {
+        return $Argument
+    }
     if ($Argument -notmatch '[\s()]') {
         return $Argument
     }
-    if ($Argument -match '^(/[A-Za-z]+)(.+)$') {
+    if ($Argument -match '^(/[A-Za-z]+:?)(.+)$') {
         return $Matches[1] + '"' + $Matches[2] + '"'
     }
     return '"' + $Argument + '"'
@@ -281,11 +284,11 @@ Write-Host '    no warnings'
 
 # ---------------------------------------------------------------------------
 Write-Host '3/4 ARM32 module export inspection'
-$armDll = Join-Path $OutDir 'WKUWPModulePair-arm.dll'
+$armDll = Join-Path $OutDir 'WKW10MModulePair-arm.dll'
 $armLinkRun = Invoke-Captured -Exe $lldLink -Arguments (@(
         '/nologo', '/dll', '/NOENTRY', ('/out:' + $armDll)) + ($nativeLinkFlags -split ' ') + @(
-        (Join-Path $OutDir 'EngineModuleUWP-arm-native.obj'),
-        (Join-Path $OutDir 'WKUWPModuleTestProvider-arm-native.obj')))
+        (Join-Path $OutDir 'EngineModuleW10M-arm-native.obj'),
+        (Join-Path $OutDir 'WKW10MModuleTestProvider-arm-native.obj')))
 $armLinkRun.Output | ForEach-Object { Write-Host "    $_" }
 if ($armLinkRun.ExitCode -ne 0) {
     throw "ARM32 module link failed with exit code $($armLinkRun.ExitCode)"
@@ -303,21 +306,21 @@ if ($headers -notmatch 'IMAGE_DLL_CHARACTERISTICS_APPCONTAINER') {
 }
 
 $exports = (& $readObj '--coff-exports' $armDll 2>&1) -join "`n"
-if ($exports -notmatch '(?m)^\s*Name: WKUWPGetEngineAPI\s*$') {
-    throw "ARM32 module does not export the unmangled WKUWPGetEngineAPI name:`n$exports"
+if ($exports -notmatch '(?m)^\s*Name: WKW10MGetEngineAPI\s*$') {
+    throw "ARM32 module does not export the unmangled WKW10MGetEngineAPI name:`n$exports"
 }
 Write-Host '    COFF-ARM / IMAGE_FILE_MACHINE_ARMNT / APPCONTAINER'
-Write-Host '    export WKUWPGetEngineAPI (unmangled)'
+Write-Host '    export WKW10MGetEngineAPI (unmangled)'
 
 # ---------------------------------------------------------------------------
 Write-Host '4/4 ownership behaviour on this x64 host'
-$x64ProviderDll = Join-Path $OutDir 'WKUWPModuleTestProvider-x64.dll'
-$x64LifecycleDll = Join-Path $OutDir 'WKUWPModuleLifecycle-x64.dll'
-$x64RejectionDll = Join-Path $OutDir 'WKUWPModuleRejection-x64.dll'
+$x64ProviderDll = Join-Path $OutDir 'WKW10MModuleTestProvider-x64.dll'
+$x64LifecycleDll = Join-Path $OutDir 'WKW10MModuleLifecycle-x64.dll'
+$x64RejectionDll = Join-Path $OutDir 'WKW10MModuleRejection-x64.dll'
 $x64Exe = Join-Path $OutDir 'EngineModuleUWPTests.exe'
 $x64ModuleObj = Join-Path $OutDir 'EngineModuleUWP-x64.obj'
-$x64ProviderObj = Join-Path $OutDir 'WKUWPModuleTestProvider-x64.obj'
-$x64RejectionProviderObj = Join-Path $OutDir 'WKUWPModuleTestProvider-rejection-x64.obj'
+$x64ProviderObj = Join-Path $OutDir 'WKW10MModuleTestProvider-x64.obj'
+$x64RejectionProviderObj = Join-Path $OutDir 'WKW10MModuleTestProvider-rejection-x64.obj'
 $harnessObj = Join-Path $OutDir 'EngineModuleUWPTests.obj'
 
 # The x64 host builds below deliberately omit /DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP:
@@ -368,7 +371,7 @@ Copy-Item -LiteralPath $x64ProviderDll -Destination $x64LifecycleDll -Force
 Invoke-Checked -Step 'cl rejection provider (host x64)' -Exe $x64Cl -Environment @{ INCLUDE = $x64Include } -Arguments @(
     '/nologo', '/c', '/W4', '/WX', '/EHsc', '/MD',
     '/D_WIN32_WINNT=0x0A00',
-    '/DWKUWP_TEST_PROVIDER_DEFAULT_TRUNCATE=64',
+    '/DWKW10M_TEST_PROVIDER_DEFAULT_TRUNCATE=64',
     ('/I' + $script:AbiHeaderDir),
     ('/Fo' + $x64RejectionProviderObj),
     $script:ProviderSource

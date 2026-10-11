@@ -8,7 +8,7 @@ must supply compiler/header/link flags and the SDK resource compiler on configur
 [CmdletBinding()]
 param(
     [string]$SourceCache,
-    [string]$OutFile = (Join-Path $env:TEMP 'opencode\m10-fresh-uwp-initial-cache.cmake')
+    [string]$OutFile = (Join-Path $env:TEMP 'opencode\m10-fresh-w10m-initial-cache.cmake')
 )
 $ErrorActionPreference = 'Stop'
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..'))
@@ -31,6 +31,8 @@ foreach ($line in [IO.File]::ReadAllLines($source)) {
     # These cached values overrule *_INIT and would reintroduce SDK 22621/msvcurt.
     if ($name -eq 'CMAKE_RC_COMPILER' -or $name -match 'LINKER_FLAGS|^CMAKE_C_FLAGS|^CMAKE_CXX_FLAGS') { continue }
     if ($value.IndexOf($oldNormalized, [StringComparison]::OrdinalIgnoreCase) -ge 0) { continue }
+    # Source tree moved Tools/uwp -> Tools/w10m; remap surviving source paths.
+    $value = $value.Replace('Tools/uwp/', 'Tools/w10m/')
     $value = $value.Replace('"', '\"').Replace('$', '\$')
     $lines += 'set({0} "{1}" CACHE {2} "")' -f $name, $value, $kind
 }

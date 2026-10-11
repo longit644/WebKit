@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Verifies the M10 task 3.2 WKUWP discovery export, capability mask and build identity.
+    Verifies the M10 task 3.2 WKW10M discovery export, capability mask and build identity.
 
 .DESCRIPTION
     Four checks, all from repository sources, in the order a consumer meets them:
@@ -12,7 +12,7 @@
       2. The provider compiles to a genuine ARM32 object, verified with
          llvm-readobj rather than trusted from the command line.
       3. An ARM32 module built from that object exports the unmangled discovery
-         name, so GetProcAddress("WKUWPGetEngineAPI") - what a C++/CX consumer does
+         name, so GetProcAddress("WKW10MGetEngineAPI") - what a C++/CX consumer does
          after LoadLibrary - can succeed against the shipping engine module.
       4. Negotiation behaviour runs on this x64 host from an x64 copy of the same
          provider source, resolved through LoadLibrary/GetProcAddress exactly as a
@@ -32,12 +32,12 @@
     Explicit ARM32 MSVC toolset directory name; defaults to the newest installed.
 
 .EXAMPLE
-    .\test-wkuwp-engine-negotiation.ps1
-    .\test-wkuwp-engine-negotiation.ps1 -OutDir D:\m10\abi
+    .\test-wkw10m-engine-negotiation.ps1
+    .\test-wkw10m-engine-negotiation.ps1 -OutDir D:\m10\abi
 #>
 [CmdletBinding()]
 param(
-    [string]$OutDir = (Join-Path $env:TEMP 'opencode\wkuwp-engine-negotiation'),
+    [string]$OutDir = (Join-Path $env:TEMP 'opencode\w10m-engine-negotiation'),
     [string]$MsvcVersion
 )
 
@@ -48,7 +48,7 @@ $ErrorActionPreference = 'Stop'
 $script:RepoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
 $script:AbiHeaderDir = Join-Path $script:RepoRoot 'Source\WebKit\Shared\w10m'
 $script:ProviderSource = Join-Path $script:RepoRoot 'Source\WebCore\platform\w10m\WKW10MEngineAPI.cpp'
-$script:HarnessSource = Join-Path $PSScriptRoot 'WKUWPEngineAPITests.cpp'
+$script:HarnessSource = Join-Path $PSScriptRoot 'WKW10MEngineAPITests.cpp'
 $script:WindowsKitsRoot = 'C:\Program Files (x86)\Windows Kits\10'
 $script:VsRoot = 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools'
 
@@ -223,7 +223,7 @@ $x64Include = @(
 
 New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
 
-Write-Host 'M10 task 3.2 WKUWP discovery verification'
+Write-Host 'M10 task 3.2 WKW10M discovery verification'
 Write-Host "  provider        : $script:ProviderSource"
 Write-Host "  native compiler : $clangCl"
 Write-Host "  cx/arm compiler : $armCl"
@@ -239,7 +239,7 @@ Write-Host '1/4 ARM32 compile with the native engine compiler'
 # passes the same flags, so they are dropped here and the link step below invokes
 # lld-link directly, which is the linker the toolchain file requires.
 $armNativeCompileFlags = @($nativeCFlags -split ' ' | Where-Object { $_ -notmatch '^(-B|-fuse-ld=)' })
-$armNativeObj = Join-Path $OutDir 'WKUWPEngineAPI-arm-native.obj'
+$armNativeObj = Join-Path $OutDir 'WKW10MEngineAPI-arm-native.obj'
 $armNativeRun = Invoke-Captured -Exe $clangCl -Arguments (@($armNativeCompileFlags) + @(
         '/nologo', '/c', '/W4', '/WX',
         ('/I' + $script:AbiHeaderDir),
@@ -254,7 +254,7 @@ Write-Host '    no warnings'
 
 # ---------------------------------------------------------------------------
 Write-Host '2/4 ARM32 compile with the MSVC ARM32 compiler that owns /ZW'
-$armCxObj = Join-Path $OutDir 'WKUWPEngineAPI-arm-cx.obj'
+$armCxObj = Join-Path $OutDir 'WKW10MEngineAPI-arm-cx.obj'
 $armCxRun = Invoke-Captured -Exe $armCl -Arguments @(
     '/nologo', '/c', '/W4', '/WX', '/EHsc', '/MD',
     '/DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP', '/D_WIN32_WINNT=0x0A00',
@@ -270,7 +270,7 @@ Write-Host '    no warnings'
 
 # ---------------------------------------------------------------------------
 Write-Host '3/4 ARM32 module export inspection'
-$armDll = Join-Path $OutDir 'WKUWPEngineAPI-arm.dll'
+$armDll = Join-Path $OutDir 'WKW10MEngineAPI-arm.dll'
 $armLinkRun = Invoke-Captured -Exe $lldLink -Arguments (@(
         '/nologo', '/dll', '/NOENTRY', ('/out:' + $armDll)) + ($nativeLinkFlags -split ' ') + @($armNativeObj))
 $armLinkRun.Output | ForEach-Object { Write-Host "    $_" }
@@ -290,18 +290,18 @@ if ($headers -notmatch 'IMAGE_DLL_CHARACTERISTICS_APPCONTAINER') {
 }
 
 $exports = (& $readObj '--coff-exports' $armDll 2>&1) -join "`n"
-if ($exports -notmatch '(?m)^\s*Name: WKUWPGetEngineAPI\s*$') {
-    throw "ARM32 module does not export the unmangled WKUWPGetEngineAPI name:`n$exports"
+if ($exports -notmatch '(?m)^\s*Name: WKW10MGetEngineAPI\s*$') {
+    throw "ARM32 module does not export the unmangled WKW10MGetEngineAPI name:`n$exports"
 }
 Write-Host '    COFF-ARM / IMAGE_FILE_MACHINE_ARMNT / APPCONTAINER'
-Write-Host '    export WKUWPGetEngineAPI (unmangled)'
+Write-Host '    export WKW10MGetEngineAPI (unmangled)'
 
 # ---------------------------------------------------------------------------
 Write-Host '4/4 negotiation behaviour on this x64 host'
-$x64Dll = Join-Path $OutDir 'WKUWPEngineAPI-x64.dll'
-$x64Exe = Join-Path $OutDir 'WKUWPEngineAPITests.exe'
-$x64Obj = Join-Path $OutDir 'WKUWPEngineAPI-x64.obj'
-$harnessObj = Join-Path $OutDir 'WKUWPEngineAPITests.obj'
+$x64Dll = Join-Path $OutDir 'WKW10MEngineAPI-x64.dll'
+$x64Exe = Join-Path $OutDir 'WKW10MEngineAPITests.exe'
+$x64Obj = Join-Path $OutDir 'WKW10MEngineAPI-x64.obj'
+$harnessObj = Join-Path $OutDir 'WKW10MEngineAPITests.obj'
 
 Invoke-Checked -Step 'cl provider (host x64)' -Exe $x64Cl -Environment @{ INCLUDE = $x64Include } -Arguments @(
     '/nologo', '/c', '/W4', '/WX', '/EHsc', '/MD',

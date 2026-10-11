@@ -30,7 +30,7 @@ struct RouteLog {
     // Cut marker carried by the most recent completion.
     bool lastCut { false };
     // Result carried by the most recent completion.
-    WKUWPResult lastResult { WKUWPResultOK };
+    WKW10MResult lastResult { WKW10MResultOK };
     // Text bytes copied out of the borrowed span during the call.
     std::string lastText;
     // Context carried by the most recent completion.
@@ -43,7 +43,7 @@ static RouteLog g_log;
 
 // Record one route completion and prove the borrowed span stays readable.
 static void __stdcall RecordRoute(void* context, uint64_t operationId, uint32_t kind, bool cut,
-    WKUWPResult result, const WKUWPString* text)
+    WKW10MResult result, const WKW10MString* text)
 {
     std::lock_guard<std::mutex> guard(g_log.lock);
     ++g_log.count;
@@ -71,7 +71,7 @@ static void ResetLog()
     g_log.lastId = 0;
     g_log.lastKind = 0;
     g_log.lastCut = false;
-    g_log.lastResult = WKUWPResultOK;
+    g_log.lastResult = WKW10MResultOK;
     g_log.lastText.clear();
     g_log.lastContext = nullptr;
     g_log.spanReadable = false;
@@ -81,7 +81,7 @@ static void ResetLog()
 static unsigned g_serviceCompletions = 0;
 
 // Record one engine-side service completion without retaining anything.
-static void __stdcall RecordService(void*, uint64_t, WKUWPResult, const WKUWPString*)
+static void __stdcall RecordService(void*, uint64_t, WKW10MResult, const WKW10MString*)
 {
     ++g_serviceCompletions;
 }
@@ -102,7 +102,7 @@ static int g_failures = 0;
     } while (0)
 
 // Dispatcher double with inline, capture and refuse delivery modes.
-class FakeDispatcherUWP final : public IServiceDispatcherUWP {
+class FakeDispatcherW10M final : public IServiceDispatcherW10M {
 public:
     // Delivery behavior selected per test case.
     enum class Mode { Inline, Capture, Refuse };
@@ -132,7 +132,7 @@ public:
 };
 
 // Transport double with scripted writes and controllable read completions.
-class FakeTransportUWP final : public IClipboardTransportUWP {
+class FakeTransportW10M final : public IClipboardTransportW10M {
 public:
     // Answer one write with the scripted result.
     HRESULT writeText(const std::string& utf8) override
@@ -166,29 +166,29 @@ public:
 };
 
 // Borrowed span over a caller-owned buffer for copy/cut requests.
-static WKUWPString MakeSpan(const std::string& bytes)
+static WKW10MString MakeSpan(const std::string& bytes)
 {
-    WKUWPString span { reinterpret_cast<const uint8_t*>(bytes.data()), static_cast<uint32_t>(bytes.size()) };
+    WKW10MString span { reinterpret_cast<const uint8_t*>(bytes.data()), static_cast<uint32_t>(bytes.size()) };
     return span;
 }
 
 // Build one route with scripted doubles owned down the whole stack.
-static std::unique_ptr<ClipboardRouteUWP> MakeRoute(FakeDispatcherUWP*& dispatcher, FakeTransportUWP*& transport)
+static std::unique_ptr<ClipboardRouteW10M> MakeRoute(FakeDispatcherW10M*& dispatcher, FakeTransportW10M*& transport)
 {
-    auto ownedDispatcher = std::make_unique<FakeDispatcherUWP>();
-    auto ownedTransport = std::make_unique<FakeTransportUWP>();
+    auto ownedDispatcher = std::make_unique<FakeDispatcherW10M>();
+    auto ownedTransport = std::make_unique<FakeTransportW10M>();
     dispatcher = ownedDispatcher.get();
     transport = ownedTransport.get();
-    auto service = std::make_unique<ClipboardServiceUWP>(std::move(ownedDispatcher), std::move(ownedTransport));
-    return std::make_unique<ClipboardRouteUWP>(7, std::move(service));
+    auto service = std::make_unique<ClipboardServiceW10M>(std::move(ownedDispatcher), std::move(ownedTransport));
+    return std::make_unique<ClipboardRouteW10M>(7, std::move(service));
 }
 
 // Runs every clipboard routing case on this host; the WinRT transport is
 // scripted out, so no WinRT apartment or device is required.
 int main()
 {
-    FakeDispatcherUWP* dispatcher = nullptr;
-    FakeTransportUWP* transport = nullptr;
+    FakeDispatcherW10M* dispatcher = nullptr;
+    FakeTransportW10M* transport = nullptr;
     auto route = MakeRoute(dispatcher, transport);
     EXPECT_TRUE(route->checkThread() == S_OK, "owner thread accepted");
     EXPECT_TRUE(route->pendingCount() == 0, "no pending operations initially");
@@ -197,12 +197,12 @@ int main()
     // Copy publishes exact bytes and completes OK once with an empty span.
     ResetLog();
     std::string copied = "copy bytes \xe2\x9c\x93";
-    WKUWPString copySpan = MakeSpan(copied);
+    WKW10MString copySpan = MakeSpan(copied);
     int token = 3;
     EXPECT_TRUE(route->copy(&copySpan, &RecordRoute, &token) == S_OK, "copy accepted");
     EXPECT_TRUE(g_log.count == 1, "copy completes exactly once");
-    EXPECT_TRUE(g_log.lastResult == WKUWPResultOK, "copy completes OK");
-    EXPECT_TRUE(g_log.lastKind == WKUWPClipboardWrite, "copy reports write kind");
+    EXPECT_TRUE(g_log.lastResult == WKW10MResultOK, "copy completes OK");
+    EXPECT_TRUE(g_log.lastKind == WKW10MClipboardWrite, "copy reports write kind");
     EXPECT_TRUE(!g_log.lastCut, "copy reports cut false");
     EXPECT_TRUE(g_log.lastContext == &token, "copy completion carries context");
     EXPECT_TRUE(g_log.spanReadable && g_log.lastText.empty(), "copy span readable and empty");
@@ -213,11 +213,11 @@ int main()
     // Cut publishes exact bytes and marks the completion cut.
     ResetLog();
     std::string cutBytes = "cut bytes";
-    WKUWPString cutSpan = MakeSpan(cutBytes);
+    WKW10MString cutSpan = MakeSpan(cutBytes);
     EXPECT_TRUE(route->cut(&cutSpan, &RecordRoute, &token) == S_OK, "cut accepted");
     EXPECT_TRUE(g_log.count == 1, "cut completes exactly once");
-    EXPECT_TRUE(g_log.lastResult == WKUWPResultOK, "cut completes OK");
-    EXPECT_TRUE(g_log.lastKind == WKUWPClipboardWrite, "cut reports write kind");
+    EXPECT_TRUE(g_log.lastResult == WKW10MResultOK, "cut completes OK");
+    EXPECT_TRUE(g_log.lastKind == WKW10MClipboardWrite, "cut reports write kind");
     EXPECT_TRUE(g_log.lastCut, "cut reports cut true");
     EXPECT_TRUE(transport->m_written == cutBytes, "transport receives exact cut bytes");
     EXPECT_TRUE(g_log.lastId != copyId, "operation IDs are never reused");
@@ -229,8 +229,8 @@ int main()
     transport->m_readBytes = "pasted \xe2\x9c\x93";
     EXPECT_TRUE(route->paste(&RecordRoute, &token) == S_OK, "paste accepted");
     EXPECT_TRUE(g_log.count == 1, "paste completes exactly once");
-    EXPECT_TRUE(g_log.lastResult == WKUWPResultOK, "paste completes OK");
-    EXPECT_TRUE(g_log.lastKind == WKUWPClipboardRead, "paste reports read kind");
+    EXPECT_TRUE(g_log.lastResult == WKW10MResultOK, "paste completes OK");
+    EXPECT_TRUE(g_log.lastKind == WKW10MClipboardRead, "paste reports read kind");
     EXPECT_TRUE(!g_log.lastCut, "paste reports cut false");
     EXPECT_TRUE(g_log.lastText == transport->m_readBytes, "paste delivers exact bytes");
     EXPECT_TRUE(g_log.spanReadable, "paste span readable during call");
@@ -241,14 +241,14 @@ int main()
     transport->m_writeResult = E_ACCESSDENIED;
     EXPECT_TRUE(route->copy(&copySpan, &RecordRoute, &token) == E_ACCESSDENIED, "failed copy returns origin");
     EXPECT_TRUE(g_log.count == 1, "failed copy completes exactly once");
-    EXPECT_TRUE(g_log.lastResult == static_cast<WKUWPResult>(E_ACCESSDENIED), "failed copy preserves origin");
+    EXPECT_TRUE(g_log.lastResult == static_cast<WKW10MResult>(E_ACCESSDENIED), "failed copy preserves origin");
     EXPECT_TRUE(route->pendingCount() == 0, "failed copy leaves nothing pending");
     transport->m_writeResult = S_OK;
 
     // Malformed requests are rejected before any token exists.
     ResetLog();
     EXPECT_TRUE(route->copy(nullptr, &RecordRoute, &token) == E_INVALIDARG, "null copy text rejected");
-    WKUWPString dangling { nullptr, 5 };
+    WKW10MString dangling { nullptr, 5 };
     EXPECT_TRUE(route->copy(&dangling, &RecordRoute, &token) == E_INVALIDARG, "dangling copy span rejected");
     EXPECT_TRUE(route->copy(&copySpan, nullptr, &token) == E_INVALIDARG, "null copy completion rejected");
     EXPECT_TRUE(route->cut(&copySpan, nullptr, &token) == E_INVALIDARG, "null cut completion rejected");
@@ -258,7 +258,7 @@ int main()
 
     // A missing service fails every entry point instead of faulting.
     {
-        auto orphan = std::make_unique<ClipboardRouteUWP>(7, nullptr);
+        auto orphan = std::make_unique<ClipboardRouteW10M>(7, nullptr);
         EXPECT_TRUE(orphan->copy(&copySpan, &RecordRoute, &token) == E_INVALIDARG, "orphan copy rejected");
         EXPECT_TRUE(orphan->paste(&RecordRoute, &token) == E_INVALIDARG, "orphan paste rejected");
         EXPECT_TRUE(orphan->close() == E_INVALIDARG, "orphan close rejected");
@@ -273,7 +273,7 @@ int main()
     EXPECT_TRUE(route->pendingCount() == 2, "two operations pending before close");
     EXPECT_TRUE(route->close() == S_OK, "close accepted");
     EXPECT_TRUE(g_log.count == 2, "close completes every pending operation once");
-    EXPECT_TRUE(g_log.lastResult == WKUWPResultClosed, "close completes Closed");
+    EXPECT_TRUE(g_log.lastResult == WKW10MResultClosed, "close completes Closed");
     EXPECT_TRUE(route->pendingCount() == 0, "close leaves nothing pending");
     EXPECT_TRUE(route->closed(), "close latches");
     EXPECT_TRUE(route->close() == S_OK, "close is idempotent");
@@ -293,14 +293,14 @@ int main()
 
     // A late transport completion after close is ignored once invoked.
     {
-        FakeDispatcherUWP* lateDispatcher = nullptr;
-        FakeTransportUWP* lateTransport = nullptr;
+        FakeDispatcherW10M* lateDispatcher = nullptr;
+        FakeTransportW10M* lateTransport = nullptr;
         auto late = MakeRoute(lateDispatcher, lateTransport);
         lateTransport->m_manual = true;
         ResetLog();
         EXPECT_TRUE(late->paste(&RecordRoute, &token) == S_OK, "late-ignored paste accepted");
         EXPECT_TRUE(late->close() == S_OK, "late-ignored route closed");
-        EXPECT_TRUE(g_log.count == 1 && g_log.lastResult == WKUWPResultClosed, "close wins the race");
+        EXPECT_TRUE(g_log.count == 1 && g_log.lastResult == WKW10MResultClosed, "close wins the race");
         // Move the held completion out before invoking: once it runs, the owner
         // may be gone, and the transport contract forbids touching it after.
         auto lateDone = std::move(lateTransport->m_pending[0]);
@@ -312,30 +312,30 @@ int main()
 
     // Destruction closes first: pending work completes Closed during the destructor.
     {
-        FakeDispatcherUWP* dyingDispatcher = nullptr;
-        FakeTransportUWP* dyingTransport = nullptr;
+        FakeDispatcherW10M* dyingDispatcher = nullptr;
+        FakeTransportW10M* dyingTransport = nullptr;
         ResetLog();
         {
             auto dying = MakeRoute(dyingDispatcher, dyingTransport);
             dyingTransport->m_manual = true;
             EXPECT_TRUE(dying->paste(&RecordRoute, &token) == S_OK, "destruction-pending paste accepted");
         }
-        EXPECT_TRUE(g_log.count == 1 && g_log.lastResult == WKUWPResultClosed, "destruction completes Closed");
+        EXPECT_TRUE(g_log.count == 1 && g_log.lastResult == WKW10MResultClosed, "destruction completes Closed");
     }
 
     // A completion that reenters close() meets the latch and stays exact.
     {
-        FakeDispatcherUWP* reentrantDispatcher = nullptr;
-        FakeTransportUWP* reentrantTransport = nullptr;
+        FakeDispatcherW10M* reentrantDispatcher = nullptr;
+        FakeTransportW10M* reentrantTransport = nullptr;
         auto reentrant = MakeRoute(reentrantDispatcher, reentrantTransport);
         reentrantTransport->m_manual = true;
         ResetLog();
         // Reenters close() from inside a close-driven completion.
         struct Reenter {
             // Meet the close latch without delivering anything new.
-            static void __stdcall run(void* context, uint64_t, uint32_t, bool, WKUWPResult result, const WKUWPString*) {
-                auto* self = static_cast<ClipboardRouteUWP*>(context);
-                if (result == WKUWPResultClosed)
+            static void __stdcall run(void* context, uint64_t, uint32_t, bool, WKW10MResult result, const WKW10MString*) {
+                auto* self = static_cast<ClipboardRouteW10M*>(context);
+                if (result == WKW10MResultClosed)
                     EXPECT_TRUE(self->close() == S_OK, "reentrant close accepted");
             }
         };
@@ -348,16 +348,16 @@ int main()
     // Destroying the route inside an ordinary completion is safe: the token is
     // already erased, so destruction closes nothing pending and frees cleanly.
     {
-        FakeDispatcherUWP* selfDispatcher = nullptr;
-        FakeTransportUWP* selfTransport = nullptr;
+        FakeDispatcherW10M* selfDispatcher = nullptr;
+        FakeTransportW10M* selfTransport = nullptr;
         auto self = MakeRoute(selfDispatcher, selfTransport);
         selfTransport->m_manual = true;
         ResetLog();
         // Destroys the route from inside an ordinary completion.
         struct SelfDestruct {
             // Release the holder; the erased token keeps this delivery safe.
-            static void __stdcall run(void* context, uint64_t, uint32_t, bool, WKUWPResult, const WKUWPString*) {
-                auto* holder = static_cast<std::unique_ptr<ClipboardRouteUWP>*>(context);
+            static void __stdcall run(void* context, uint64_t, uint32_t, bool, WKW10MResult, const WKW10MString*) {
+                auto* holder = static_cast<std::unique_ptr<ClipboardRouteW10M>*>(context);
                 holder->reset();
             }
         };
@@ -372,12 +372,12 @@ int main()
 
     // Calls from any other thread are rejected before any token exists.
     {
-        FakeDispatcherUWP* foreignDispatcher = nullptr;
-        FakeTransportUWP* foreignTransport = nullptr;
+        FakeDispatcherW10M* foreignDispatcher = nullptr;
+        FakeTransportW10M* foreignTransport = nullptr;
         auto foreign = MakeRoute(foreignDispatcher, foreignTransport);
         ResetLog();
         HRESULT threadCopy = S_OK, threadPaste = S_OK, threadClose = S_OK, threadTable = S_OK;
-        WKUWPPlatformServices foreignTable { };
+        WKW10MPlatformServices foreignTable { };
         std::thread stranger([&] {
             threadCopy = foreign->copy(&copySpan, &RecordRoute, &token);
             threadPaste = foreign->paste(&RecordRoute, &token);
@@ -396,25 +396,25 @@ int main()
 
     // The borrowed table serves engine operations alongside route operations.
     {
-        FakeDispatcherUWP* sharedDispatcher = nullptr;
-        FakeTransportUWP* sharedTransport = nullptr;
+        FakeDispatcherW10M* sharedDispatcher = nullptr;
+        FakeTransportW10M* sharedTransport = nullptr;
         auto shared = MakeRoute(sharedDispatcher, sharedTransport);
         sharedTransport->m_manual = true;
         ResetLog();
         g_serviceCompletions = 0;
-        WKUWPPlatformServices table { };
+        WKW10MPlatformServices table { };
         EXPECT_TRUE(shared->buildTable(&table) == S_OK, "route table built");
         EXPECT_TRUE(table.header.structureSize == sizeof(table), "route table header size");
         EXPECT_TRUE(table.context && table.requestClipboard && table.cancelClipboard, "route table entries present");
         EXPECT_TRUE(table.postWake == nullptr, "route table postWake stays null");
         EXPECT_TRUE(shared->paste(&RecordRoute, &token) == S_OK, "shared route paste accepted");
-        WKUWPString empty { nullptr, 0 };
-        EXPECT_TRUE(table.requestClipboard(table.context, 7, 500, WKUWPClipboardWrite, &empty,
-            &RecordService, &token) == WKUWPResultOK, "engine write through route table accepted");
+        WKW10MString empty { nullptr, 0 };
+        EXPECT_TRUE(table.requestClipboard(table.context, 7, 500, WKW10MClipboardWrite, &empty,
+            &RecordService, &token) == WKW10MResultOK, "engine write through route table accepted");
         EXPECT_TRUE(g_serviceCompletions == 1, "engine write completes");
         EXPECT_TRUE(shared->pendingCount() == 1, "route operation unaffected by engine write");
         EXPECT_TRUE(shared->close() == S_OK, "shared route closed");
-        EXPECT_TRUE(g_log.count == 1 && g_log.lastResult == WKUWPResultClosed, "route operation closes independently");
+        EXPECT_TRUE(g_log.count == 1 && g_log.lastResult == WKW10MResultClosed, "route operation closes independently");
         sharedTransport->m_pending.clear();
     }
 

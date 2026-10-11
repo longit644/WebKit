@@ -16,5 +16,5 @@ target_compile_definitions(FpuProbePayload PRIVATE NOMINMAX _WINSOCKAPI_=)
 # runtimeobject provides RoInitialize/RoGetActivationFactory for the payload's
 # LocalState log setup, same as the pre-migration host executable linked.
 target_link_libraries(FpuProbePayload PRIVATE runtimeobject)
-get_filename_component(UWP_TOOLS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
-set_property(TARGET FpuProbePayload APPEND PROPERTY LINK_DEPENDS "${UWP_TOOLS_DIR}/lib/arm-crtstart.lib")
+get_filename_component(W10M_TOOLS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
+set_property(TARGET FpuProbePayload APPEND PROPERTY LINK_DEPENDS "${W10M_TOOLS_DIR}/lib/arm-crtstart.lib")

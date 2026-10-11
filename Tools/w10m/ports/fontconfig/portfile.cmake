@@ -11,7 +11,7 @@ vcpkg_from_gitlab(
         libgetopt.patch
         libintl.diff
         fix-wasm-shared-memory-atomics.patch
-        uwp-gperf-cutout.patch # WebKitWebView: drop -FI header expansion from preprocessed gperf input
+        w10m-gperf-cutout.patch # WebKitWebView: drop -FI header expansion from preprocessed gperf input
 )
 
 set(options "")

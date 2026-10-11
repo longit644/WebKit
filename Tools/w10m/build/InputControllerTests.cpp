@@ -32,7 +32,7 @@ void check(bool value, const char* name)
 void recordStage(const char* stage) { stages.emplace_back(stage); }
 
 // Controllable document/scroll engine double with exact call observation.
-struct EngineDouble : ScrollEngineUWP {
+struct EngineDouble : ScrollEngineW10M {
     // Current offset, document and viewport heights in CSS pixels.
     int scrollY { 0 }, contentHeight { 1000 }, viewportHeight { 100 };
     // Forwarded engine scroll calls.
@@ -47,7 +47,7 @@ struct EngineDouble : ScrollEngineUWP {
     }
 
     // Snapshot live geometry for target clamping.
-    HRESULT snapshot(ScrollSnapshotUWP& output) override
+    HRESULT snapshot(ScrollSnapshotW10M& output) override
     {
         output = { scrollY, contentHeight, viewportHeight };
         return S_OK;
@@ -55,7 +55,7 @@ struct EngineDouble : ScrollEngineUWP {
 };
 
 // Tap double recording exact press/release coordinates.
-struct TapDouble : TapEngineUWP {
+struct TapDouble : TapEngineW10M {
     // Copied tap points and completed pair count.
     double pressX { 0 }, pressY { 0 }, releaseX { 0 }, releaseY { 0 };
     unsigned pairs { 0 };
@@ -81,20 +81,20 @@ struct TapDouble : TapEngineUWP {
 // Controlled V1 input provider recording forwarded events and focus calls.
 struct InputProvider {
     // Negotiated table presented to the controller.
-    WKUWPEngineAPI api { };
+    WKW10MEngineAPI api { };
     // Last forwarded event copy and focus value.
-    WKUWPInputEvent last { };
+    WKW10MInputEvent last { };
     unsigned inputCalls { 0 }, focusCalls { 0 }, lastFocus { 0 };
     // Controlled originating results.
-    WKUWPResult inputResult { WKUWPResultOK }, focusResult { WKUWPResultOK };
+    WKW10MResult inputResult { WKW10MResultOK }, focusResult { WKW10MResultOK };
 
     // Build a capable table with controllable input/focus slots.
     InputProvider(bool inputCapable)
     {
-        api.header = { sizeof(api), WKUWP_STRUCTURE_VERSION };
-        api.abiMajor = WKUWP_ABI_MAJOR_VERSION;
-        api.capabilities = WKUWPCapabilityStructuredNotifications | WKUWPCapabilityHostHtml
-            | WKUWPCapabilityCertificateDecisions | (inputCapable ? WKUWPCapabilityInput : 0);
+        api.header = { sizeof(api), WKW10M_STRUCTURE_VERSION };
+        api.abiMajor = WKW10M_ABI_MAJOR_VERSION;
+        api.capabilities = WKW10MCapabilityStructuredNotifications | WKW10MCapabilityHostHtml
+            | WKW10MCapabilityCertificateDecisions | (inputCapable ? WKW10MCapabilityInput : 0);
         api.setCallbacks = &setCallbacks;
         api.navigate = &navigate;
         api.loadHtml = &loadHtml;
@@ -114,63 +114,63 @@ struct InputProvider {
     ~InputProvider() { providers.erase(page); }
 
     // Route by explicit page handle for the context-free table signatures.
-    static WKUWPPageHandle nextPage;
-    static struct Registry : std::map<WKUWPPageHandle, InputProvider*> { } providers;
-    WKUWPPageHandle page { 0 };
+    static WKW10MPageHandle nextPage;
+    static struct Registry : std::map<WKW10MPageHandle, InputProvider*> { } providers;
+    WKW10MPageHandle page { 0 };
 
     // Locate only the explicitly registered provider page.
-    static InputProvider* find(WKUWPPageHandle page)
+    static InputProvider* find(WKW10MPageHandle page)
     {
         auto item = providers.find(page);
         return item == providers.end() ? nullptr : item->second;
     }
 
     // Accept the retained callback attachment without recordingance.
-    static WKUWPResult __stdcall setCallbacks(WKUWPPageHandle, const WKUWPPageCallbacks*) { return WKUWPResultOK; }
+    static WKW10MResult __stdcall setCallbacks(WKW10MPageHandle, const WKW10MPageCallbacks*) { return WKW10MResultOK; }
     // Unused navigation/history slots answer success without side effects.
     // Unused navigation slot answers success without side effects.
-    static WKUWPResult __stdcall navigate(WKUWPPageHandle, const WKUWPNavigationRequest*, uint64_t*) { return WKUWPResultOK; }
+    static WKW10MResult __stdcall navigate(WKW10MPageHandle, const WKW10MNavigationRequest*, uint64_t*) { return WKW10MResultOK; }
     // Unused HTML slot answers success without side effects.
-    static WKUWPResult __stdcall loadHtml(WKUWPPageHandle, const WKUWPNavigationRequest*, uint64_t*) { return WKUWPResultOK; }
+    static WKW10MResult __stdcall loadHtml(WKW10MPageHandle, const WKW10MNavigationRequest*, uint64_t*) { return WKW10MResultOK; }
     // Unused history/stop slots answer success without side effects.
-    static WKUWPResult __stdcall noop(WKUWPPageHandle) { return WKUWPResultOK; }
+    static WKW10MResult __stdcall noop(WKW10MPageHandle) { return WKW10MResultOK; }
     // Unused stop slot answers success without side effects.
-    static WKUWPResult __stdcall stop(WKUWPPageHandle) { return WKUWPResultOK; }
+    static WKW10MResult __stdcall stop(WKW10MPageHandle) { return WKW10MResultOK; }
     // Unused retry slot answers success without side effects.
-    static WKUWPResult __stdcall retry(WKUWPPageHandle, const WKUWPCertificateToken*, uint64_t*) { return WKUWPResultOK; }
+    static WKW10MResult __stdcall retry(WKW10MPageHandle, const WKW10MCertificateToken*, uint64_t*) { return WKW10MResultOK; }
     // Unused close slot answers success without side effects.
-    static WKUWPResult __stdcall close(WKUWPPageHandle) { return WKUWPResultOK; }
+    static WKW10MResult __stdcall close(WKW10MPageHandle) { return WKW10MResultOK; }
 
     // Copy the validated event and answer the controlled result.
-    static WKUWPResult __stdcall sendInput(WKUWPPageHandle page, const WKUWPInputEvent* event)
+    static WKW10MResult __stdcall sendInput(WKW10MPageHandle page, const WKW10MInputEvent* event)
     {
         auto self = find(page);
         if (!self || !event)
-            return WKUWPResultClosed;
+            return WKW10MResultClosed;
         ++self->inputCalls;
         self->last = *event;
         return self->inputResult;
     }
 
     // Record the focus value and answer the controlled result.
-    static WKUWPResult __stdcall setFocus(WKUWPPageHandle page, uint32_t focused)
+    static WKW10MResult __stdcall setFocus(WKW10MPageHandle page, uint32_t focused)
     {
         auto self = find(page);
         if (!self)
-            return WKUWPResultClosed;
+            return WKW10MResultClosed;
         ++self->focusCalls;
         self->lastFocus = focused;
         return self->focusResult;
     }
 };
 
-WKUWPPageHandle InputProvider::nextPage = 501;
+WKW10MPageHandle InputProvider::nextPage = 501;
 InputProvider::Registry InputProvider::providers;
 
 // Fresh gesture/physics pair with a recording diagnostic sink.
 struct Fixture {
-    InputAdapterUWP input;
-    ScrollControllerUWP scroller;
+    InputAdapterW10M input;
+    ScrollControllerW10M scroller;
     EngineDouble engine;
     TapDouble taps;
 
@@ -179,10 +179,10 @@ struct Fixture {
 };
 
 // Build one valid pointer event for the forwarding tests.
-WKUWPInputEvent pointerEvent(uint32_t kind = WKUWPInputPointerDown)
+WKW10MInputEvent pointerEvent(uint32_t kind = WKW10MInputPointerDown)
 {
-    WKUWPInputEvent event { };
-    event.header = { sizeof(event), WKUWP_STRUCTURE_VERSION };
+    WKW10MInputEvent event { };
+    event.header = { sizeof(event), WKW10M_STRUCTURE_VERSION };
     event.kind = kind;
     event.pointerId = 7;
     event.xCssPixels = 100;
@@ -191,9 +191,9 @@ WKUWPInputEvent pointerEvent(uint32_t kind = WKUWPInputPointerDown)
 }
 
 // Bind one controller to the provider's table for input forwarding checks.
-HRESULT bindController(PageControllerUWP& controller, InputProvider& provider)
+HRESULT bindController(PageControllerW10M& controller, InputProvider& provider)
 {
-    WKUWPPageCallbacks callbacks { };
+    WKW10MPageCallbacks callbacks { };
     return controller.bind(&provider.api, provider.page, &callbacks);
 }
 
@@ -203,7 +203,7 @@ void runGestures()
     stages.clear();
     {
         Fixture f;
-        PointerReleaseUWP outcome { };
+        PointerReleaseW10M outcome { };
         check(f.input.press(100, 200, 1.0, f.scroller) == S_OK, "press begins tracking");
         check(f.input.release(102, 203, 1.1, f.scroller, f.taps, outcome) == S_OK && outcome.tapped
                 && !outcome.inertiaStarted && f.taps.pairs == 1 && f.taps.pressX == 102 && f.taps.pressY == 203
@@ -212,7 +212,7 @@ void runGestures()
     }
     {
         Fixture f;
-        PointerReleaseUWP outcome { };
+        PointerReleaseW10M outcome { };
         f.input.press(100, 500, 1.0, f.scroller);
         for (int i = 0; i < 10; ++i)
             f.input.move(100, 500 - (i + 1) * 100.0, 1.0 + (i + 1) * 0.016, f.scroller);
@@ -222,14 +222,14 @@ void runGestures()
         f.input.release(100, -500, 1.3, f.scroller, f.taps, outcome);
         check(!outcome.tapped, "edge release performs no tap");
         f.input.press(100, 180, 2.0, f.scroller);
-        PointerReleaseUWP tapOutcome { };
+        PointerReleaseW10M tapOutcome { };
         f.input.release(100, 180, 2.1, f.scroller, f.taps, tapOutcome);
         check(tapOutcome.tapped && f.taps.pairs == 1 && f.taps.pressY == 180 - f.scroller.overscrollY(),
             "tap release rides above held edge displacement");
     }
     {
         Fixture f;
-        PointerReleaseUWP outcome { };
+        PointerReleaseW10M outcome { };
         f.input.press(100, 250, 1.0, f.scroller);
         f.input.move(100, 200, 1.05, f.scroller);
         check(f.input.dragging(), "motion beyond slop becomes a drag");
@@ -250,13 +250,13 @@ void runGestures()
     {
         Fixture f;
         f.input.move(10, 10, 1.0, f.scroller);
-        PointerReleaseUWP outcome { };
+        PointerReleaseW10M outcome { };
         check(f.input.release(10, 10, 1.0, f.scroller, f.taps, outcome) == S_OK && !outcome.tapped,
             "motion and release without press are ignored");
     }
     {
         Fixture f;
-        PointerReleaseUWP outcome { };
+        PointerReleaseW10M outcome { };
         f.input.press(100, 400, 1.0, f.scroller);
         f.input.move(100, 300, 1.01, f.scroller);
         f.input.move(100, 200, 1.02, f.scroller);
@@ -278,7 +278,7 @@ void runGestures()
         Fixture f;
         f.input.press(100, 300, 1.0, f.scroller);
         f.input.move(100, 290, 1.5, f.scroller);
-        PointerReleaseUWP outcome { };
+        PointerReleaseW10M outcome { };
         f.input.release(100, 290, 2.0, f.scroller, f.taps, outcome);
         check(!outcome.inertiaStarted && !f.scroller.hasInertia(), "slow stale release never flings");
     }
@@ -293,7 +293,7 @@ void runGestures()
     }
     {
         Fixture f;
-        check(InputAdapterUWP::wheelDeltaToCssPixels(120) == -80 && InputAdapterUWP::wheelDeltaToCssPixels(-240) == 160,
+        check(InputAdapterW10M::wheelDeltaToCssPixels(120) == -80 && InputAdapterW10M::wheelDeltaToCssPixels(-240) == 160,
             "wheel units map one notch to eighty CSS pixels with inverted sign");
         f.engine.scrollY = 900;
         check(f.scroller.addWheelDelta(500) == S_OK, "wheel queues plain motion");
@@ -316,7 +316,7 @@ void runGestures()
         for (auto& stage : stages)
             hit = hit || stage == "control-edge-hit";
         check(hit, "first edge contact reports exactly once per stretch");
-        PointerReleaseUWP outcome { };
+        PointerReleaseW10M outcome { };
         f.input.release(100, -600, 1.7, f.scroller, f.taps, outcome);
         for (int i = 0; i < 400; ++i) {
             bool unused = false;
@@ -337,7 +337,7 @@ void runGestures()
     }
     {
         Fixture a, b;
-        PointerReleaseUWP outcome { };
+        PointerReleaseW10M outcome { };
         a.input.press(50, 150, 1.0, a.scroller);
         a.input.move(50, 50, 1.02, a.scroller);
         b.input.press(300, 300, 1.0, b.scroller);
@@ -352,7 +352,7 @@ void runGestures()
         f.input.press(1, 1, 1.0, f.scroller);
         unsigned wrongThread = 0;
         std::thread worker([&] {
-            PointerReleaseUWP outcome { };
+            PointerReleaseW10M outcome { };
             wrongThread += f.input.press(0, 0, 2.0, f.scroller) == RPC_E_WRONG_THREAD;
             wrongThread += f.input.move(0, 0, 2.0, f.scroller) == RPC_E_WRONG_THREAD;
             wrongThread += f.input.release(0, 0, 2.0, f.scroller, f.taps, outcome) == RPC_E_WRONG_THREAD;
@@ -380,7 +380,7 @@ void runGestures()
 void runForwarding()
 {
     {
-        PageControllerUWP controller;
+        PageControllerW10M controller;
         auto invalid = pointerEvent();
         invalid.header.structureSize = 4;
         check(controller.sendInput(invalid) == HRESULT_FROM_WIN32(ERROR_NOT_READY), "unbound input rejects before validation");
@@ -388,7 +388,7 @@ void runForwarding()
     }
     {
         InputProvider provider(false);
-        PageControllerUWP controller;
+        PageControllerW10M controller;
         check(bindController(controller, provider) == S_OK, "input test table binds without the input capability");
         auto badSize = pointerEvent();
         badSize.header.structureSize = 4;
@@ -404,13 +404,13 @@ void runForwarding()
         auto badCoords = pointerEvent();
         badCoords.xCssPixels = NAN;
         check(controller.sendInput(badCoords) == E_INVALIDARG, "nonfinite pointer coordinates reject");
-        auto noKey = pointerEvent(WKUWPInputKeyDown);
+        auto noKey = pointerEvent(WKW10MInputKeyDown);
         check(controller.sendInput(noKey) == E_INVALIDARG, "key event without a virtual key rejects");
-        auto surrogate = pointerEvent(WKUWPInputKeyDown);
+        auto surrogate = pointerEvent(WKW10MInputKeyDown);
         surrogate.virtualKey = 65;
         surrogate.unicodeScalar = 0xD800;
         check(controller.sendInput(surrogate) == E_INVALIDARG, "surrogate scalar rejects");
-        auto tooLarge = pointerEvent(WKUWPInputKeyDown);
+        auto tooLarge = pointerEvent(WKW10MInputKeyDown);
         tooLarge.virtualKey = 65;
         tooLarge.unicodeScalar = 0x110000;
         check(controller.sendInput(tooLarge) == E_INVALIDARG, "out-of-range scalar rejects");
@@ -420,33 +420,33 @@ void runForwarding()
     }
     {
         InputProvider provider(true);
-        PageControllerUWP controller;
+        PageControllerW10M controller;
         check(bindController(controller, provider) == S_OK, "input-capable table binds");
-        auto press = pointerEvent(WKUWPInputPointerDown);
-        press.modifiers = WKUWPModifierShift;
-        check(controller.sendInput(press) == S_OK && provider.inputCalls == 1 && provider.last.kind == WKUWPInputPointerDown
-                && provider.last.pointerId == 7 && provider.last.xCssPixels == 100 && provider.last.modifiers == WKUWPModifierShift,
+        auto press = pointerEvent(WKW10MInputPointerDown);
+        press.modifiers = WKW10MModifierShift;
+        check(controller.sendInput(press) == S_OK && provider.inputCalls == 1 && provider.last.kind == WKW10MInputPointerDown
+                && provider.last.pointerId == 7 && provider.last.xCssPixels == 100 && provider.last.modifiers == WKW10MModifierShift,
             "capable pointer event forwards its exact copied fields");
-        auto key = pointerEvent(WKUWPInputKeyDown);
+        auto key = pointerEvent(WKW10MInputKeyDown);
         key.virtualKey = 65;
         key.unicodeScalar = 65;
         check(controller.sendInput(key) == S_OK && provider.inputCalls == 2 && provider.last.virtualKey == 65,
             "capable key event forwards virtual key and scalar");
-        auto wheel = pointerEvent(WKUWPInputWheel);
+        auto wheel = pointerEvent(WKW10MInputWheel);
         wheel.wheelDeltaX = -3;
         wheel.wheelDeltaY = 9;
         check(controller.sendInput(wheel) == S_OK && provider.last.wheelDeltaY == 9, "capable wheel forwards both integer deltas");
         check(controller.setFocused(true) == S_OK && provider.focusCalls == 1 && provider.lastFocus == 1, "focus true forwards once");
         check(controller.setFocused(false) == S_OK && provider.lastFocus == 0, "focus false forwards explicitly");
-        provider.inputResult = static_cast<WKUWPResult>(E_ACCESSDENIED);
+        provider.inputResult = static_cast<WKW10MResult>(E_ACCESSDENIED);
         check(controller.sendInput(press) == E_ACCESSDENIED, "originating provider HRESULT survives forwarding");
-        provider.inputResult = WKUWPResultOK;
+        provider.inputResult = WKW10MResultOK;
     }
     {
         InputProvider slotless(true);
         slotless.api.sendInput = nullptr;
         slotless.api.setFocus = nullptr;
-        PageControllerUWP controller;
+        PageControllerW10M controller;
         check(bindController(controller, slotless) == S_OK, "slotless table still binds its navigation surface");
         check(controller.sendInput(pointerEvent()) == HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH), "missing input slot rejects without calling");
         check(controller.setFocused(true) == HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH), "missing focus slot rejects without calling");
@@ -454,7 +454,7 @@ void runForwarding()
     }
     {
         InputProvider provider(true);
-        PageControllerUWP controller;
+        PageControllerW10M controller;
         bindController(controller, provider);
         unsigned wrongThread = 0;
         std::thread worker([&] {

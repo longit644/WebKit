@@ -45,7 +45,7 @@ if (-not (Test-Path -LiteralPath $script:MsBuild)) {
     throw "Community 2022 MSBuild not found: $script:MsBuild"
 }
 if (-not (Test-Path -LiteralPath $script:ToolchainFile)) {
-    throw "ARM32 UWP toolchain file not found: $script:ToolchainFile"
+    throw "ARM32 W10M toolchain file not found: $script:ToolchainFile"
 }
 
 foreach ($directory in @($PayloadDir, $HostDir, $HostObjDir, $AppxDir)) {

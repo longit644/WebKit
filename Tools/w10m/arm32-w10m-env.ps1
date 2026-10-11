@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-Discovers the native ARM32 UWP compiler/SDK and exports the CMake flag inputs.
+Discovers the native ARM32 W10M compiler/SDK and exports the CMake flag inputs.
 .DESCRIPTION
 Dot-source before native CMake configure. Paths come from the checkout and
 installation discovery or explicit overrides; space-free flag paths are resolved
@@ -47,32 +47,32 @@ foreach ($required in @($clang, $rc, "$llvmBin\lld-link.exe", "$llvmBin\llvm-lib
         "$repo\Tools\w10m\lib\arm-crtstart.lib", "$repo\Tools\w10m\lib\clang_rt.builtins-arm.lib")) {
     if (-not (Test-Path -LiteralPath $required)) { throw "Required native ARM32 input missing: $required" }
 }
-if (-not ('NativeBuildPathUWP' -as [type])) {
-    Add-Type -TypeDefinition 'using System.Runtime.InteropServices; using System.Text; public static class NativeBuildPathUWP { [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] public static extern uint GetShortPathName(string path, StringBuilder output, uint size); }'
+if (-not ('NativeBuildPathW10M' -as [type])) {
+    Add-Type -TypeDefinition 'using System.Runtime.InteropServices; using System.Text; public static class NativeBuildPathW10M { [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] public static extern uint GetShortPathName(string path, StringBuilder output, uint size); }'
 }
 
 # vcpkg/meson split native flag strings, so every embedded path must be space-free.
-function Get-NativeFlagPathUWP([string]$path) {
+function Get-NativeFlagPathW10M([string]$path) {
     $full = (Resolve-Path -LiteralPath $path).Path
     $buffer = New-Object Text.StringBuilder 32768
-    $length = [NativeBuildPathUWP]::GetShortPathName($full, $buffer, $buffer.Capacity)
+    $length = [NativeBuildPathW10M]::GetShortPathName($full, $buffer, $buffer.Capacity)
     if (-not $length -or $length -ge $buffer.Capacity) { throw "Cannot resolve native flag path: $full" }
     $short = $buffer.ToString().Replace('\', '/')
     if ($short -match '\s|[^\x00-\x7F]') { throw "Native flags require a space-free ASCII path; move/override input: $full" }
     return $short
 }
-$include = Get-NativeFlagPathUWP "$toolset\include"
-$headers = @('ucrt','um','shared','winrt') | ForEach-Object { '-imsvc' + (Get-NativeFlagPathUWP "$sdkInclude\$_") }
-$nativeLib = Get-NativeFlagPathUWP "$toolset\lib\arm\uwp"
-$umLib = Get-NativeFlagPathUWP "$sdkLib\um\arm"
-$ucrtLib = Get-NativeFlagPathUWP "$sdkLib\ucrt\arm"
-$support = Get-NativeFlagPathUWP "$repo\Tools\w10m\lib"
-$builtins = Get-NativeFlagPathUWP "$repo\Tools\w10m\lib\clang_rt.builtins-arm.lib"
-$startup = Get-NativeFlagPathUWP "$repo\Tools\w10m\lib\arm-crtstart.lib"
-$compat = Get-NativeFlagPathUWP "$repo\Tools\w10m\toolchain\w10m-desktop-apis.h"
-$linkerBin = Get-NativeFlagPathUWP $llvmBin
+$include = Get-NativeFlagPathW10M "$toolset\include"
+$headers = @('ucrt','um','shared','winrt') | ForEach-Object { '-imsvc' + (Get-NativeFlagPathW10M "$sdkInclude\$_") }
+$nativeLib = Get-NativeFlagPathW10M "$toolset\lib\arm\uwp"
+$umLib = Get-NativeFlagPathW10M "$sdkLib\um\arm"
+$ucrtLib = Get-NativeFlagPathW10M "$sdkLib\ucrt\arm"
+$support = Get-NativeFlagPathW10M "$repo\Tools\w10m\lib"
+$builtins = Get-NativeFlagPathW10M "$repo\Tools\w10m\lib\clang_rt.builtins-arm.lib"
+$startup = Get-NativeFlagPathW10M "$repo\Tools\w10m\lib\arm-crtstart.lib"
+$compat = Get-NativeFlagPathW10M "$repo\Tools\w10m\toolchain\w10m-desktop-apis.h"
+$linkerBin = Get-NativeFlagPathW10M $llvmBin
 $env:WK_W10M_CLANG_CL = $clang.Replace('\', '/')
-$env:WK_W10M_RC = Get-NativeFlagPathUWP $rc
+$env:WK_W10M_RC = Get-NativeFlagPathW10M $rc
 $env:WK_W10M_BUILTINS_ARM = $builtins
 $env:WK_W10M_NATIVE_C_FLAGS = "--target=armv7-unknown-windows-msvc -B$linkerBin -fuse-ld=lld /MD -DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP -D_WIN32_WINNT=0x0A00 -D_HAS_EXCEPTIONS=0 -Wno-error=incompatible-function-pointer-types -DU_PLATFORM_HAS_WINUWP_API=1 -DSQLITE_OMIT_SEH -D_WINRT_DLL /FI$include/intrin.h -FI$compat /EHs-c- /GR- -imsvc$include $($headers -join ' ')"
 $env:WK_W10M_NATIVE_LINK_FLAGS = "/APPCONTAINER /MACHINE:ARM /SUBSYSTEM:CONSOLE /FORCE:MULTIPLE /NODEFAULTLIB:libcmt /NODEFAULTLIB:libcmtd /NODEFAULTLIB:msvcrt /NODEFAULTLIB:msvcrtd /NODEFAULTLIB:msvcprt /NODEFAULTLIB:msvcprtd /NODEFAULTLIB:oldnames /LIBPATH:$umLib /LIBPATH:$ucrtLib /LIBPATH:$nativeLib /LIBPATH:$support $builtins $startup $nativeLib/vcruntime.lib $nativeLib/msvcprt.lib $ucrtLib/ucrt.lib $umLib/OneCoreUAP.lib"
@@ -89,4 +89,4 @@ if ($VcpkgRoot) {
     $gperf = Join-Path $VcpkgRoot 'installed\x64-windows\tools\gperf'
     if (Test-Path $gperf) { $env:Path = "$gperf;" + $env:Path }
 }
-"Native ARM32 UWP environment: MSVC $MsvcVersion, SDK $SdkVersion, clang-cl $clang"
+"Native ARM32 W10M environment: MSVC $MsvcVersion, SDK $SdkVersion, clang-cl $clang"

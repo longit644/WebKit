@@ -173,31 +173,31 @@ try {
     foreach ($symbol in @('DllGetActivationFactory', 'DllCanUnloadNow')) {
         if ($exports -notmatch "Name: $symbol") { throw "Component export missing: $symbol" }
     }
-    if ([bool]($exports -match 'Name: WKUWPTestSourceState') -ne [bool]$SourceStateTests) {
+    if ([bool]($exports -match 'Name: WKW10MTestSourceState') -ne [bool]$SourceStateTests) {
         throw 'Diagnostic-export presence does not match selected build flavor'
     }
-    if ([bool]($exports -match 'Name: WKUWPTestInitialization') -ne [bool]$InitializationTests) {
+    if ([bool]($exports -match 'Name: WKW10MTestInitialization') -ne [bool]$InitializationTests) {
         throw 'Initialization diagnostic-export presence does not match selected build flavor'
     }
-    if ([bool]($exports -match 'Name: WKUWPTestEventCallbacks') -ne [bool]$EventCallbackTests) {
+    if ([bool]($exports -match 'Name: WKW10MTestEventCallbacks') -ne [bool]$EventCallbackTests) {
         throw 'Event callback diagnostic-export presence does not match selected build flavor'
     }
-    if ([bool]($exports -match 'Name: WKUWPTestCommands') -ne [bool]$CommandTests) {
+    if ([bool]($exports -match 'Name: WKW10MTestCommands') -ne [bool]$CommandTests) {
         throw 'Command diagnostic-export presence does not match selected build flavor'
     }
-    if ([bool]($exports -match 'Name: WKUWPTestLifecycle') -ne [bool]$LifecycleTests) {
+    if ([bool]($exports -match 'Name: WKW10MTestLifecycle') -ne [bool]$LifecycleTests) {
         throw 'Lifecycle diagnostic-export presence does not match selected build flavor'
     }
-    if ([bool]($exports -match 'Name: WKUWPTestTransactions') -ne [bool]$TransactionTests) {
+    if ([bool]($exports -match 'Name: WKW10MTestTransactions') -ne [bool]$TransactionTests) {
         throw 'Transaction diagnostic-export presence does not match selected build flavor'
     }
-    if ([bool]($exports -match 'Name: WKUWPTestScheduler') -ne [bool]$SchedulerTests) {
+    if ([bool]($exports -match 'Name: WKW10MTestScheduler') -ne [bool]$SchedulerTests) {
         throw 'Scheduler diagnostic-export presence does not match selected build flavor'
     }
-    if ([bool]($exports -match 'Name: WKUWPTestClipboard') -ne [bool]$ClipboardTests) {
+    if ([bool]($exports -match 'Name: WKW10MTestClipboard') -ne [bool]$ClipboardTests) {
         throw 'Clipboard diagnostic-export presence does not match selected build flavor'
     }
-    if ([bool]($exports -match 'Name: WKUWPTestOwner') -ne [bool]$OwnerTests) {
+    if ([bool]($exports -match 'Name: WKW10MTestOwner') -ne [bool]$OwnerTests) {
         throw 'Owner diagnostic-export presence does not match selected build flavor'
     }
     & python (Join-Path $PSScriptRoot 'check-cx-component-metadata.py') --idl "$OutDir\inspect\WebKit.idl" --api $api

@@ -1,11 +1,11 @@
 /*
- * WKUWPEngineAPITests.cpp - host-side verification of the WKUWP V1 discovery
+ * WKW10MEngineAPITests.cpp - host-side verification of the WKW10M V1 discovery
  * export implemented by Source/WebCore/platform/w10m/WKW10MEngineAPI.cpp.
  *
  * This is the acceptance harness for M10 task 3.2. It resolves the provider
  * exactly the way a C++/CX consumer will: by loading the module and asking for
  * the unmangled export name, never by linking against it, so a provider that
- * stops exporting "WKUWPGetEngineAPI" fails here instead of being satisfied by
+ * stops exporting "WKW10MGetEngineAPI" fails here instead of being satisfied by
  * the linker's own symbol table.
  *
  * What the harness proves, in the order the acceptance criteria are stated:
@@ -43,7 +43,7 @@ constexpr uint32_t kExpectedAbiMajor = 1;
 constexpr uint32_t kExpectedAbiMinor = 0;
 
 // Frozen V1 table extent; also the smallest legal caller declaration.
-constexpr uint32_t kV1TableSize = WKUWP_ENGINE_API_STRUCTURE_SIZE;
+constexpr uint32_t kV1TableSize = WKW10M_ENGINE_API_STRUCTURE_SIZE;
 
 // The number of bytes this build's provider actually fills.
 //
@@ -51,11 +51,11 @@ constexpr uint32_t kV1TableSize = WKUWP_ENGINE_API_STRUCTURE_SIZE;
 // this equals kV1TableSize. The behaviour run on this x64 host fills a larger
 // structure, so the harness must measure the filled extent instead of assuming the
 // frozen number, or it would report a correct provider as an overrun.
-const uint32_t kFilledTableSize = static_cast<uint32_t>(sizeof(WKUWPEngineAPI));
+const uint32_t kFilledTableSize = static_cast<uint32_t>(sizeof(WKW10MEngineAPI));
 
 // Buffer used for every negotiation attempt.
 //
-// It is a byte array rather than a WKUWPEngineAPI so a caller can legally
+// It is a byte array rather than a WKW10MEngineAPI so a caller can legally
 // declare more than the V1 table, which is how the "unknown future caller tails
 // stay zero" rule is checked, and so a canary can be placed after the largest
 // legal declared extent to catch any overrun. alignas(4) matches the frozen
@@ -93,7 +93,7 @@ struct Attempt {
     uint8_t reference[kBufferBytes];
 
     // The caller's negotiated table view over the buffer.
-    WKUWPEngineAPI* api() { return reinterpret_cast<WKUWPEngineAPI*>(buffer); }
+    WKW10MEngineAPI* api() { return reinterpret_cast<WKW10MEngineAPI*>(buffer); }
 
     // Fills the buffer and snapshots it as the state a rejected call must keep.
     void snapshot()
@@ -139,7 +139,7 @@ struct Attempt {
 };
 
 // Writes the legal V1 caller header into an attempt buffer, then snapshots it.
-void writeV1Header(Attempt& attempt, uint32_t structureSize, uint32_t structureVersion = WKUWP_STRUCTURE_VERSION)
+void writeV1Header(Attempt& attempt, uint32_t structureSize, uint32_t structureVersion = WKW10M_STRUCTURE_VERSION)
 {
     memset(attempt.buffer, kApiPattern, sizeof(attempt.buffer));
     attempt.api()->header.structureSize = structureSize;
@@ -151,7 +151,7 @@ void writeV1Header(Attempt& attempt, uint32_t structureSize, uint32_t structureV
 //
 // The count is asserted separately, because a table that dropped or added a slot
 // while keeping sizeof unchanged would otherwise pass a null check alone.
-size_t collectSlots(const WKUWPEngineAPI* api, void** slots, size_t capacity)
+size_t collectSlots(const WKW10MEngineAPI* api, void** slots, size_t capacity)
 {
     const void* collected[] = {
         reinterpret_cast<const void*>(api->initialize),
@@ -188,7 +188,7 @@ size_t collectSlots(const WKUWPEngineAPI* api, void** slots, size_t capacity)
 }
 
 // True when every frozen V1 slot is callable rather than null.
-bool everySlotIsCallable(const WKUWPEngineAPI* api)
+bool everySlotIsCallable(const WKW10MEngineAPI* api)
 {
     void* slots[32];
     const size_t count = collectSlots(api, slots, 32);
@@ -205,14 +205,14 @@ bool everySlotIsCallable(const WKUWPEngineAPI* api)
 //
 // `name` identifies the row, `detail` explains what the provider was asked for,
 // and `expected` is the result the contract requires for it.
-void checkRejection(WKUWPResult(__stdcall* getEngineAPI)(uint32_t, uint32_t, uint64_t, WKUWPEngineAPI*),
+void checkRejection(WKW10MResult(__stdcall* getEngineAPI)(uint32_t, uint32_t, uint64_t, WKW10MEngineAPI*),
     const char* name, const char* detail, uint32_t minimumMajor, uint32_t minimumMinor,
-    uint64_t requiredCapabilities, WKUWPResult expected, uint32_t declaredSize)
+    uint64_t requiredCapabilities, WKW10MResult expected, uint32_t declaredSize)
 {
     Attempt attempt;
     writeV1Header(attempt, declaredSize);
 
-    WKUWPResult result = getEngineAPI(minimumMajor, minimumMinor, requiredCapabilities, attempt.api());
+    WKW10MResult result = getEngineAPI(minimumMajor, minimumMinor, requiredCapabilities, attempt.api());
 
     char message[256];
     snprintf(message, sizeof(message), "%s -> result=%d expected=%d, output %s", detail,
@@ -223,43 +223,43 @@ void checkRejection(WKUWPResult(__stdcall* getEngineAPI)(uint32_t, uint32_t, uin
 }
 
 // Verifies a rejected negotiation that also carries a wrong structure version.
-void checkVersionRejection(WKUWPResult(__stdcall* getEngineAPI)(uint32_t, uint32_t, uint64_t, WKUWPEngineAPI*),
+void checkVersionRejection(WKW10MResult(__stdcall* getEngineAPI)(uint32_t, uint32_t, uint64_t, WKW10MEngineAPI*),
     const char* name, const char* detail, uint32_t structureVersion)
 {
     Attempt attempt;
     writeV1Header(attempt, kFilledTableSize, structureVersion);
 
-    WKUWPResult result = getEngineAPI(kExpectedAbiMajor, kExpectedAbiMinor, 0, attempt.api());
+    WKW10MResult result = getEngineAPI(kExpectedAbiMajor, kExpectedAbiMinor, 0, attempt.api());
 
     char message[256];
     snprintf(message, sizeof(message), "%s -> result=%d expected=%d, output %s", detail,
-        static_cast<int>(result), static_cast<int>(WKUWPResultAbiMismatch),
+        static_cast<int>(result), static_cast<int>(WKW10MResultAbiMismatch),
         attempt.untouched() ? "untouched" : "MODIFIED");
 
-    const bool passed = result == WKUWPResultAbiMismatch && attempt.untouched();
+    const bool passed = result == WKW10MResultAbiMismatch && attempt.untouched();
     reportCheck(name, passed, message);
 }
 
 // Negotiation succeeds and returns a complete, usable table.
-void checkSuccessfulNegotiation(WKUWPResult(__stdcall* getEngineAPI)(uint32_t, uint32_t, uint64_t, WKUWPEngineAPI*))
+void checkSuccessfulNegotiation(WKW10MResult(__stdcall* getEngineAPI)(uint32_t, uint32_t, uint64_t, WKW10MEngineAPI*))
 {
     Attempt attempt;
     writeV1Header(attempt, kFilledTableSize);
 
-    WKUWPResult result = getEngineAPI(kExpectedAbiMajor, kExpectedAbiMinor, 0, attempt.api());
-    const WKUWPEngineAPI* api = attempt.api();
+    WKW10MResult result = getEngineAPI(kExpectedAbiMajor, kExpectedAbiMinor, 0, attempt.api());
+    const WKW10MEngineAPI* api = attempt.api();
 
     char message[256];
     snprintf(message, sizeof(message), "compatible request -> result=%d expected=0", static_cast<int>(result));
-    reportCheck("success/result", result == WKUWPResultOK, message);
+    reportCheck("success/result", result == WKW10MResultOK, message);
 
     snprintf(message, sizeof(message), "filled extent=%u expected=%u",
         api->header.structureSize, kFilledTableSize);
     reportCheck("success/filled-extent", api->header.structureSize == kFilledTableSize, message);
 
     snprintf(message, sizeof(message), "structure version=%u expected=%u",
-        api->header.structureVersion, WKUWP_STRUCTURE_VERSION);
-    reportCheck("success/structure-version", api->header.structureVersion == WKUWP_STRUCTURE_VERSION, message);
+        api->header.structureVersion, WKW10M_STRUCTURE_VERSION);
+    reportCheck("success/structure-version", api->header.structureVersion == WKW10M_STRUCTURE_VERSION, message);
 
     snprintf(message, sizeof(message), "abi=%u.%u expected=%u.%u", api->abiMajor, api->abiMinor,
         kExpectedAbiMajor, kExpectedAbiMinor);
@@ -293,7 +293,7 @@ void checkSuccessfulNegotiation(WKUWPResult(__stdcall* getEngineAPI)(uint32_t, u
         memcpy(identity, api->buildId.data, copyLength);
         identity[copyLength] = 0;
         snprintf(message, sizeof(message), "buildId=\"%s\"", identity);
-        reportCheck("success/build-identity-content", strstr(identity, "wkuwp abi=1.0") != nullptr, message);
+        reportCheck("success/build-identity-content", strstr(identity, "wkw10m abi=1.0") != nullptr, message);
     }
 
     snprintf(message, sizeof(message), "all 24 V1 slots callable=%d", everySlotIsCallable(api) ? 1 : 0);
@@ -302,13 +302,13 @@ void checkSuccessfulNegotiation(WKUWPResult(__stdcall* getEngineAPI)(uint32_t, u
 
 // A larger declared extent is accepted, filled to V1, and its tail is zeroed so a
 // consumer never reads an uninitialized byte in a slot this provider cannot fill.
-void checkLargerDeclaredExtent(WKUWPResult(__stdcall* getEngineAPI)(uint32_t, uint32_t, uint64_t, WKUWPEngineAPI*))
+void checkLargerDeclaredExtent(WKW10MResult(__stdcall* getEngineAPI)(uint32_t, uint32_t, uint64_t, WKW10MEngineAPI*))
 {
     Attempt attempt;
     const uint32_t declaredSize = kFilledTableSize + 128;
     writeV1Header(attempt, declaredSize);
 
-    WKUWPResult result = getEngineAPI(kExpectedAbiMajor, kExpectedAbiMinor, 0, attempt.api());
+    WKW10MResult result = getEngineAPI(kExpectedAbiMajor, kExpectedAbiMinor, 0, attempt.api());
 
     const bool tailZeroed = attempt.rangeIsZero(kFilledTableSize, declaredSize);
     bool tailUnwritten = true;
@@ -322,13 +322,13 @@ void checkLargerDeclaredExtent(WKUWPResult(__stdcall* getEngineAPI)(uint32_t, ui
         declaredSize, static_cast<int>(result), attempt.api()->header.structureSize, tailZeroed ? "zero" : "NOT ZERO",
         tailUnwritten ? "untouched" : "MODIFIED");
 
-    const bool passed = result == WKUWPResultOK && attempt.api()->header.structureSize == kFilledTableSize && tailZeroed
+    const bool passed = result == WKW10MResultOK && attempt.api()->header.structureSize == kFilledTableSize && tailZeroed
         && tailUnwritten;
     reportCheck("success/larger-declared-extent", passed, message);
 }
 
 // The build identity is stable across calls and never needs lazy initialization.
-void checkIdentityStability(WKUWPResult(__stdcall* getEngineAPI)(uint32_t, uint32_t, uint64_t, WKUWPEngineAPI*))
+void checkIdentityStability(WKW10MResult(__stdcall* getEngineAPI)(uint32_t, uint32_t, uint64_t, WKW10MEngineAPI*))
 {
     Attempt first;
     Attempt second;
@@ -352,7 +352,7 @@ void checkIdentityStability(WKUWPResult(__stdcall* getEngineAPI)(uint32_t, uint3
 //
 // Every frozen bit is requested on its own so a future change that advertises a
 // bit without implementing it fails here by name.
-void checkCapabilitiesRejected(WKUWPResult(__stdcall* getEngineAPI)(uint32_t, uint32_t, uint64_t, WKUWPEngineAPI*),
+void checkCapabilitiesRejected(WKW10MResult(__stdcall* getEngineAPI)(uint32_t, uint32_t, uint64_t, WKW10MEngineAPI*),
     uint64_t deliveredCapabilities)
 {
     // One requested capability bit and the name its failure would be reported under.
@@ -361,16 +361,16 @@ void checkCapabilitiesRejected(WKUWPResult(__stdcall* getEngineAPI)(uint32_t, ui
         uint64_t bit;
     };
     const CapabilityRow rows[] = {
-        { "structured-notifications", WKUWPCapabilityStructuredNotifications },
-        { "host-html", WKUWPCapabilityHostHtml },
-        { "independent-sessions", WKUWPCapabilityIndependentSessions },
-        { "cpu-paint", WKUWPCapabilityCPUPaint },
-        { "gpu-compositor", WKUWPCapabilityGPUCompositor },
-        { "clipboard-service", WKUWPCapabilityClipboardService },
-        { "certificate-decisions", WKUWPCapabilityCertificateDecisions },
-        { "input", WKUWPCapabilityInput },
-        { "immutable-trust-policy", WKUWPCapabilityImmutableTrustPolicy },
-        { "global-font-configuration", WKUWPCapabilityGlobalFontConfiguration },
+        { "structured-notifications", WKW10MCapabilityStructuredNotifications },
+        { "host-html", WKW10MCapabilityHostHtml },
+        { "independent-sessions", WKW10MCapabilityIndependentSessions },
+        { "cpu-paint", WKW10MCapabilityCPUPaint },
+        { "gpu-compositor", WKW10MCapabilityGPUCompositor },
+        { "clipboard-service", WKW10MCapabilityClipboardService },
+        { "certificate-decisions", WKW10MCapabilityCertificateDecisions },
+        { "input", WKW10MCapabilityInput },
+        { "immutable-trust-policy", WKW10MCapabilityImmutableTrustPolicy },
+        { "global-font-configuration", WKW10MCapabilityGlobalFontConfiguration },
     };
     const size_t rowCount = sizeof(rows) / sizeof(rows[0]);
 
@@ -378,14 +378,14 @@ void checkCapabilitiesRejected(WKUWPResult(__stdcall* getEngineAPI)(uint32_t, ui
         char name[64];
         snprintf(name, sizeof(name), "capability/%s", rows[index].name);
         const bool supported = (deliveredCapabilities & rows[index].bit) != 0;
-        const WKUWPResult expected = supported ? WKUWPResultOK : WKUWPResultMissingCapability;
+        const WKW10MResult expected = supported ? WKW10MResultOK : WKW10MResultMissingCapability;
         checkRejection(getEngineAPI, name,
             supported ? "delivered capability is accepted" : "undelivered capability is refused",
             kExpectedAbiMajor, kExpectedAbiMinor, rows[index].bit, expected, kFilledTableSize);
     }
 
     checkRejection(getEngineAPI, "capability/all-bits-set", "every reserved bit requested together",
-        kExpectedAbiMajor, kExpectedAbiMinor, ~static_cast<uint64_t>(0), WKUWPResultMissingCapability, kFilledTableSize);
+        kExpectedAbiMajor, kExpectedAbiMinor, ~static_cast<uint64_t>(0), WKW10MResultMissingCapability, kFilledTableSize);
 
     Attempt attempt;
     writeV1Header(attempt, kFilledTableSize);
@@ -396,53 +396,53 @@ void checkCapabilitiesRejected(WKUWPResult(__stdcall* getEngineAPI)(uint32_t, ui
 }
 
 // Page creation is impossible until a page implementation is delivered.
-void checkNoPageCreation(WKUWPResult(__stdcall* getEngineAPI)(uint32_t, uint32_t, uint64_t, WKUWPEngineAPI*))
+void checkNoPageCreation(WKW10MResult(__stdcall* getEngineAPI)(uint32_t, uint32_t, uint64_t, WKW10MEngineAPI*))
 {
     Attempt attempt;
     writeV1Header(attempt, kFilledTableSize);
 
-    if (getEngineAPI(kExpectedAbiMajor, kExpectedAbiMinor, 0, attempt.api()) != WKUWPResultOK) {
+    if (getEngineAPI(kExpectedAbiMajor, kExpectedAbiMinor, 0, attempt.api()) != WKW10MResultOK) {
         reportCheck("page/not-created", false, "compatible negotiation failed, cannot continue");
         return;
     }
 
-    const WKUWPEngineAPI* api = attempt.api();
+    const WKW10MEngineAPI* api = attempt.api();
 
-    WKUWPPageOptions options;
+    WKW10MPageOptions options;
     memset(&options, 0, sizeof(options));
     options.header.structureSize = sizeof(options);
-    options.header.structureVersion = WKUWP_STRUCTURE_VERSION;
+    options.header.structureVersion = WKW10M_STRUCTURE_VERSION;
 
-    WKUWPPageHandle page = kUntouchedHandle;
-    WKUWPResult result = api->createPage(&options, &page);
+    WKW10MPageHandle page = kUntouchedHandle;
+    WKW10MResult result = api->createPage(&options, &page);
 
     char message[256];
     snprintf(message, sizeof(message), "createPage -> result=%d expected=%d, handle %s",
-        static_cast<int>(result), static_cast<int>(WKUWPResultUnsupported),
+        static_cast<int>(result), static_cast<int>(WKW10MResultUnsupported),
         page == kUntouchedHandle ? "untouched" : "WRITTEN");
-    reportCheck("page/not-created", result == WKUWPResultUnsupported && page == kUntouchedHandle, message);
+    reportCheck("page/not-created", result == WKW10MResultUnsupported && page == kUntouchedHandle, message);
 
     // Navigation must equally refuse without allocating an identifier.
-    WKUWPNavigationRequest request;
+    WKW10MNavigationRequest request;
     memset(&request, 0, sizeof(request));
     request.header.structureSize = sizeof(request);
-    request.header.structureVersion = WKUWP_STRUCTURE_VERSION;
-    request.contentKind = WKUWPContentRemote;
+    request.header.structureVersion = WKW10M_STRUCTURE_VERSION;
+    request.contentKind = WKW10MContentRemote;
 
     uint64_t navigationId = kUntouchedHandle;
     result = api->navigate(kUntouchedHandle, &request, &navigationId);
     snprintf(message, sizeof(message), "navigate -> result=%d expected=%d, id %s",
-        static_cast<int>(result), static_cast<int>(WKUWPResultUnsupported),
+        static_cast<int>(result), static_cast<int>(WKW10MResultUnsupported),
         navigationId == kUntouchedHandle ? "untouched" : "WRITTEN");
-    reportCheck("page/no-navigation-id", result == WKUWPResultUnsupported && navigationId == kUntouchedHandle, message);
+    reportCheck("page/no-navigation-id", result == WKW10MResultUnsupported && navigationId == kUntouchedHandle, message);
 
     // State queries must not write the caller's required-byte count.
     uint32_t requiredBytes = kUntouchedBytes;
     result = api->getState(kUntouchedHandle, nullptr, nullptr, 0, &requiredBytes);
     snprintf(message, sizeof(message), "getState -> result=%d expected=%d, requiredBytes %s",
-        static_cast<int>(result), static_cast<int>(WKUWPResultUnsupported),
+        static_cast<int>(result), static_cast<int>(WKW10MResultUnsupported),
         requiredBytes == kUntouchedBytes ? "untouched" : "WRITTEN");
-    reportCheck("page/state-untouched", result == WKUWPResultUnsupported && requiredBytes == kUntouchedBytes, message);
+    reportCheck("page/state-untouched", result == WKW10MResultUnsupported && requiredBytes == kUntouchedBytes, message);
 }
 
 } // namespace
@@ -454,7 +454,7 @@ void checkNoPageCreation(WKUWPResult(__stdcall* getEngineAPI)(uint32_t, uint32_t
 int main(int argc, char** argv)
 {
     if (argc < 2) {
-        printf("usage: WKUWPEngineAPITests <provider-module>\n");
+        printf("usage: WKW10MEngineAPITests <provider-module>\n");
         return 2;
     }
 
@@ -466,24 +466,24 @@ int main(int argc, char** argv)
 
     // Resolve the documented unmangled export name. A mangled or missing symbol
     // fails here, which is the failure a C++/CX consumer would hit first.
-    typedef WKUWPResult(__stdcall * GetEngineAPI)(uint32_t, uint32_t, uint64_t, WKUWPEngineAPI*);
+    typedef WKW10MResult(__stdcall * GetEngineAPI)(uint32_t, uint32_t, uint64_t, WKW10MEngineAPI*);
     GetEngineAPI getEngineAPI = reinterpret_cast<GetEngineAPI>(
-        reinterpret_cast<void*>(GetProcAddress(module, "WKUWPGetEngineAPI")));
+        reinterpret_cast<void*>(GetProcAddress(module, "WKW10MGetEngineAPI")));
     if (!getEngineAPI) {
-        printf("FAIL export: WKUWPGetEngineAPI is not exported by %s (error %lu)\n", argv[1], GetLastError());
+        printf("FAIL export: WKW10MGetEngineAPI is not exported by %s (error %lu)\n", argv[1], GetLastError());
         return 1;
     }
-    printf("PASS export: WKUWPGetEngineAPI resolved from %s\n", argv[1]);
-    printf("host view: sizeof(WKUWPEngineAPI)=%u pollShutdown=%u\n\n",
-        static_cast<unsigned>(sizeof(WKUWPEngineAPI)), static_cast<unsigned>(offsetof(WKUWPEngineAPI, pollShutdown)));
+    printf("PASS export: WKW10MGetEngineAPI resolved from %s\n", argv[1]);
+    printf("host view: sizeof(WKW10MEngineAPI)=%u pollShutdown=%u\n\n",
+        static_cast<unsigned>(sizeof(WKW10MEngineAPI)), static_cast<unsigned>(offsetof(WKW10MEngineAPI, pollShutdown)));
 
     printf("null output pointer\n");
     {
-        WKUWPResult result = getEngineAPI(kExpectedAbiMajor, kExpectedAbiMinor, 0, nullptr);
+        WKW10MResult result = getEngineAPI(kExpectedAbiMajor, kExpectedAbiMinor, 0, nullptr);
         char message[128];
         snprintf(message, sizeof(message), "null outAPI -> result=%d expected=%d", static_cast<int>(result),
-            static_cast<int>(WKUWPResultInvalidArgument));
-        reportCheck("argument/null-output", result == WKUWPResultInvalidArgument, message);
+            static_cast<int>(WKW10MResultInvalidArgument));
+        reportCheck("argument/null-output", result == WKW10MResultInvalidArgument, message);
     }
 
     printf("\nversion negotiation\n");
@@ -491,21 +491,21 @@ int main(int argc, char** argv)
     checkVersionRejection(getEngineAPI, "version/unknown-version-2", "caller structure version 2", 2);
     checkVersionRejection(getEngineAPI, "version/future-version", "caller structure version 99", 99);
     checkRejection(getEngineAPI, "version/major-zero", "minimumMajor 0", 0, kExpectedAbiMinor, 0,
-        WKUWPResultAbiMismatch, kFilledTableSize);
+        WKW10MResultAbiMismatch, kFilledTableSize);
     checkRejection(getEngineAPI, "version/major-two", "minimumMajor 2", 2, kExpectedAbiMinor, 0,
-        WKUWPResultAbiMismatch, kFilledTableSize);
+        WKW10MResultAbiMismatch, kFilledTableSize);
     checkRejection(getEngineAPI, "version/minor-one", "minimumMinor 1 above the provider minor", kExpectedAbiMajor, 1, 0,
-        WKUWPResultAbiMismatch, kFilledTableSize);
+        WKW10MResultAbiMismatch, kFilledTableSize);
     checkRejection(getEngineAPI, "version/minor-huge", "minimumMinor 0xFFFFFFFF", kExpectedAbiMajor, 0xFFFFFFFF, 0,
-        WKUWPResultAbiMismatch, kFilledTableSize);
+        WKW10MResultAbiMismatch, kFilledTableSize);
 
     printf("\ntable size negotiation\n");
     checkRejection(getEngineAPI, "size/zero-extent", "declared structureSize 0", kExpectedAbiMajor, kExpectedAbiMinor, 0,
-        WKUWPResultAbiMismatch, 0);
+        WKW10MResultAbiMismatch, 0);
     checkRejection(getEngineAPI, "size/one-byte", "declared structureSize 1", kExpectedAbiMajor, kExpectedAbiMinor, 0,
-        WKUWPResultAbiMismatch, 0);
+        WKW10MResultAbiMismatch, 0);
     checkRejection(getEngineAPI, "size/one-byte-short", "declared structureSize one below the frozen V1 size",
-        kExpectedAbiMajor, kExpectedAbiMinor, 0, WKUWPResultAbiMismatch, 0);
+        kExpectedAbiMajor, kExpectedAbiMinor, 0, WKW10MResultAbiMismatch, 0);
 
     // A caller declaring exactly the frozen V1 extent must be accepted on the
     // boundary architecture, where that is the whole table. A host build whose
@@ -515,26 +515,26 @@ int main(int argc, char** argv)
     {
         Attempt frozen;
         writeV1Header(frozen, kV1TableSize);
-        const WKUWPResult result = getEngineAPI(kExpectedAbiMajor, kExpectedAbiMinor, 0, frozen.api());
-        const WKUWPResult expected = kV1TableSize >= kFilledTableSize ? WKUWPResultOK : WKUWPResultAbiMismatch;
+        const WKW10MResult result = getEngineAPI(kExpectedAbiMajor, kExpectedAbiMinor, 0, frozen.api());
+        const WKW10MResult expected = kV1TableSize >= kFilledTableSize ? WKW10MResultOK : WKW10MResultAbiMismatch;
         char message[200];
         snprintf(message, sizeof(message),
             "declared structureSize %u with a %u-byte table -> result=%d expected=%d, output %s", kV1TableSize,
             kFilledTableSize, static_cast<int>(result), static_cast<int>(expected),
-            result == WKUWPResultOK ? "filled" : (frozen.untouched() ? "untouched" : "MODIFIED"));
-        const bool passed = result == expected && (result != WKUWPResultOK || frozen.untouched());
+            result == WKW10MResultOK ? "filled" : (frozen.untouched() ? "untouched" : "MODIFIED"));
+        const bool passed = result == expected && (result != WKW10MResultOK || frozen.untouched());
         reportCheck("size/frozen-v1-extent", passed, message);
     }
 
     Attempt oversized;
     writeV1Header(oversized, 0x10000);
     {
-        WKUWPResult result = getEngineAPI(kExpectedAbiMajor, kExpectedAbiMinor, 0, oversized.api());
+        WKW10MResult result = getEngineAPI(kExpectedAbiMajor, kExpectedAbiMinor, 0, oversized.api());
         char message[160];
         snprintf(message, sizeof(message), "declared structureSize 65536 -> result=%d expected=%d, output %s",
-            static_cast<int>(result), static_cast<int>(WKUWPResultAbiMismatch),
+            static_cast<int>(result), static_cast<int>(WKW10MResultAbiMismatch),
             oversized.untouched() ? "untouched" : "MODIFIED");
-        reportCheck("size/beyond-write-bound", result == WKUWPResultAbiMismatch && oversized.untouched(), message);
+        reportCheck("size/beyond-write-bound", result == WKW10MResultAbiMismatch && oversized.untouched(), message);
     }
 
     printf("\ncapability negotiation\n");
@@ -554,7 +554,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    printf("All WKUWP discovery negotiation checks passed.\n");
+    printf("All WKW10M discovery negotiation checks passed.\n");
     FreeLibrary(module);
     return 0;
 }

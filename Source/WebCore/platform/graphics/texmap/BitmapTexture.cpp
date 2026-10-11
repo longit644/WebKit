@@ -433,7 +433,7 @@ void BitmapTexture::updateContents(GraphicsLayer* sourceLayer, const IntRect& ta
     auto rasterStart = MonotonicTime::now();
 #endif
 #if PLATFORM(W10M) && USE(SKIA)
-    if (auto* gpuContext = currentSkiaGPUContextUWP(); gpuContext && !gpuContext->abandoned()
+    if (auto* gpuContext = currentSkiaGPUContextW10M(); gpuContext && !gpuContext->abandoned()
         && !m_flags.contains(Flags::UseBGRALayout) && m_pixelFormat == PixelFormat::RGBA8) {
         // Paint into the TextureMapper-owned texture. Top-left origin matches
         // the texture coordinates used for CPU-uploaded tiles; do not read back.
@@ -469,7 +469,7 @@ void BitmapTexture::updateContents(GraphicsLayer* sourceLayer, const IntRect& ta
             canvas->restore();
             // The compositor submits all dirty tile painting once, before
             // TextureMapper samples those textures on the same GL stream.
-            auto& stats = textureMapperFrameStatsUWP();
+            auto& stats = textureMapperFrameStatsW10M();
             ++stats.rasterCalls;
             ++stats.gpuPaintCalls;
             stats.rasterPixels += static_cast<uint64_t>(targetRect.width()) * targetRect.height();
@@ -501,7 +501,7 @@ void BitmapTexture::updateContents(GraphicsLayer* sourceLayer, const IntRect& ta
 
 #if PLATFORM(W10M)
     auto uploadStart = MonotonicTime::now();
-    auto& stats = textureMapperFrameStatsUWP();
+    auto& stats = textureMapperFrameStatsW10M();
     ++stats.rasterCalls;
     stats.rasterPixels += static_cast<uint64_t>(targetRect.width()) * targetRect.height();
     stats.rasterSeconds += (uploadStart - rasterStart).seconds();

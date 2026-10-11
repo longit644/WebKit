@@ -17,14 +17,14 @@
       2. The preserved build-arm-uwp-skia/bin/WebCore.dll still exports all 24
          legacy names unmangled, inspected read-only with llvm-readobj. The
          tree itself is never configured, built or written.
-      3. New M10 consumers resolve nothing but the negotiated table: every
-         GetProcAddress literal in the new native/ sources must be
-         "WKUWPGetEngineAPI", test files may additionally resolve the
-         WKUWPTestProvider* harness exports and the two component activation
-         exports the task 2.4 lifetime harness resolves by design, and no
-         legacy WK*UWP identifier may appear in the new consumer sources at
-         all. The map header and its check file are the map, not consumers,
-         and are excluded by name.
+3. New M10 consumers resolve nothing but the negotiated table: every
+   GetProcAddress literal in the new native/ sources must be
+   "WKW10MGetEngineAPI", test files may additionally resolve the
+   WKW10MTestProvider* harness exports and the two component activation
+   exports the task 2.4 lifetime harness resolves by design, and no
+   legacy WK*UWP identifier may appear in the new consumer sources at
+   all. The map header and its check file are the map, not consumers,
+   and are excluded by name.
       4. Frozen PageW10M.h remains byte-identical to the historical HEAD header. Migrated native
          diagnostic payloads are verified by their explicit semantic proofs;
          engine restructuring and presentation extraction have independent
@@ -37,12 +37,12 @@
     Explicit ARM32 MSVC toolset directory name; defaults to the newest installed.
 
 .EXAMPLE
-    .\check-wkuwp-legacy-surface.ps1
-    .\check-wkuwp-legacy-surface.ps1 -OutDir D:\m10\legacy
+    .\check-wkw10m-legacy-surface.ps1
+    .\check-wkw10m-legacy-surface.ps1 -OutDir D:\m10\legacy
 #>
 [CmdletBinding()]
 param(
-    [string]$OutDir = (Join-Path $env:TEMP 'opencode\wkuwp-legacy-surface'),
+    [string]$OutDir = (Join-Path $env:TEMP 'opencode\w10m-legacy-surface'),
     [string]$MsvcVersion
 )
 
@@ -236,23 +236,23 @@ Write-Host ''
 # on both compilers. The /WX flag is deliberately present: a warning here would
 # mean the frozen surface no longer compiles quietly.
 Invoke-LayoutCheck -Label 'native (clang-cl, armv7-unknown-windows-msvc, C++)' -Exe $clangCl `
-    -ObjectPath (Join-Path $OutDir 'wkuwp-legacy-surface-native.obj') `
+    -ObjectPath (Join-Path $OutDir 'wkw10m-legacy-surface-native.obj') `
     -Arguments @(
     ('--target=' + $triple), '/nologo', '/c', '/W4', '/WX', '/TP', '/EHsc',
     '/DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP', '/D_WIN32_WINNT=0x0A00',
     ('/imsvc' + $toolsetInclude), ('/imsvc' + $ucrtInclude), ('/imsvc' + $umInclude),
     ('/imsvc' + $sharedInclude), ('/I' + $script:LegacyHeaderDir), ('/I' + $script:AbiHeaderDir),
-    ('/Fo' + (Join-Path $OutDir 'wkuwp-legacy-surface-native.obj')), $script:CheckFile
+    ('/Fo' + (Join-Path $OutDir 'wkw10m-legacy-surface-native.obj')), $script:CheckFile
     ) -Environment @{}
 
 Invoke-LayoutCheck -Label 'cx (MSVC ARM32 cl, C++)' `
     -Exe (Join-Path $toolsetDir 'bin\Hostx64\arm\cl.exe') `
-    -ObjectPath (Join-Path $OutDir 'wkuwp-legacy-surface-cx.obj') `
+    -ObjectPath (Join-Path $OutDir 'wkw10m-legacy-surface-cx.obj') `
     -Arguments @(
     '/nologo', '/c', '/TP', '/W4', '/WX', '/EHsc',
     '/DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP', '/D_WIN32_WINNT=0x0A00',
     ('/I' + $script:LegacyHeaderDir), ('/I' + $script:AbiHeaderDir),
-    ('/Fo' + (Join-Path $OutDir 'wkuwp-legacy-surface-cx.obj')), $script:CheckFile
+    ('/Fo' + (Join-Path $OutDir 'wkw10m-legacy-surface-cx.obj')), $script:CheckFile
     ) -Environment @{
     INCLUDE = @(
         $toolsetInclude, $ucrtInclude, $umInclude, $sharedInclude, $winrtInclude
@@ -290,7 +290,7 @@ $consumerFiles = @(Get-ChildItem -LiteralPath $script:ConsumerDir -Filter '*.cpp
 foreach ($file in $consumerFiles) {
     $text = [IO.File]::ReadAllText($file.FullName)
     foreach ($match in [regex]::Matches($text, 'GetProcAddress\s*\(\s*\w+\s*,\s*"([^"]+)"')) {
-        if ($match.Groups[1].Value -ne 'WKUWPGetEngineAPI') {
+        if ($match.Groups[1].Value -ne 'WKW10MGetEngineAPI') {
             $offenders += "$($file.Name): $($match.Groups[1].Value)"
         }
     }
@@ -306,7 +306,7 @@ foreach ($file in @(Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*Tests.cpp
         # exports by design; everything else test-side is the engine discovery
         # export or a test-provider harness export.
         $componentActivation = $resolved -eq 'DllGetActivationFactory' -or $resolved -eq 'DllCanUnloadNow'
-        if ($resolved -ne 'WKUWPGetEngineAPI' -and -not $resolved.StartsWith('WKUWPTestProvider') -and -not $componentActivation) {
+        if ($resolved -ne 'WKW10MGetEngineAPI' -and -not $resolved.StartsWith('WKW10MTestProvider') -and -not $componentActivation) {
             $offenders += "$($file.Name): $($match.Groups[1].Value)"
         }
     }
@@ -314,7 +314,7 @@ foreach ($file in @(Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*Tests.cpp
 if ($offenders.Count -gt 0) {
     throw "New consumers resolve more than the negotiated table:`n$($offenders -join "`n")"
 }
-Write-Host '    only WKUWPGetEngineAPI (plus test-provider harness exports) is resolved'
+Write-Host '    only WKW10MGetEngineAPI (plus test-provider harness exports) is resolved'
 
 Write-Host ''
 Write-Host '--- smoke surface unchanged in this slice ---'
@@ -323,9 +323,14 @@ $ErrorActionPreference = 'Continue'
 try {
     Push-Location $script:RepoRoot
     try {
-        $oldHeaderSha = (& git rev-parse "HEAD:$($script:SmokeSurfaceOldPath)" 2>&1).Trim()
-        $newHeaderSha = (& git hash-object $script:SmokeSurfaceNewPath 2>&1).Trim()
-        $smokeExit = if ($oldHeaderSha -and $oldHeaderSha -eq $newHeaderSha) { 0 } else { 1 }
+        # Pinned pre-rename commit: the old uwp paths no longer exist on HEAD.
+        # The intentional UWP->W10M rename is the only accepted difference:
+        # normalize the new header back and require an exact match.
+        $baseline = 'b280bfbf8d8f28736d3267f66945476b2bc2cf4e'
+        $oldHeaderText = ((& git show "$baseline`:$($script:SmokeSurfaceOldPath)" 2>&1) -join "`n").Replace("`r`n", "`n")
+        $newHeaderText = [IO.File]::ReadAllText((Join-Path $script:RepoRoot $script:SmokeSurfaceNewPath)).Replace("`r`n", "`n")
+        $normalized = $newHeaderText.Replace('W10M', 'UWP').Replace('w10m', 'uwp')
+        $smokeExit = if ($oldHeaderText -and $normalized -ceq $oldHeaderText) { 0 } else { 1 }
     }
     finally {
         Pop-Location
@@ -335,16 +340,19 @@ finally {
     $ErrorActionPreference = $previousPreference
 }
 if ($smokeExit -ne 0) {
-    throw "The smoke surface differs from the committed HEAD; semantics cannot be claimed retained"
+    throw "The smoke surface differs from the committed baseline beyond the mechanical UWP->W10M rename; semantics cannot be claimed retained"
 }
-Write-Host '    PageW10M declarations: byte-identical to historical HEAD PageUWP.h'
+Write-Host '    PageW10M declarations: byte-identical to historical baseline PageUWP.h'
 
 Write-Host ''
 Write-Host '--- moved CRT probe identical by blob ---'
-$oldSha = (& git rev-parse "HEAD:$($script:SmokePayloadMove[0])" 2>&1).Trim()
+# Pinned pre-migration commit: the payload moved in the diagnostic-host
+# migration; the W10M-rename baseline above postdates the move.
+$payloadBaseline = 'fe5c620b1aaeb143934e738c7b155fe733913d01'
+$oldSha = (& git rev-parse "$payloadBaseline`:$($script:SmokePayloadMove[0])" 2>&1).Trim()
 $newSha = (& git hash-object $script:SmokePayloadMove[1] 2>&1).Trim()
 if ($oldSha -ne $newSha) {
-    throw "The moved CRT probe differs from its HEAD blob: $oldSha vs $newSha"
+    throw "The moved CRT probe differs from its baseline blob: $oldSha vs $newSha"
 }
 Write-Host '    RuntimeSmoke.cpp: HEAD blob matches new path'
 

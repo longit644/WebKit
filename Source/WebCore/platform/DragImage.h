@@ -35,7 +35,7 @@
 
 #include <wtf/Platform.h>
 #if PLATFORM(W10M)
-#include "DragImageUWP.h"
+#include "DragImageW10M.h"
 #endif
 #if PLATFORM(IOS_FAMILY)
 #include <wtf/RetainPtr.h>
@@ -66,7 +66,7 @@ typedef RetainPtr<CGImageRef> DragImageRef;
 #elif PLATFORM(MAC)
 typedef RetainPtr<NSImage> DragImageRef;
 #elif PLATFORM(W10M)
-typedef RefPtr<DragImageUWP> DragImageRef;
+typedef RefPtr<DragImageW10M> DragImageRef;
 #elif USE(CAIRO) && PLATFORM(WIN)
 typedef HBITMAP DragImageRef;
 #elif USE(CAIRO)

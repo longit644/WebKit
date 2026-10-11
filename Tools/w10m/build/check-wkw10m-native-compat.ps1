@@ -11,7 +11,7 @@ if (-not (Test-Path -LiteralPath (Split-Path -Parent $OutDir))) {
     throw "Output parent directory does not exist: $OutDir"
 }
 New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
-$source = Join-Path $PSScriptRoot 'wkuwp-native-compat-check.cpp'
+$source = Join-Path $PSScriptRoot 'wkw10m-native-compat-check.cpp'
 $include = Join-Path $repo 'Tools\w10m\toolchain'
 $common = @('/nologo', '/c', '/W4', '/WX', '/EHs-c-', '/GR-', '/MD',
     '/DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP', '/D_WIN32_WINNT=0x0A00', ('/I' + $include))

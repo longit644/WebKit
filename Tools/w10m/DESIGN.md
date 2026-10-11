@@ -110,14 +110,14 @@ Source/WebCore/platform/w10m/
   EngineW10M.h / .cpp
   PageHostW10M.h / .cpp
   FrameLoaderClientW10M.h / .cpp
-  ChromeClientUWP.h / .cpp
-  BackForwardClientUWP.h / .cpp
-  NavigationControllerUWP.h / .cpp
-  StorageSessionProviderUWP.h / .cpp
-  LoaderStrategyUWP.h / .cpp
-  ResourceLoadUWP.h / .cpp
-  CertificateExceptionStoreUWP.h / .cpp
-  ClipboardUWP.h / .cpp
+  ChromeClientW10M.h / .cpp
+  BackForwardClientW10M.h / .cpp
+  NavigationControllerW10M.h / .cpp
+  StorageSessionProviderW10M.h / .cpp
+  LoaderStrategyW10M.h / .cpp
+  ResourceLoadW10M.h / .cpp
+  CertificateExceptionStoreW10M.h / .cpp
+  ClipboardW10M.h / .cpp
   existing Skia/compositor/drag-image adapters
   PageW10M.cpp (temporary legacy export forwarders)
 
@@ -146,12 +146,12 @@ app projects alongside their app source. Explicit intermediate/output paths
 keep generated metadata, XAML glue and binaries in build directories.
 
 Keep shared WebCore network/curl and upstream platform files in their upstream
-homes. Inventory UWP-conditioned changes in WTF/PAL/WebCore outside the listed
+homes. Inventory W10M-conditioned changes in WTF/PAL/WebCore outside the listed
 directories; update relevant adapters without moving whole upstream modules.
 Keep CA/font package assets with their documented producer/staging ownership.
 
 `FirstPageW10M.cpp` is split by dependency: reusable startup belongs to
-`EngineUWP`; smoke page content and assertions belong to RuntimeSmoke. A native
+`EngineW10M`; smoke page content and assertions belong to RuntimeSmoke. A native
 smoke payload remains native even when its application host uses C++/CX.
 
 ## 4. Naming and code conventions
@@ -160,12 +160,12 @@ smoke payload remains native even when its application host uses C++/CX.
 |---|---|
 | Public namespace/control | `WebKit`, `WebKitWebView` |
 | Public properties/methods/events/enums | PascalCase |
-| Native host helpers | PascalCase with `UWP` suffix, e.g. `PageControllerUWP` |
-| WebCore platform adapters | PascalCase with existing `UWP` suffix |
+| Native host helpers | PascalCase with `W10M` suffix, e.g. `PageControllerW10M` |
+| WebCore platform adapters | PascalCase with existing `W10M` suffix |
 | Native methods/locals | lowerCamelCase |
 | Native private fields | `m_` + lowerCamelCase |
 | Constants | lowerCamelCase with units where relevant |
-| C ABI | `WKUWP` prefix, explicit fixed-width types; retain `API` uppercase |
+| C ABI | `WKW10M` prefix, explicit fixed-width types; retain `API` uppercase |
 | Files | Primary type name; `.h` and `.cpp` pair |
 | Scripts | lowercase kebab-case, language-specific documented entry points |
 | Generated files | Generator-controlled names, no hand edits |
@@ -184,7 +184,7 @@ WebKit formatting. Update the source audit/format rules for CX syntax before
 running them; never format generated output.
 
 The initial rename map and full-scope accounting are in M10
-`migration-map.md`. Its rows must cover every authored UWP class, enum,
+`migration-map.md`. Its rows must cover every authored W10M class, enum,
 constant family, export, script, build target, and source file before moving
 that area. An upstream override retains its mandated method name.
 
@@ -270,7 +270,7 @@ Retain dispatch guards; destruction waits until unwind. Generation invalidation
 drops stale engine work, never an already-owed public terminal event. Final-release/
 shutdown cleanup suppresses public handlers because no live consumer is promised.
 
-Use weak references for XAML/async callbacks. RuntimeOwnerUWP retains native cleanup
+Use weak references for XAML/async callbacks. RuntimeOwnerW10M retains native cleanup
 tickets independently of controls before dispatcher enqueue. Failed enqueue enters
 owner-thread quiescence: reject work, detach pages, cancel/ack platform/worker work,
 revoke process hooks, drain tickets, then release services. Never wait synchronously
@@ -343,7 +343,7 @@ invalidates it; complete transition table and trace tests are in public-api.md.
 
 ## 9. Build, metadata, and dependencies
 
-Use CMake/Ninja for existing native engine targets and MSBuild UWP projects for
+Use CMake/Ninja for existing native engine targets and MSBuild W10M (AppContainer) projects for
 CX components/apps and compiled XAML. A platform orchestration script builds
 both without relying on one CMake compiler setting to handle incompatible
 language modes. New code must record compiler, SDK, target machine, runtime,

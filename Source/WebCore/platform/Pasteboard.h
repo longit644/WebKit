@@ -400,8 +400,8 @@ private:
     COMPtr<WCDataObject> m_writableDataObject;
     DragDataMap m_dragDataMap;
 #if PLATFORM(W10M)
-    String m_uwpText;
-    bool m_uwpHasText { false };
+    String m_w10mText;
+    bool m_w10mHasText { false };
 #endif
 #endif
 };

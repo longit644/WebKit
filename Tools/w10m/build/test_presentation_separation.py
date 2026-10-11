@@ -47,7 +47,7 @@ class PresentationSeparationTests(unittest.TestCase):
     def test_engine_include_fails(self):
         """Owned presentation code cannot include loader or DOM implementation headers."""
         with self.assertRaisesRegex(AssertionError, "coupling"):
-            self.fixture(body='#include "LoaderStrategyUWP.h"\n')
+            self.fixture(body='#include "LoaderStrategyW10M.h"\n')
 
     def test_downloader_reference_fails(self):
         """A transport downloader reference cannot enter the owned boundary."""

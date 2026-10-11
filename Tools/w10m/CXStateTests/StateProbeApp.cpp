@@ -47,13 +47,13 @@ protected:
             m_ran = true;
             auto module = LoadPackagedLibrary(L"WebKit.dll", 0);
             using Run = HRESULT(__stdcall*)(IInspectable*, IInspectable*, IInspectable*, const wchar_t*);
-            auto run = module ? reinterpret_cast<Run>(GetProcAddress(module, "WKUWPTestSourceState")) : nullptr;
+            auto run = module ? reinterpret_cast<Run>(GetProcAddress(module, "WKW10MTestSourceState")) : nullptr;
             auto path = Windows::Storage::ApplicationData::Current->LocalFolder->Path + L"\\source-state-result.txt";
             auto result = run ? run(reinterpret_cast<IInspectable*>(m_view), reinterpret_cast<IInspectable*>(m_title), reinterpret_cast<IInspectable*>(m_back), path->Data()) : E_NOINTERFACE;
 #if defined(TEST_INITIALIZATION_ACTIONS)
             // Async acceptance runs on the same actual XAML owner after the state regression.
             using RunInitialization = HRESULT(__stdcall*)(const wchar_t*);
-            auto initialize = module ? reinterpret_cast<RunInitialization>(GetProcAddress(module, "WKUWPTestInitialization")) : nullptr;
+            auto initialize = module ? reinterpret_cast<RunInitialization>(GetProcAddress(module, "WKW10MTestInitialization")) : nullptr;
             auto initializationPath = Windows::Storage::ApplicationData::Current->LocalFolder->Path + L"\\initialization-result.txt";
             auto initialized = initialize ? initialize(initializationPath->Data()) : E_NOINTERFACE;
             m_status->Text = SUCCEEDED(result) && SUCCEEDED(initialized) ? L"INITIALIZATION / STATE PASS " TEST_PACKAGE_VERSION_W : L"INITIALIZATION / STATE FAIL " TEST_PACKAGE_VERSION_W;
@@ -63,7 +63,7 @@ protected:
 #if defined(TEST_EVENT_CALLBACKS)
             // Frozen-table acceptance uses the same owner and ordinary public event objects.
             using RunEvents = HRESULT(__stdcall*)(const wchar_t*);
-            auto events = module ? reinterpret_cast<RunEvents>(GetProcAddress(module, "WKUWPTestEventCallbacks")) : nullptr;
+            auto events = module ? reinterpret_cast<RunEvents>(GetProcAddress(module, "WKW10MTestEventCallbacks")) : nullptr;
             auto eventPath = Windows::Storage::ApplicationData::Current->LocalFolder->Path + L"\\event-callback-result.txt";
             auto eventResult = events ? events(eventPath->Data()) : E_NOINTERFACE;
             auto allPassed = SUCCEEDED(result) && SUCCEEDED(eventResult);
@@ -75,7 +75,7 @@ protected:
 #if defined(TEST_PUBLIC_COMMANDS)
             // Public command acceptance calls only the bound frozen page table.
             using RunCommands = HRESULT(__stdcall*)(const wchar_t*);
-            auto commands = module ? reinterpret_cast<RunCommands>(GetProcAddress(module, "WKUWPTestCommands")) : nullptr;
+            auto commands = module ? reinterpret_cast<RunCommands>(GetProcAddress(module, "WKW10MTestCommands")) : nullptr;
             auto commandPath = Windows::Storage::ApplicationData::Current->LocalFolder->Path + L"\\command-result.txt";
             auto commandResult = commands ? commands(commandPath->Data()) : E_NOINTERFACE;
             auto commandsPassed = SUCCEEDED(result) && SUCCEEDED(commandResult);
@@ -90,7 +90,7 @@ protected:
 #if defined(TEST_CONTROL_LIFECYCLE)
             // Ordinary lifetime/thread acceptance uses the same real XAML owner.
             using RunLifecycle = HRESULT(__stdcall*)(const wchar_t*);
-            auto lifecycle = module ? reinterpret_cast<RunLifecycle>(GetProcAddress(module, "WKUWPTestLifecycle")) : nullptr;
+            auto lifecycle = module ? reinterpret_cast<RunLifecycle>(GetProcAddress(module, "WKW10MTestLifecycle")) : nullptr;
             auto lifecyclePath = Windows::Storage::ApplicationData::Current->LocalFolder->Path + L"\\lifecycle-result.txt";
             auto lifecycleResult = lifecycle ? lifecycle(lifecyclePath->Data()) : E_NOINTERFACE;
             auto lifecyclePassed = SUCCEEDED(result) && SUCCEEDED(lifecycleResult);
@@ -108,7 +108,7 @@ protected:
 #if defined(TEST_NOTIFICATION_TRANSACTIONS)
             // Exact FIFO/notification trace acceptance runs against the frozen native table.
             using RunTransactions = HRESULT(__stdcall*)(const wchar_t*);
-            auto transactions = module ? reinterpret_cast<RunTransactions>(GetProcAddress(module, "WKUWPTestTransactions")) : nullptr;
+            auto transactions = module ? reinterpret_cast<RunTransactions>(GetProcAddress(module, "WKW10MTestTransactions")) : nullptr;
             auto transactionPath = Windows::Storage::ApplicationData::Current->LocalFolder->Path + L"\\transaction-result.txt";
             auto transactionResult = transactions ? transactions(transactionPath->Data()) : E_NOINTERFACE;
             auto transactionsPassed = SUCCEEDED(result) && SUCCEEDED(transactionResult);
@@ -129,7 +129,7 @@ protected:
 #if defined(TEST_CLIPBOARD_ROUTE)
             // Real clipboard routing acceptance runs on the same XAML owner thread.
             using RunClipboard = HRESULT(__stdcall*)(const wchar_t*);
-            auto clipboard = module ? reinterpret_cast<RunClipboard>(GetProcAddress(module, "WKUWPTestClipboard")) : nullptr;
+            auto clipboard = module ? reinterpret_cast<RunClipboard>(GetProcAddress(module, "WKW10MTestClipboard")) : nullptr;
             auto clipboardPath = Windows::Storage::ApplicationData::Current->LocalFolder->Path + L"\\clipboard-result.txt";
             auto clipboardResult = clipboard ? clipboard(clipboardPath->Data()) : E_NOINTERFACE;
             auto clipboardPassed = SUCCEEDED(result) && SUCCEEDED(clipboardResult);
@@ -153,7 +153,7 @@ protected:
 #if defined(TEST_RUNTIME_OWNER)
             // Real runtime-owner acceptance runs on the same XAML owner thread.
             using RunOwner = HRESULT(__stdcall*)(const wchar_t*);
-            auto owner = module ? reinterpret_cast<RunOwner>(GetProcAddress(module, "WKUWPTestOwner")) : nullptr;
+            auto owner = module ? reinterpret_cast<RunOwner>(GetProcAddress(module, "WKW10MTestOwner")) : nullptr;
             auto ownerPath = Windows::Storage::ApplicationData::Current->LocalFolder->Path + L"\\owner-result.txt";
             auto ownerResult = owner ? owner(ownerPath->Data()) : E_NOINTERFACE;
             auto ownerPassed = SUCCEEDED(result) && SUCCEEDED(ownerResult);
@@ -180,7 +180,7 @@ protected:
 #if defined(TEST_FRAME_SCHEDULER)
             // Asynchronous idle-resource acceptance must finish before the aggregate UI passes.
             using RunScheduler = Windows::Foundation::IAsyncAction^(__stdcall*)(const wchar_t*, const wchar_t*);
-            auto scheduler = module ? reinterpret_cast<RunScheduler>(GetProcAddress(module, "WKUWPTestScheduler")) : nullptr;
+            auto scheduler = module ? reinterpret_cast<RunScheduler>(GetProcAddress(module, "WKW10MTestScheduler")) : nullptr;
             auto schedulerPath = Windows::Storage::ApplicationData::Current->LocalFolder->Path + L"\\scheduler-result.txt";
             auto priorPassed = SUCCEEDED(result);
 #if defined(TEST_INITIALIZATION_ACTIONS)

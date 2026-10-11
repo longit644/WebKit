@@ -109,13 +109,13 @@ public:
 // Per-page provider instance for context-free frozen GPU table signatures.
 struct GPUProvider;
 // Explicit page routing used only by this test provider.
-std::map<WKUWPPageHandle, GPUProvider*> gpuPages;
+std::map<WKW10MPageHandle, GPUProvider*> gpuPages;
 
 // Controlled provider retains its rendering interface independently of host ownership.
 struct GPUProvider {
     // Provider page identity and exact table presented to the consumer.
-    WKUWPPageHandle page;
-    WKUWPEngineAPI api { };
+    WKW10MPageHandle page;
+    WKW10MEngineAPI api { };
     // Engine-owned native panel interface; no host CPU resources are allocated here.
     ComPtr<ISwapChainPanelNative> retained;
     // Panel double whose ownership counters observe both participants.
@@ -123,17 +123,17 @@ struct GPUProvider {
     // Calls admitted to each native slot.
     unsigned attaches { 0 }, detaches { 0 }, renders { 0 };
     // Controlled attach/render/detach originating native result.
-    WKUWPResult attachResult { WKUWPResultOK }, detachResult { WKUWPResultOK }, renderResult { WKUWPResultOK };
+    WKW10MResult attachResult { WKW10MResultOK }, detachResult { WKW10MResultOK }, renderResult { WKW10MResultOK };
     // Exact CSS overscroll forwarded through the frozen renderer slot.
     double overscroll { 0 };
 
     // Register only this explicit page and construct a capable exact V1 table.
-    explicit GPUProvider(WKUWPPageHandle id) : page(id)
+    explicit GPUProvider(WKW10MPageHandle id) : page(id)
     {
         gpuPages[page] = this;
-        api.header = { sizeof(api), WKUWP_STRUCTURE_VERSION };
-        api.abiMajor = WKUWP_ABI_MAJOR_VERSION;
-        api.capabilities = WKUWPCapabilityGPUCompositor;
+        api.header = { sizeof(api), WKW10M_STRUCTURE_VERSION };
+        api.abiMajor = WKW10M_ABI_MAJOR_VERSION;
+        api.capabilities = WKW10MCapabilityGPUCompositor;
         api.attachCompositor = &attach;
         api.detachCompositor = &detach;
         api.renderCompositor = &render;
@@ -142,47 +142,47 @@ struct GPUProvider {
     // Release any controlled pending engine ownership before destroying the registry entry.
     ~GPUProvider() { release(); gpuPages.erase(page); }
     // Find exactly the handle supplied by the native caller.
-    static GPUProvider* find(WKUWPPageHandle page)
+    static GPUProvider* find(WKW10MPageHandle page)
     {
         auto item = gpuPages.find(page);
         return item == gpuPages.end() ? nullptr : item->second;
     }
 
     // QI/retain the engine rendering interface only after valid frozen attachment.
-    static WKUWPResult __stdcall attach(WKUWPPageHandle page, const WKUWPCompositorOptions* options)
+    static WKW10MResult __stdcall attach(WKW10MPageHandle page, const WKW10MCompositorOptions* options)
     {
         auto self = find(page);
-        if (!self) return WKUWPResultClosed;
+        if (!self) return WKW10MResultClosed;
         ++self->attaches;
-        if (self->attachResult != WKUWPResultOK) return self->attachResult;
+        if (self->attachResult != WKW10MResultOK) return self->attachResult;
         auto inspectable = static_cast<IInspectable*>(options->panelInspectable);
         ComPtr<ISwapChainPanelNative> native;
         auto result = inspectable->QueryInterface(IID_PPV_ARGS(&native));
-        if (FAILED(result)) return static_cast<WKUWPResult>(result);
+        if (FAILED(result)) return static_cast<WKW10MResult>(result);
         auto panel = static_cast<Panel*>(native.Get());
-        if (panel->chain || panel->engineAttached) return WKUWPResultInvalidState;
+        if (panel->chain || panel->engineAttached) return WKW10MResultInvalidState;
         self->panel = panel;
         self->retained = std::move(native);
         panel->engineAttached = true;
-        return WKUWPResultOK;
+        return WKW10MResultOK;
     }
 
     // Failed/Pending detach keeps engine references; immediate success releases them.
-    static WKUWPResult __stdcall detach(WKUWPPageHandle page)
+    static WKW10MResult __stdcall detach(WKW10MPageHandle page)
     {
         auto self = find(page);
-        if (!self) return WKUWPResultClosed;
+        if (!self) return WKW10MResultClosed;
         ++self->detaches;
-        if (self->detachResult != WKUWPResultOK) return self->detachResult;
+        if (self->detachResult != WKW10MResultOK) return self->detachResult;
         self->release();
-        return WKUWPResultOK;
+        return WKW10MResultOK;
     }
 
     // Observe exact page/overscroll routing without pretending to execute ANGLE/Skia.
-    static WKUWPResult __stdcall render(WKUWPPageHandle page, double overscroll)
+    static WKW10MResult __stdcall render(WKW10MPageHandle page, double overscroll)
     {
         auto self = find(page);
-        if (!self) return WKUWPResultClosed;
+        if (!self) return WKW10MResultClosed;
         ++self->renders; self->overscroll = overscroll;
         return self->renderResult;
     }
@@ -198,13 +198,13 @@ struct GPUProvider {
 // Verify real native CPU resources, QI lifetime, failures and exclusive GPU transitions.
 void runOwnership()
 {
-    static_assert(std::is_same_v<WebKitWebViewPresenterUWP, SwapChainPresenterUWP>);
-    static_assert(std::is_same_v<WebKitWebViewPresenterUWP::FrameTiming, FrameTimingUWP>);
+    static_assert(std::is_same_v<WebKitWebViewPresenterW10M, SwapChainPresenterW10M>);
+    static_assert(std::is_same_v<WebKitWebViewPresenterW10M::FrameTiming, FrameTimingW10M>);
     ComPtr<Panel> panel(new Panel);
     auto unknown = static_cast<IInspectable*>(panel.Get());
-    SwapChainPresenterUWP presenter { D3D_DRIVER_TYPE_WARP };
+    SwapChainPresenterW10M presenter { D3D_DRIVER_TYPE_WARP };
     GPUProvider gpu(101), peer(102);
-    check(presenter.detach() == S_OK && presenter.mode() == PresentationModeUWP::Detached, "initial/repeated detach is idempotent");
+    check(presenter.detach() == S_OK && presenter.mode() == PresentationModeW10M::Detached, "initial/repeated detach is idempotent");
     check(presenter.initializeForSwapChainPanel(unknown, 0, 16) == E_INVALIDARG
         && presenter.initializeForSwapChainPanel(unknown, 4097, 16) == E_INVALIDARG && panel->references == 1,
         "zero/oversized physical extent rejects before panel QI or allocation");
@@ -213,7 +213,7 @@ void runOwnership()
         "CPU native-panel QI failure leaves attachment/refcount untouched");
     panel->nativeSupported = true;
     auto initialized = presenter.initializeForSwapChainPanel(unknown, cpuExtent, cpuExtent);
-    check(initialized == S_OK && presenter.mode() == PresentationModeUWP::CPU && panel->chain && panel->references == 2,
+    check(initialized == S_OK && presenter.mode() == PresentationModeW10M::CPU && panel->chain && panel->references == 2,
         "CPU attachment owns real WARP swap chain and one QI-retained panel reference");
     if (FAILED(initialized)) return;
     DXGI_SWAP_CHAIN_DESC1 description { };
@@ -229,7 +229,7 @@ void runOwnership()
         "second CPU initialization cannot replace a live attachment");
     check(presenter.presentCachedFrame() == S_FALSE, "new CPU surface has no fabricated cached pixels");
     alignas(16) unsigned char pixels[cpuStride * cpuExtent] { };
-    WKUWPPaintBuffer buffer { { sizeof(buffer), WKUWP_STRUCTURE_VERSION }, pixels, sizeof(pixels), cpuStride, cpuExtent, cpuExtent };
+    WKW10MPaintBuffer buffer { { sizeof(buffer), WKW10M_STRUCTURE_VERSION }, pixels, sizeof(pixels), cpuStride, cpuExtent, cpuExtent };
     auto shortBuffer = buffer; shortBuffer.capacityBytes = 1;
     auto wrongStride = buffer; wrongStride.strideBytes = cpuStride - 1;
     auto wrongExtent = buffer; wrongExtent.widthPixels = cpuExtent - 1;
@@ -254,12 +254,12 @@ void runOwnership()
     check(presenter.resize(32, 16) == S_OK && presenter.presentCachedFrame() == S_FALSE,
         "CPU resize releases cached upload before rebuilding buffers");
     panel->rejectDetach = true;
-    check(presenter.detach() == E_ACCESSDENIED && presenter.mode() == PresentationModeUWP::CPU && panel->chain && panel->references == 2,
+    check(presenter.detach() == E_ACCESSDENIED && presenter.mode() == PresentationModeW10M::CPU && panel->chain && panel->references == 2,
         "failed CPU detach retains ownership and exact native HRESULT");
     check(presenter.initializeForCompositor(&gpu.api, gpu.page, unknown, 1, 1) == E_ILLEGAL_METHOD_CALL && !gpu.attaches,
         "failed CPU detach cannot expose an overlapping GPU attachment");
     panel->rejectDetach = false;
-    check(presenter.detach() == S_OK && !panel->chain && panel->references == 1 && presenter.mode() == PresentationModeUWP::Detached,
+    check(presenter.detach() == S_OK && !panel->chain && panel->references == 1 && presenter.mode() == PresentationModeW10M::Detached,
         "successful CPU detach clears panel before releasing host resources");
     auto incapable = gpu.api; incapable.capabilities = 0;
     check(presenter.initializeForCompositor(&incapable, gpu.page, unknown, 1, 1) == E_NOTIMPL && !gpu.attaches,
@@ -271,12 +271,12 @@ void runOwnership()
     check(presenter.initializeForCompositor(&gpu.api, gpu.page, unknown, 1, 1) == E_NOINTERFACE && !gpu.attaches && panel->references == 1,
         "GPU Inspectable QI failure preserves native ownership");
     panel->inspectableSupported = true;
-    gpu.attachResult = static_cast<WKUWPResult>(E_ACCESSDENIED);
+    gpu.attachResult = static_cast<WKW10MResult>(E_ACCESSDENIED);
     check(presenter.initializeForCompositor(&gpu.api, gpu.page, unknown, 1, 1) == E_ACCESSDENIED && panel->references == 1
-        && presenter.mode() == PresentationModeUWP::Detached, "failed GPU attach releases temporary host reference and preserves HRESULT");
-    gpu.attachResult = WKUWPResultOK;
+        && presenter.mode() == PresentationModeW10M::Detached, "failed GPU attach releases temporary host reference and preserves HRESULT");
+    gpu.attachResult = WKW10MResultOK;
     check(presenter.initializeForCompositor(&gpu.api, gpu.page, unknown, 2, 2) == S_OK && panel->references == 3
-        && !panel->chain && panel->engineAttached && presenter.mode() == PresentationModeUWP::GPU,
+        && !panel->chain && panel->engineAttached && presenter.mode() == PresentationModeW10M::GPU,
         "GPU retains host visual plus independent engine QI reference without a CPU chain");
     check(presenter.initializeForSwapChainPanel(unknown, 16, 16) == E_ILLEGAL_METHOD_CALL && panel->attachments == 1
         && presenter.present(buffer) == E_ILLEGAL_METHOD_CALL,
@@ -285,13 +285,13 @@ void runOwnership()
         "GPU render routes exact CSS overscroll only to its explicit page");
     check(presenter.renderCompositor(std::numeric_limits<double>::infinity()) == E_INVALIDARG && gpu.renders == 1,
         "nonfinite GPU overscroll rejects before provider call");
-    gpu.renderResult = static_cast<WKUWPResult>(E_ACCESSDENIED);
-    check(presenter.renderCompositor(0) == E_ACCESSDENIED && presenter.mode() == PresentationModeUWP::GPU,
+    gpu.renderResult = static_cast<WKW10MResult>(E_ACCESSDENIED);
+    check(presenter.renderCompositor(0) == E_ACCESSDENIED && presenter.mode() == PresentationModeW10M::GPU,
         "GPU render failure preserves HRESULT and requires explicit detach before fallback");
-    gpu.detachResult = static_cast<WKUWPResult>(E_ACCESSDENIED);
-    check(presenter.detach() == E_ACCESSDENIED && panel->references == 3 && presenter.mode() == PresentationModeUWP::GPU,
+    gpu.detachResult = static_cast<WKW10MResult>(E_ACCESSDENIED);
+    check(presenter.detach() == E_ACCESSDENIED && panel->references == 3 && presenter.mode() == PresentationModeW10M::GPU,
         "failed GPU detach retains both owners instead of permitting fallback");
-    gpu.detachResult = WKUWPResultPending;
+    gpu.detachResult = WKW10MResultPending;
     check(presenter.detach() == E_PENDING && presenter.renderCompositor(0) == E_PENDING && panel->references == 3,
         "Pending GPU detach keeps attachment alive and prevents further render");
     auto detachCalls = gpu.detaches;
@@ -315,25 +315,25 @@ void runOwnership()
     check(wrongThread == 9 && gpu.detaches == detachCalls && panel->references == 3,
         "nine worker mutations reject before argument/provider/COM ownership changes");
     gpu.release();
-    check(panel->references == 2 && presenter.mode() == PresentationModeUWP::GPU,
+    check(panel->references == 2 && presenter.mode() == PresentationModeW10M::GPU,
         "native completion releases engine QI ownership before host acknowledgement");
-    check(presenter.acknowledgeCompositorDetach(attachment) == S_OK && panel->references == 1 && presenter.mode() == PresentationModeUWP::Detached,
+    check(presenter.acknowledgeCompositorDetach(attachment) == S_OK && panel->references == 1 && presenter.mode() == PresentationModeW10M::Detached,
         "acknowledged GPU release ends exclusive host attachment exactly once");
     check(presenter.acknowledgeCompositorDetach(attachment) == E_ILLEGAL_METHOD_CALL, "repeated detach acknowledgement cannot repeat host release");
     check(presenter.initializeForSwapChainPanel(unknown, 16, 16) == S_OK && panel->attachments == 2 && !panel->engineAttached,
         "GPU-to-CPU fallback attaches only after native release acknowledgement");
     check(presenter.detach() == S_OK && panel->references == 1, "fallback CPU resources return panel references to baseline");
-    gpu.detachResult = WKUWPResultOK;
+    gpu.detachResult = WKW10MResultOK;
     check(presenter.initializeForCompositor(&gpu.api, gpu.page, unknown, 1, 1) == S_OK, "CPU-to-GPU transition begins only after CPU release");
     gpu.api.detachCompositor = nullptr;
     check(presenter.detach() == S_OK && panel->references == 1 && !panel->engineAttached,
         "copied negotiated table survives caller table mutation and returns references to baseline");
-    peer.detachResult = WKUWPResultPending;
+    peer.detachResult = WKW10MResultPending;
     check(presenter.initializeForCompositor(&peer.api, peer.page, unknown, 1, 1) == S_OK && presenter.detach() == E_PENDING,
         "another explicit page can enter its own pending detach after prior release");
     auto nextAttachment = presenter.compositorAttachmentId();
     check(nextAttachment != attachment && presenter.acknowledgeCompositorDetach(attachment) == E_INVALIDARG
-        && panel->references == 3 && presenter.mode() == PresentationModeUWP::GPU,
+        && panel->references == 3 && presenter.mode() == PresentationModeW10M::GPU,
         "late prior-attachment acknowledgement cannot release a newer pending visual");
     peer.release();
     check(presenter.acknowledgeCompositorDetach(nextAttachment) == S_OK && panel->references == 1,
@@ -343,8 +343,8 @@ void runOwnership()
 // Verify independently calculated metric distributions, reset and report units.
 void runMetrics()
 {
-    FrameMetricsUWP metrics;
-    FramePacingSummaryUWP summary;
+    FrameMetricsW10M metrics;
+    FramePacingSummaryW10M summary;
     bool early = false, complete = false;
     for (unsigned i = 0; i < 72; ++i) {
         double start = 1 + i * 0.02;
@@ -357,14 +357,14 @@ void runMetrics()
         && closeTo(summary.scrollMS, 2) && closeTo(summary.engineMS, 3) && closeTo(summary.renderMS, 5) && !summary.overBudget,
         "pacing separates millisecond work intervals and stage costs from display scan-out");
     char output[frameProfileMessageCapacity];
-    check(FrameMetricsUWP::formatPacing(summary, output, sizeof(output)) && std::strstr(output, "work-us=10000/10000/10000")
+    check(FrameMetricsW10M::formatPacing(summary, output, sizeof(output)) && std::strstr(output, "work-us=10000/10000/10000")
         && std::strstr(output, "callback-mHz=50000") && std::strstr(output, "scroll-us=2000 engine-us=3000 render-us=5000"),
         "diagnostic format converts milliseconds to microseconds and callback milli-Hertz");
     char shortOutput[4];
-    check(!FrameMetricsUWP::formatPacing(summary, shortOutput, sizeof(shortOutput)) && shortOutput[3] == '\0',
+    check(!FrameMetricsW10M::formatPacing(summary, shortOutput, sizeof(shortOutput)) && shortOutput[3] == '\0',
         "short diagnostic output fails with a bounded terminated buffer");
     metrics.resetPacing();
-    FramePacingSummaryUWP sentry; sentry.workCount = 999;
+    FramePacingSummaryW10M sentry; sentry.workCount = 999;
     check(!metrics.recordPacing(10, 9, 10, 11, true, sentry) && sentry.workCount == 999,
         "invalid timestamp order cannot publish or mutate a completed summary");
     for (unsigned i = 0; i < 8; ++i) metrics.recordPacing(10 + i, 10 + i, 10 + i, 10 + i, true, sentry);
@@ -376,8 +376,8 @@ void runMetrics()
     check(sentry.workCount == 64 && closeTo(sentry.work.averageMS, 32.5) && closeTo(sentry.work.p95MS, 61)
         && closeTo(sentry.work.maximumMS, 64) && sentry.overBudget == 48 && !sentry.intervalCount,
         "nearest-rank p95 and work budget are independently calculated while idle gaps are excluded");
-    FrameMetricsUWP paint;
-    FramePaintSummaryUWP painted;
+    FrameMetricsW10M paint;
+    FramePaintSummaryW10M painted;
     bool paintEarly = false;
     for (unsigned i = 0; i < 7; ++i) paintEarly = paintEarly || paint.recordPaint(i * 0.2, 2, { 1, 3, 4 }, painted);
     check(!paintEarly && paint.recordPaint(1.4, 2, { 1, 3, 4 }, painted) && painted.count == 8
@@ -392,7 +392,7 @@ void runRecovery()
 {
     ComPtr<Panel> panel(new Panel);
     auto unknown = static_cast<IInspectable*>(panel.Get());
-    SwapChainPresenterUWP presenter { D3D_DRIVER_TYPE_WARP };
+    SwapChainPresenterW10M presenter { D3D_DRIVER_TYPE_WARP };
     check(presenter.deviceRemovedReason() == E_ILLEGAL_METHOD_CALL, "detached presenter has no device removal reason");
     check(presenter.recoverDevice() == E_ILLEGAL_METHOD_CALL && presenter.deviceRecoveries() == 0,
         "detached presenter cannot rebuild a device");
@@ -406,16 +406,16 @@ void runRecovery()
     check(threadReason == RPC_E_WRONG_THREAD && threadRecover == RPC_E_WRONG_THREAD
         && presenter.deviceRecoveries() == recoveriesBefore, "worker device queries reject before touching DirectX");
     check(presenter.initializeForSwapChainPanel(unknown, cpuExtent, cpuExtent) == S_OK
-        && presenter.mode() == PresentationModeUWP::CPU, "recovery fixture attaches a real WARP chain");
+        && presenter.mode() == PresentationModeW10M::CPU, "recovery fixture attaches a real WARP chain");
     check(presenter.deviceRemovedReason() == S_OK, "healthy WARP device reports S_OK removal reason");
     alignas(16) unsigned char pixels[cpuStride * cpuExtent] { };
-    WKUWPPaintBuffer buffer { { sizeof(buffer), WKUWP_STRUCTURE_VERSION }, pixels, sizeof(pixels), cpuStride, cpuExtent, cpuExtent };
+    WKW10MPaintBuffer buffer { { sizeof(buffer), WKW10M_STRUCTURE_VERSION }, pixels, sizeof(pixels), cpuStride, cpuExtent, cpuExtent };
     check(SUCCEEDED(presenter.present(buffer)), "fixture frame presents before rebuild");
     check(presenter.setCompositionScale(2, 2) == S_OK, "fixture scale stages matrix retention");
     unsigned attachments = panel->attachments, detachments = panel->detachments;
     check(presenter.recoverDevice() == S_OK && presenter.deviceRecoveries() == 1,
         "healthy device rebuilds on demand and counts the recovery");
-    check(presenter.mode() == PresentationModeUWP::CPU && panel->chain
+    check(presenter.mode() == PresentationModeW10M::CPU && panel->chain
         && panel->attachments == attachments + 1 && panel->detachments == detachments + 1
         && panel->references == 2, "rebuild detaches the dead chain before attaching exactly one replacement");
     ComPtr<IDXGISwapChain1> chain;
@@ -433,15 +433,15 @@ void runRecovery()
         "second rebuild counts again with exactly one live attachment");
     check(presenter.resize(32, 16) == S_OK && presenter.presentCachedFrame() == S_FALSE,
         "resize after recovery rebuilds buffers at the new extent");
-    check(presenter.detach() == S_OK && presenter.mode() == PresentationModeUWP::Detached && !panel->chain,
+    check(presenter.detach() == S_OK && presenter.mode() == PresentationModeW10M::Detached && !panel->chain,
         "detach after recovery returns the panel to baseline");
     GPUProvider gpu(201);
     check(presenter.initializeForCompositor(&gpu.api, gpu.page, unknown, 2, 2) == S_OK
-        && presenter.mode() == PresentationModeUWP::GPU, "engine surface attaches for mode-gated recovery checks");
+        && presenter.mode() == PresentationModeW10M::GPU, "engine surface attaches for mode-gated recovery checks");
     check(presenter.deviceRemovedReason() == E_ILLEGAL_METHOD_CALL, "engine-owned mode has no host device reason");
     check(presenter.recoverDevice() == E_ILLEGAL_METHOD_CALL && presenter.deviceRecoveries() == 2,
         "engine-owned mode cannot rebuild and counts nothing");
-    check(presenter.detach() == S_OK && presenter.mode() == PresentationModeUWP::Detached,
+    check(presenter.detach() == S_OK && presenter.mode() == PresentationModeW10M::Detached,
         "engine detach after recovery checks returns to baseline");
 }
 

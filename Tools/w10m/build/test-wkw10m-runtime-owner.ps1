@@ -50,12 +50,12 @@
     Explicit ARM32 MSVC toolset directory name; defaults to the newest installed.
 
 .EXAMPLE
-    .\test-wkuwp-runtime-owner.ps1
-    .\test-wkuwp-runtime-owner.ps1 -OutDir D:\m10\runtime-owner
+    .\test-wkw10m-runtime-owner.ps1
+    .\test-wkw10m-runtime-owner.ps1 -OutDir D:\m10\runtime-owner
 #>
 [CmdletBinding()]
 param(
-    [string]$OutDir = (Join-Path $env:TEMP 'opencode\wkuwp-runtime-owner'),
+    [string]$OutDir = (Join-Path $env:TEMP 'opencode\w10m-runtime-owner'),
     [string]$MsvcVersion
 )
 
@@ -68,26 +68,29 @@ $script:AbiHeaderDir = Join-Path $script:RepoRoot 'Source\WebKit\Shared\w10m'
 $script:PlatformDir = Join-Path $script:RepoRoot 'Source\WebKit\UIProcess\API\w10m\platform'
 $script:NativeDir = Join-Path $script:RepoRoot 'Source\WebKit\UIProcess\API\w10m\native'
 $script:OwnerSource = Join-Path $script:PlatformDir 'RuntimeOwnerW10M.cpp'
-$script:OwnerHeader = Join-Path $script:PlatformDir 'RuntimeOwnerUWP.h'
+$script:OwnerHeader = Join-Path $script:PlatformDir 'RuntimeOwnerW10M.h'
 $script:ServiceSource = Join-Path $script:PlatformDir 'ClipboardServiceW10M.cpp'
 $script:RouteSource = Join-Path $script:PlatformDir 'ClipboardRouteW10M.cpp'
 $script:ModuleSource = Join-Path $script:NativeDir 'EngineModuleW10M.cpp'
-$script:ProviderSource = Join-Path $PSScriptRoot 'WKUWPModuleTestProvider.cpp'
+$script:ProviderSource = Join-Path $PSScriptRoot 'WKW10MModuleTestProvider.cpp'
 $script:HarnessSource = Join-Path $PSScriptRoot 'RuntimeOwnerTests.cpp'
-$script:RouteGate = Join-Path $PSScriptRoot 'test-wkuwp-clipboard-route.ps1'
+$script:RouteGate = Join-Path $PSScriptRoot 'test-wkw10m-clipboard-route.ps1'
 $script:EngineDir = Join-Path $script:RepoRoot 'Source\WebCore\platform\w10m'
 $script:WindowsKitsRoot = 'C:\Program Files (x86)\Windows Kits\10'
 $script:VsRoot = 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools'
 
 function ConvertTo-QuotedArgument {
-    # PowerShell does not quote arguments for native commands, so a path under
-    # "Program Files (x86)" would otherwise arrive split at the space.
+    # Modern PowerShell preserves argument boundaries; only legacy native passing
+    # needs embedded path quotes, with a linker option's colon outside them.
     param([Parameter(Mandatory = $true)][string]$Argument)
 
+    if ($PSVersionTable.PSVersion -ge [version]'7.3' -and $PSNativeCommandArgumentPassing -ne 'Legacy') {
+        return $Argument
+    }
     if ($Argument -notmatch '[\s()]') {
         return $Argument
     }
-    if ($Argument -match '^(/[A-Za-z]+)(.+)$') {
+    if ($Argument -match '^(/[A-Za-z]+:?)(.+)$') {
         return $Matches[1] + '"' + $Matches[2] + '"'
     }
     return '"' + $Argument + '"'
@@ -327,7 +330,7 @@ Write-Host '    no engine header includes the owner header'
 
 # ---------------------------------------------------------------------------
 Write-Host '4/7 ARM32 module inspection'
-$armDll = Join-Path $OutDir 'WKUWPRuntimeOwner-arm.dll'
+$armDll = Join-Path $OutDir 'WKW10MRuntimeOwner-arm.dll'
 $armLinkRun = Invoke-Captured -Exe $lldLink -Arguments (@(
         '/nologo', '/dll', '/NOENTRY', ('/out:' + $armDll)) + ($nativeLinkFlags -split ' ') + $armObjects)
 $armLinkRun.Output | ForEach-Object { Write-Host "    $_" }
@@ -350,7 +353,7 @@ Write-Host '    COFF-ARM / IMAGE_FILE_MACHINE_ARMNT / APPCONTAINER'
 # ---------------------------------------------------------------------------
 Write-Host '5/7 runtime owner behaviour on this x64 host'
 $x64Exe = Join-Path $OutDir 'RuntimeOwnerTests.exe'
-$x64ProviderDll = Join-Path $OutDir 'WKUWPOwnerTestProvider-x64.dll'
+$x64ProviderDll = Join-Path $OutDir 'WKW10MOwnerTestProvider-x64.dll'
 $x64Objects = @()
 foreach ($source in ($armSources + @($script:ProviderSource))) {
     $x64Objects += Join-Path $OutDir ([IO.Path]::GetFileNameWithoutExtension($source) + '-x64.obj')

@@ -1,8 +1,8 @@
-# Proposal - M10 UWP C++/CX architecture and restructuring
+# Proposal - M10 W10M C++/CX architecture and restructuring
 
 ## Why
 
-The UWP port mixes reusable engine behavior, WRL application composition, prototype WinRT contracts, fixture assertions, and hard-coded build support. The owner has selected C++/CX for the UWP-facing layer and requested a complete naming, source-placement, lifecycle, and build redesign that another model can implement without improvising architectural boundaries.
+The W10M port mixes reusable engine behavior, WRL application composition, prototype WinRT contracts, fixture assertions, and hard-coded build support. The owner has selected C++/CX for the UWP-facing layer and requested a complete naming, source-placement, lifecycle, and build redesign that another model can implement without improvising architectural boundaries.
 
 ## What Changes
 

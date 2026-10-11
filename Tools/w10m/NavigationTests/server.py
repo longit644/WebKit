@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic HTTP fixtures for the native UWP browser loader."""
+"""Deterministic HTTP fixtures for the native W10M browser loader."""
 import argparse
 import gzip
 import json

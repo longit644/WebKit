@@ -1,6 +1,6 @@
-# Native UWP presentation and metrics
+# Native W10M presentation and metrics
 
-`SwapChainPresenterUWP` owns CPU-mode D3D11 device/context/upload texture and the
+`SwapChainPresenterW10M` owns CPU-mode D3D11 device/context/upload texture and the
 double-buffered premultiplied BGRA8 swap chain. Its panel argument is borrowed;
 successful native QI is retained until detach. Caller pixels are borrowed only
 for upload, with no stored pointer. The V1 buffer overload checks header,
@@ -21,7 +21,7 @@ module and the live page through this protocol.
 All mutating operations enforce the constructing owner thread before accessing
 arguments, the panel or provider. Ordinary explicit detach is idempotent. Callers
 must keep a Pending attachment alive through acknowledgement; dispatcher-loss/
-last-release cleanup belongs to RuntimeOwnerUWP task 7.5.
+last-release cleanup belongs to RuntimeOwnerW10M task 7.5.
 
 Lost-device recovery rebuilds CPU device-dependent resources on the retained
 panel, geometry and composition scale: the dead chain leaves the panel before
@@ -34,8 +34,8 @@ call recovery after `DXGI_ERROR_DEVICE_REMOVED`/`DEVICE_RESET` from present,
 cached-present or resize, then retry once; real removal events are not
 triggerable on WARP or the phone, so the rebuild path itself is what is proven.
 
-`FrameMetricsUWP` owns bounded, allocation-free pacing and CPU paint windows.
-Input timestamps are monotonic seconds. `FrameTimingUWP`, distribution and stage
+`FrameMetricsW10M` owns bounded, allocation-free pacing and CPU paint windows.
+Input timestamps are monotonic seconds. `FrameTimingW10M`, distribution and stage
 summary fields use **milliseconds**. Text reports retain **microseconds** and
 callback **milli-Hertz**. These measure CPU work/submission and callback cadence,
 not GPU execution timestamps or physical display scan-out. The retained 60-Hz
@@ -48,12 +48,12 @@ clears work samples and their stage totals together. CPU-stage summaries require
 at least eight paints across one second. Reporting is supplied by the consumer;
 neither metrics nor diagnostic strings synthesize public browser events.
 
-The compatibility header `../WebKitWebViewPresenterUWP.h` aliases the former
+The compatibility header `../WebKitWebViewPresenterW10M.h` aliases the former
 native name, including nested FrameTiming. Native smoke/prototype application
 builds now compile the extracted sources; the authored CX driver compiles them
 without `/ZW`. MSVC CX and native ARM clang remain separate domains.
 
-Run `Tools/uwp/build/test-rendering-contract.ps1 -ComponentDirectory <built-component>
+Run `Tools/w10m/build/test-rendering-contract.ps1 -ComponentDirectory <built-component>
 -OutDir <fresh-output>` for real WARP CPU resources, observed COM lifetime,
 controlled V1 GPU mode transitions, device-loss detection/rebuilds and
 independently calculated metrics. M10 `artifact/swap-chain-presenter.md`
@@ -64,14 +64,14 @@ landscape system-bar overlay stays shell chrome for task 8.1.
 
 ## Shared owner scheduling
 
-`FrameSchedulerUWP` owns one live view lease and its independent presentation
-eligibility. `OwnerThreadServicePumpUWP` shares a copied negotiated service table
+`FrameSchedulerW10M` owns one live view lease and its independent presentation
+eligibility. `OwnerThreadServicePumpW10M` shares a copied negotiated service table
 and deduplicates the SDK RenderingTime epoch across participants. Each view can
 present once, while the engine is serviced once for that epoch. Reentrant service
 cannot recursively cycle the run loop; a failed epoch result is preserved for
 every participant. Ordinary Close releases only that view's lease.
 
-`platform/FrameSchedulerDriverUWP` is the private C++/CX OS bridge. It owns one
+`platform/FrameSchedulerDriverW10M` is the private C++/CX OS bridge. It owns one
 weak-target CompositionTarget subscription and one **50-ms owner service timer**.
 Timer/wake service is independent of presentation visibility/dirty state and
 does not synthesize navigation completion. Worker wake requests coalesce to an
@@ -84,7 +84,7 @@ event subscription wiring remains 6.5/7.5; native presentation eligibility is
 already independent of explicit process suspension. Suspension reaches the real
 loader's queue/deadline clock and is applied once across clients.
 
-The real engine's `service` and `setSuspended` slots now forward to EngineUWP.
+The real engine's `service` and `setSuspended` slots now forward to EngineW10M.
 Per-page legacy ticks update rendering only. Capability mask zero and unsupported
 page-creation/initialization forwards still prevent false public readiness.
 `artifact/shared-frame-scheduling.md` records 34 native checks and the real

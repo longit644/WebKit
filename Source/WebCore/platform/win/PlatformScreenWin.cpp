@@ -42,7 +42,7 @@ namespace WebCore {
 // WebKitWebView: USER32 monitor APIs (MonitorFromWindow, EnumDisplaySettings)
 // are desktop-only. v0 reports a fixed 950 XL logical rect; the M4 XAML layer
 // wires the real size later.
-static const FloatRect defaultUwpScreenRect(0, 0, 480, 853);
+static const FloatRect defaultW10MScreenRect(0, 0, 480, 853);
 #endif
 
 // Returns info for the default monitor if widget is NULL
@@ -112,7 +112,7 @@ FloatRect screenRect(Widget* widget)
 {
 #if PLATFORM(W10M)
     UNUSED_PARAM(widget);
-    return defaultUwpScreenRect;
+    return defaultW10MScreenRect;
 #else
     MONITORINFOEX monitorInfo = monitorInfoForWidget(widget);
     return monitorInfo.rcMonitor;
@@ -123,7 +123,7 @@ FloatRect screenAvailableRect(Widget* widget)
 {
 #if PLATFORM(W10M)
     UNUSED_PARAM(widget);
-    return defaultUwpScreenRect;
+    return defaultW10MScreenRect;
 #else
     MONITORINFOEX monitorInfo = monitorInfoForWidget(widget);
     return monitorInfo.rcWork;

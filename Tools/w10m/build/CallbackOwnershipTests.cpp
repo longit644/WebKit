@@ -58,25 +58,25 @@ constexpr uint64_t kUntouchedHandle = 0xFEEDFACECAFEBEEFull;
 constexpr uint32_t kUntouchedCancel = 0xDEADBEEFu;
 
 // Handler failure travelled through the policy entry point for the mapping test.
-constexpr WKUWPResult kTestHandlerFailure = static_cast<WKUWPResult>(-2147467259);
+constexpr WKW10MResult kTestHandlerFailure = static_cast<WKW10MResult>(-2147467259);
 
 // Expected cancellation result for a canceled clipboard operation: the platform
 // HRESULT for ERROR_CANCELLED, computed the same way the service computes it.
-WKUWPResult expectedCanceledResult()
+WKW10MResult expectedCanceledResult()
 {
     HRESULT cancelled = HRESULT_FROM_WIN32(ERROR_CANCELLED);
-    return static_cast<WKUWPResult>(static_cast<int32_t>(cancelled));
+    return static_cast<WKW10MResult>(static_cast<int32_t>(cancelled));
 }
 
 // Setter and counter signatures resolved from the test provider by name.
 typedef void(__stdcall* ResetFunction)();
-typedef void(__stdcall* SetResult)(WKUWPResult);
+typedef void(__stdcall* SetResult)(WKW10MResult);
 typedef void(__stdcall* SetU32)(uint32_t);
-typedef WKUWPResult(__stdcall* FireReleaseFunction)(WKUWPPageHandle);
-typedef WKUWPResult(__stdcall* DispatchNotifyFunction)(WKUWPPageHandle, uint32_t, const char*, const char*);
-typedef WKUWPResult(__stdcall* DispatchStartingFunction)(WKUWPPageHandle, const char*, uint32_t*);
-typedef WKUWPResult(__stdcall* DispatchNullNotifyFunction)(WKUWPPageHandle);
-typedef WKUWPResult(__stdcall* DispatchNullStartingFunction)(WKUWPPageHandle, uint32_t*);
+typedef WKW10MResult(__stdcall* FireReleaseFunction)(WKW10MPageHandle);
+typedef WKW10MResult(__stdcall* DispatchNotifyFunction)(WKW10MPageHandle, uint32_t, const char*, const char*);
+typedef WKW10MResult(__stdcall* DispatchStartingFunction)(WKW10MPageHandle, const char*, uint32_t*);
+typedef WKW10MResult(__stdcall* DispatchNullNotifyFunction)(WKW10MPageHandle);
+typedef WKW10MResult(__stdcall* DispatchNullStartingFunction)(WKW10MPageHandle, uint32_t*);
 typedef uint32_t(__stdcall* CounterFunction)();
 
 // Live configuration handles for the test provider module.
@@ -119,25 +119,25 @@ bool loadOwnershipProvider(const wchar_t* path, OwnershipProvider* provider)
     provider->library = LoadLibraryW(path);
     if (!provider->library)
         return false;
-    return resolveSetter(provider->library, "WKUWPTestProviderReset",
+    return resolveSetter(provider->library, "WKW10MTestProviderReset",
                reinterpret_cast<void**>(&provider->reset))
-        && resolveSetter(provider->library, "WKUWPTestProviderSetCreateResult",
+        && resolveSetter(provider->library, "WKW10MTestProviderSetCreateResult",
             reinterpret_cast<void**>(&provider->setCreateResult))
-        && resolveSetter(provider->library, "WKUWPTestProviderSetDispatching",
+        && resolveSetter(provider->library, "WKW10MTestProviderSetDispatching",
             reinterpret_cast<void**>(&provider->setDispatching))
-        && resolveSetter(provider->library, "WKUWPTestProviderFireRelease",
+        && resolveSetter(provider->library, "WKW10MTestProviderFireRelease",
             reinterpret_cast<void**>(&provider->fireRelease))
-        && resolveSetter(provider->library, "WKUWPTestProviderDispatchNotify",
+        && resolveSetter(provider->library, "WKW10MTestProviderDispatchNotify",
             reinterpret_cast<void**>(&provider->dispatchNotify))
-        && resolveSetter(provider->library, "WKUWPTestProviderDispatchStarting",
+        && resolveSetter(provider->library, "WKW10MTestProviderDispatchStarting",
             reinterpret_cast<void**>(&provider->dispatchStarting))
-        && resolveSetter(provider->library, "WKUWPTestProviderDispatchNullNotify",
+        && resolveSetter(provider->library, "WKW10MTestProviderDispatchNullNotify",
             reinterpret_cast<void**>(&provider->dispatchNullNotify))
-        && resolveSetter(provider->library, "WKUWPTestProviderDispatchNullStarting",
+        && resolveSetter(provider->library, "WKW10MTestProviderDispatchNullStarting",
             reinterpret_cast<void**>(&provider->dispatchNullStarting))
-        && resolveSetter(provider->library, "WKUWPTestProviderSetStateMode",
+        && resolveSetter(provider->library, "WKW10MTestProviderSetStateMode",
             reinterpret_cast<void**>(&provider->setStateMode))
-        && resolveSetter(provider->library, "WKUWPTestProviderStateCalls",
+        && resolveSetter(provider->library, "WKW10MTestProviderStateCalls",
             reinterpret_cast<void**>(&provider->stateCalls));
 }
 
@@ -156,12 +156,12 @@ void __stdcall onTestObjectDestroyed(void* hookContext)
 // Reentrant detach state for the release-after-unwind test.
 struct DetachHookState {
     // Module the hook detaches through, on the page under test.
-    WebKit::EngineModuleUWP* module;
-    WKUWPPageHandle page;
+    WebKit::EngineModuleW10M* module;
+    WKW10MPageHandle page;
 };
 
 // Detach hook that detaches reentrantly from inside a notification dispatch.
-WKUWPResult __stdcall detachDuringNotify(void* hookContext, WKUWPPageHandle)
+WKW10MResult __stdcall detachDuringNotify(void* hookContext, WKW10MPageHandle)
 {
     DetachHookState* state = static_cast<DetachHookState*>(hookContext);
     return state->module->detachPageCallbacks(state->page);
@@ -176,7 +176,7 @@ struct CompletionTracker {
     uint64_t lastId;
 
     // Last result delivered.
-    WKUWPResult lastResult;
+    WKW10MResult lastResult;
 
     // Copy of the last borrowed text, taken during the completion call.
     uint8_t text[128];
@@ -187,7 +187,7 @@ struct CompletionTracker {
 
 // Completion entry point that copies borrowed text before returning.
 void __stdcall recordTestCompletion(
-    void* completionContext, uint64_t operationId, WKUWPResult result, const WKUWPString* text)
+    void* completionContext, uint64_t operationId, WKW10MResult result, const WKW10MString* text)
 {
     CompletionTracker* tracker = static_cast<CompletionTracker*>(completionContext);
     ++tracker->calls;
@@ -202,59 +202,59 @@ void __stdcall recordTestCompletion(
 }
 
 // Valid creation options accepted by the working test slot.
-void writeTestPageOptions(WKUWPPageOptions* options)
+void writeTestPageOptions(WKW10MPageOptions* options)
 {
     memset(options, 0, sizeof(*options));
     options->header.structureSize = sizeof(*options);
-    options->header.structureVersion = WKUWP_STRUCTURE_VERSION;
+    options->header.structureVersion = WKW10M_STRUCTURE_VERSION;
 }
 
 // Binds a module with a working createPage slot and opens one page for tests.
 bool openTestPage(OwnershipProvider* provider, const wchar_t* path,
-    WebKit::EngineModuleUWP* module, WKUWPPageHandle* page)
+    WebKit::EngineModuleW10M* module, WKW10MPageHandle* page)
 {
     provider->reset();
-    provider->setCreateResult(WKUWPResultOK);
-    if (module->bind(path, 0, 0) != WKUWPResultOK)
+    provider->setCreateResult(WKW10MResultOK);
+    if (module->bind(path, 0, 0) != WKW10MResultOK)
         return false;
-    WKUWPPageOptions options;
+    WKW10MPageOptions options;
     writeTestPageOptions(&options);
-    return module->createPage(&options, page) == WKUWPResultOK && *page != 0;
+    return module->createPage(&options, page) == WKW10MResultOK && *page != 0;
 }
 
 // Attaching installs the table and retains the context exactly once.
 void checkAttachFlow(OwnershipProvider* provider, const wchar_t* path)
 {
-    WebKit::EngineModuleUWP module;
-    WKUWPPageHandle page = kUntouchedHandle;
+    WebKit::EngineModuleW10M module;
+    WKW10MPageHandle page = kUntouchedHandle;
     if (!openTestPage(provider, path, &module, &page)) {
         reportCheck("attach/install", false, "cannot open a test page");
         return;
     }
 
-    WebKit::PageCallbackContextUWP* context = new (std::nothrow) WebKit::PageCallbackContextUWP();
+    WebKit::PageCallbackContextW10M* context = new (std::nothrow) WebKit::PageCallbackContextW10M();
     if (!context) {
         reportCheck("attach/install", false, "cannot allocate the test context");
         module.closePage(page);
         return;
     }
-    WKUWPPageCallbacks table;
+    WKW10MPageCallbacks table;
     char message[256];
-    if (context->buildTable(&table) != WKUWPResultOK) {
+    if (context->buildTable(&table) != WKW10MResultOK) {
         reportCheck("attach/install", false, "cannot build the callback table");
         context->release();
         module.closePage(page);
         return;
     }
 
-    WKUWPResult result = module.setPageCallbacks(page, &table);
+    WKW10MResult result = module.setPageCallbacks(page, &table);
     snprintf(message, sizeof(message), "setPageCallbacks -> result=%d expected=0, refcount=%u, retains=%u",
         static_cast<int>(result), context->refCount(), context->retainCalls());
     reportCheck("attach/install",
-        result == WKUWPResultOK && context->refCount() == 2 && context->retainCalls() == 1, message);
+        result == WKW10MResultOK && context->refCount() == 2 && context->retainCalls() == 1, message);
 
     result = module.detachPageCallbacks(page);
-    const bool detached = result == WKUWPResultOK && context->releaseCalls() == 1;
+    const bool detached = result == WKW10MResultOK && context->releaseCalls() == 1;
     snprintf(message, sizeof(message), "detach outside dispatch -> result=%d expected=0, releases=%u",
         static_cast<int>(result), context->releaseCalls());
     reportCheck("attach/detach-immediate", detached, message);
@@ -268,20 +268,20 @@ void checkAttachFlow(OwnershipProvider* provider, const wchar_t* path)
 // Borrowed spans are copied before the provider scrambles its buffers.
 void checkBorrowedPayloadCopy(OwnershipProvider* provider, const wchar_t* path)
 {
-    WebKit::EngineModuleUWP module;
-    WKUWPPageHandle page = kUntouchedHandle;
+    WebKit::EngineModuleW10M module;
+    WKW10MPageHandle page = kUntouchedHandle;
     if (!openTestPage(provider, path, &module, &page)) {
         reportCheck("payload/copy", false, "cannot open a test page");
         return;
     }
-    WebKit::PageCallbackContextUWP* context = new (std::nothrow) WebKit::PageCallbackContextUWP();
-    WKUWPPageCallbacks table;
+    WebKit::PageCallbackContextW10M* context = new (std::nothrow) WebKit::PageCallbackContextW10M();
+    WKW10MPageCallbacks table;
     context->buildTable(&table);
     module.setPageCallbacks(page, &table);
 
     const char* uri = "https://example.test/a";
     const char* title = "Title A";
-    WKUWPResult result = provider->dispatchNotify(page, WKUWPEventSourceChanged, uri, title);
+    WKW10MResult result = provider->dispatchNotify(page, WKW10MEventSourceChanged, uri, title);
 
     char message[256];
     const bool uriCopied = context->lastUriLength() == strlen(uri)
@@ -292,8 +292,8 @@ void checkBorrowedPayloadCopy(OwnershipProvider* provider, const wchar_t* path)
         static_cast<int>(result), uriCopied ? 1 : 0, titleCopied ? 1 : 0, context->lastEventKind(),
         context->lastSequence());
     reportCheck("payload/copy",
-        result == WKUWPResultOK && uriCopied && titleCopied
-            && context->lastEventKind() == WKUWPEventSourceChanged && context->lastSequence() == 1
+        result == WKW10MResultOK && uriCopied && titleCopied
+            && context->lastEventKind() == WKW10MEventSourceChanged && context->lastSequence() == 1
             && context->notifyCalls() == 1,
         message);
 
@@ -305,36 +305,36 @@ void checkBorrowedPayloadCopy(OwnershipProvider* provider, const wchar_t* path)
 // Policy verdicts and handler failures travel through starting without throwing.
 void checkStartingPolicy(OwnershipProvider* provider, const wchar_t* path)
 {
-    WebKit::EngineModuleUWP module;
-    WKUWPPageHandle page = kUntouchedHandle;
+    WebKit::EngineModuleW10M module;
+    WKW10MPageHandle page = kUntouchedHandle;
     if (!openTestPage(provider, path, &module, &page)) {
         reportCheck("policy/refuse", false, "cannot open a test page");
         return;
     }
-    WebKit::PageCallbackContextUWP* context = new (std::nothrow) WebKit::PageCallbackContextUWP();
-    WKUWPPageCallbacks table;
+    WebKit::PageCallbackContextW10M* context = new (std::nothrow) WebKit::PageCallbackContextW10M();
+    WKW10MPageCallbacks table;
     context->buildTable(&table);
     module.setPageCallbacks(page, &table);
 
     char message[256];
     uint32_t cancel = kUntouchedCancel;
-    WKUWPResult result = provider->dispatchStarting(page, "https://example.test/", &cancel);
+    WKW10MResult result = provider->dispatchStarting(page, "https://example.test/", &cancel);
     snprintf(message, sizeof(message), "starting -> result=%d expected=0, cancel=%u expected=0",
         static_cast<int>(result), cancel);
-    reportCheck("policy/refuse", result == WKUWPResultOK && cancel == 0 && context->startingCalls() == 1, message);
+    reportCheck("policy/refuse", result == WKW10MResultOK && cancel == 0 && context->startingCalls() == 1, message);
 
     context->setCancelVerdict(true);
     result = provider->dispatchStarting(page, "https://example.test/", &cancel);
     snprintf(message, sizeof(message), "starting -> result=%d expected=0, cancel=%u expected=1",
         static_cast<int>(result), cancel);
-    reportCheck("policy/allow", result == WKUWPResultOK && cancel == 1, message);
+    reportCheck("policy/allow", result == WKW10MResultOK && cancel == 1, message);
 
     context->setFailResult(kTestHandlerFailure);
     result = provider->dispatchStarting(page, "https://example.test/", &cancel);
     snprintf(message, sizeof(message), "failing handler -> result=%d expected=%d", static_cast<int>(result),
         static_cast<int>(kTestHandlerFailure));
     reportCheck("policy/handler-failure", result == kTestHandlerFailure, message);
-    context->setFailResult(WKUWPResultOK);
+    context->setFailResult(WKW10MResultOK);
 
     module.detachPageCallbacks(page);
     context->release();
@@ -344,25 +344,25 @@ void checkStartingPolicy(OwnershipProvider* provider, const wchar_t* path)
 // Null and malformed deliveries are refused or suppressed without faulting.
 void checkNullGuards(OwnershipProvider* provider, const wchar_t* path)
 {
-    WebKit::EngineModuleUWP module;
-    WKUWPPageHandle page = kUntouchedHandle;
+    WebKit::EngineModuleW10M module;
+    WKW10MPageHandle page = kUntouchedHandle;
     if (!openTestPage(provider, path, &module, &page)) {
         reportCheck("guards/null-starting", false, "cannot open a test page");
         return;
     }
-    WebKit::PageCallbackContextUWP* context = new (std::nothrow) WebKit::PageCallbackContextUWP();
-    WKUWPPageCallbacks table;
+    WebKit::PageCallbackContextW10M* context = new (std::nothrow) WebKit::PageCallbackContextW10M();
+    WKW10MPageCallbacks table;
     context->buildTable(&table);
     module.setPageCallbacks(page, &table);
 
     char message[256];
     uint32_t cancel = kUntouchedCancel;
-    WKUWPResult result = table.starting(context, nullptr, &cancel);
+    WKW10MResult result = table.starting(context, nullptr, &cancel);
     snprintf(message, sizeof(message), "null starting -> result=%d expected=%d, cancel untouched=%d",
-        static_cast<int>(result), static_cast<int>(WKUWPResultInvalidArgument),
+        static_cast<int>(result), static_cast<int>(WKW10MResultInvalidArgument),
         cancel == kUntouchedCancel ? 1 : 0);
     reportCheck("guards/null-starting",
-        result == WKUWPResultInvalidArgument && cancel == kUntouchedCancel, message);
+        result == WKW10MResultInvalidArgument && cancel == kUntouchedCancel, message);
 
     table.notify(context, nullptr);
     snprintf(message, sizeof(message), "null notify suppressed=%u expected=1", context->suppressedCalls());
@@ -372,15 +372,15 @@ void checkNullGuards(OwnershipProvider* provider, const wchar_t* path)
     snprintf(message, sizeof(message), "dispatched null notify -> result=%d, suppressed=%u",
         static_cast<int>(result), context->suppressedCalls());
     reportCheck("guards/dispatched-null-notify",
-        result == WKUWPResultOK && context->suppressedCalls() == 2, message);
+        result == WKW10MResultOK && context->suppressedCalls() == 2, message);
 
     cancel = kUntouchedCancel;
     result = provider->dispatchNullStarting(page, &cancel);
     snprintf(message, sizeof(message), "dispatched null starting -> result=%d expected=%d, cancel untouched=%d",
-        static_cast<int>(result), static_cast<int>(WKUWPResultInvalidArgument),
+        static_cast<int>(result), static_cast<int>(WKW10MResultInvalidArgument),
         cancel == kUntouchedCancel ? 1 : 0);
     reportCheck("guards/dispatched-null-starting",
-        result == WKUWPResultInvalidArgument && cancel == kUntouchedCancel, message);
+        result == WKW10MResultInvalidArgument && cancel == kUntouchedCancel, message);
 
     module.detachPageCallbacks(page);
     context->release();
@@ -390,8 +390,8 @@ void checkNullGuards(OwnershipProvider* provider, const wchar_t* path)
 // Detach during dispatch answers Pending; the release frees storage on unwind.
 void checkReleaseAfterUnwind(OwnershipProvider* provider, const wchar_t* path)
 {
-    WebKit::EngineModuleUWP module;
-    WKUWPPageHandle page = kUntouchedHandle;
+    WebKit::EngineModuleW10M module;
+    WKW10MPageHandle page = kUntouchedHandle;
     if (!openTestPage(provider, path, &module, &page)) {
         reportCheck("detach/pending", false, "cannot open a test page");
         return;
@@ -401,23 +401,23 @@ void checkReleaseAfterUnwind(OwnershipProvider* provider, const wchar_t* path)
     DetachHookState hookState;
     hookState.module = &module;
     hookState.page = page;
-    WebKit::PageCallbackContextUWP* context = new (std::nothrow) WebKit::PageCallbackContextUWP();
+    WebKit::PageCallbackContextW10M* context = new (std::nothrow) WebKit::PageCallbackContextW10M();
     context->setDestroyedHook(onTestObjectDestroyed, &tracker);
     context->setDetachHook(detachDuringNotify, &hookState);
-    WKUWPPageCallbacks table;
+    WKW10MPageCallbacks table;
     context->buildTable(&table);
     module.setPageCallbacks(page, &table);
 
     char message[256];
     provider->setDispatching(1);
-    WKUWPResult result = provider->dispatchNotify(page, WKUWPEventTitleChanged, "https://example.test/", "T");
+    WKW10MResult result = provider->dispatchNotify(page, WKW10MEventTitleChanged, "https://example.test/", "T");
     snprintf(message, sizeof(message),
         "detach in dispatch -> dispatch=%d, detach fired=%d, detach answer=%d expected=%d, releases=%u, destroyed=%u",
         static_cast<int>(result), context->detachFired() ? 1 : 0, static_cast<int>(context->lastDetachResult()),
-        static_cast<int>(WKUWPResultPending), context->releaseCalls(), tracker.destroyedCount);
+        static_cast<int>(WKW10MResultPending), context->releaseCalls(), tracker.destroyedCount);
     reportCheck("detach/pending",
-        result == WKUWPResultOK && context->detachFired()
-            && context->lastDetachResult() == WKUWPResultPending && context->releaseCalls() == 0
+        result == WKW10MResultOK && context->detachFired()
+            && context->lastDetachResult() == WKW10MResultPending && context->releaseCalls() == 0
             && tracker.destroyedCount == 0,
         message);
 
@@ -430,7 +430,7 @@ void checkReleaseAfterUnwind(OwnershipProvider* provider, const wchar_t* path)
     // setup reference, so the object survives; only the setup release below
     // frees it, which is what proves storage outlived the detach call.
     reportCheck("detach/release-after-unwind",
-        result == WKUWPResultOK && context->releaseCalls() == 1 && tracker.destroyedCount == 0, message);
+        result == WKW10MResultOK && context->releaseCalls() == 1 && tracker.destroyedCount == 0, message);
 
     context->release();
     snprintf(message, sizeof(message), "setup release -> destroyed=%u expected=1", tracker.destroyedCount);
@@ -438,49 +438,49 @@ void checkReleaseAfterUnwind(OwnershipProvider* provider, const wchar_t* path)
 
     result = provider->fireRelease(page);
     snprintf(message, sizeof(message), "second release -> result=%d expected=%d", static_cast<int>(result),
-        static_cast<int>(WKUWPResultInvalidState));
-    reportCheck("detach/no-double-release", result == WKUWPResultInvalidState, message);
+        static_cast<int>(WKW10MResultInvalidState));
+    reportCheck("detach/no-double-release", result == WKW10MResultInvalidState, message);
 
-    result = provider->dispatchNotify(page, WKUWPEventTitleChanged, "https://example.test/", "T");
+    result = provider->dispatchNotify(page, WKW10MEventTitleChanged, "https://example.test/", "T");
     snprintf(message, sizeof(message), "delivery after detach -> result=%d expected=%d", static_cast<int>(result),
-        static_cast<int>(WKUWPResultInvalidState));
-    reportCheck("detach/suppressed", result == WKUWPResultInvalidState, message);
+        static_cast<int>(WKW10MResultInvalidState));
+    reportCheck("detach/suppressed", result == WKW10MResultInvalidState, message);
 
     result = module.closePage(page);
     snprintf(message, sizeof(message), "close -> result=%d expected=0, open=%u", static_cast<int>(result),
         module.openPageCount());
-    reportCheck("detach/close-baseline", result == WKUWPResultOK && module.openPageCount() == 0, message);
+    reportCheck("detach/close-baseline", result == WKW10MResultOK && module.openPageCount() == 0, message);
 }
 
 // Replacing an active attachment is rejected; re-attaching after ack succeeds.
 void checkReplaceRejected(OwnershipProvider* provider, const wchar_t* path)
 {
-    WebKit::EngineModuleUWP module;
-    WKUWPPageHandle page = kUntouchedHandle;
+    WebKit::EngineModuleW10M module;
+    WKW10MPageHandle page = kUntouchedHandle;
     if (!openTestPage(provider, path, &module, &page)) {
         reportCheck("attach/replace-rejected", false, "cannot open a test page");
         return;
     }
-    WebKit::PageCallbackContextUWP* first = new (std::nothrow) WebKit::PageCallbackContextUWP();
-    WebKit::PageCallbackContextUWP* second = new (std::nothrow) WebKit::PageCallbackContextUWP();
-    WKUWPPageCallbacks firstTable;
-    WKUWPPageCallbacks secondTable;
+    WebKit::PageCallbackContextW10M* first = new (std::nothrow) WebKit::PageCallbackContextW10M();
+    WebKit::PageCallbackContextW10M* second = new (std::nothrow) WebKit::PageCallbackContextW10M();
+    WKW10MPageCallbacks firstTable;
+    WKW10MPageCallbacks secondTable;
     first->buildTable(&firstTable);
     second->buildTable(&secondTable);
     module.setPageCallbacks(page, &firstTable);
 
     char message[256];
-    WKUWPResult result = module.setPageCallbacks(page, &secondTable);
+    WKW10MResult result = module.setPageCallbacks(page, &secondTable);
     snprintf(message, sizeof(message), "replacing active attachment -> result=%d expected=%d, second refcount=%u",
-        static_cast<int>(result), static_cast<int>(WKUWPResultInvalidState), second->refCount());
+        static_cast<int>(result), static_cast<int>(WKW10MResultInvalidState), second->refCount());
     reportCheck("attach/replace-rejected",
-        result == WKUWPResultInvalidState && second->refCount() == 1 && second->retainCalls() == 0, message);
+        result == WKW10MResultInvalidState && second->refCount() == 1 && second->retainCalls() == 0, message);
 
     module.detachPageCallbacks(page);
     result = module.setPageCallbacks(page, &secondTable);
     snprintf(message, sizeof(message), "re-attaching after ack -> result=%d expected=0, second refcount=%u",
         static_cast<int>(result), second->refCount());
-    reportCheck("attach/reattach-after-ack", result == WKUWPResultOK && second->refCount() == 2, message);
+    reportCheck("attach/reattach-after-ack", result == WKW10MResultOK && second->refCount() == 2, message);
 
     first->release();
     module.detachPageCallbacks(page);
@@ -491,8 +491,8 @@ void checkReplaceRejected(OwnershipProvider* provider, const wchar_t* path)
 // A short first read reports only its need; the retry grows exactly and wins.
 void checkSnapshotRetry(OwnershipProvider* provider, const wchar_t* path)
 {
-    WebKit::EngineModuleUWP module;
-    WKUWPPageHandle page = kUntouchedHandle;
+    WebKit::EngineModuleW10M module;
+    WKW10MPageHandle page = kUntouchedHandle;
     if (!openTestPage(provider, path, &module, &page)) {
         reportCheck("snapshot/retry", false, "cannot open a test page");
         return;
@@ -500,16 +500,16 @@ void checkSnapshotRetry(OwnershipProvider* provider, const wchar_t* path)
     provider->setStateMode(1);
 
     char message[256];
-    WebKit::PageStateSnapshotUWP snapshot;
-    WKUWPResult result = snapshot.fetch(module.api(), page);
+    WebKit::PageStateSnapshotW10M snapshot;
+    WKW10MResult result = snapshot.fetch(module.api(), page);
     snprintf(message, sizeof(message), "fetch -> result=%d expected=0, attempts=%u expected=2, pageId=%llu",
         static_cast<int>(result), snapshot.attempts(), snapshot.state()->pageId);
     reportCheck("snapshot/retry",
-        result == WKUWPResultOK && snapshot.attempts() == 2 && snapshot.state()->pageId == page
+        result == WKW10MResultOK && snapshot.attempts() == 2 && snapshot.state()->pageId == page
             && snapshot.storageBytes() == 64,
         message);
 
-    WKUWPPageState probed;
+    WKW10MPageState probed;
     memset(&probed, 0xA5, sizeof(probed));
     uint8_t storage[8];
     memset(storage, 0xA5, sizeof(storage));
@@ -521,28 +521,28 @@ void checkSnapshotRetry(OwnershipProvider* provider, const wchar_t* path)
     for (size_t index = 0; untouched && index < sizeof(storage); ++index)
         untouched = storage[index] == 0xA5;
     snprintf(message, sizeof(message), "short read -> result=%d expected=%d, need=%u, rest untouched=%d",
-        static_cast<int>(result), static_cast<int>(WKUWPResultBufferTooSmall), required, untouched ? 1 : 0);
+        static_cast<int>(result), static_cast<int>(WKW10MResultBufferTooSmall), required, untouched ? 1 : 0);
     reportCheck("snapshot/need-only",
-        result == WKUWPResultBufferTooSmall && required == 64 && untouched, message);
+        result == WKW10MResultBufferTooSmall && required == 64 && untouched, message);
 
     provider->setStateMode(2);
-    WebKit::PageStateSnapshotUWP endless;
+    WebKit::PageStateSnapshotW10M endless;
     result = endless.fetch(module.api(), page);
     snprintf(message, sizeof(message), "growing provider -> result=%d expected=%d, attempts=%u expected=%u",
-        static_cast<int>(result), static_cast<int>(WKUWPResultBufferTooSmall), endless.attempts(),
-        WebKit::PageStateSnapshotUWP::kMaxFetchAttempts);
+        static_cast<int>(result), static_cast<int>(WKW10MResultBufferTooSmall), endless.attempts(),
+        WebKit::PageStateSnapshotW10M::kMaxFetchAttempts);
     reportCheck("snapshot/bounded",
-        result == WKUWPResultBufferTooSmall
-            && endless.attempts() == WebKit::PageStateSnapshotUWP::kMaxFetchAttempts,
+        result == WKW10MResultBufferTooSmall
+            && endless.attempts() == WebKit::PageStateSnapshotW10M::kMaxFetchAttempts,
         message);
 
     provider->setStateMode(0);
-    WebKit::PageStateSnapshotUWP refused;
+    WebKit::PageStateSnapshotW10M refused;
     result = refused.fetch(module.api(), page);
     snprintf(message, sizeof(message), "refused read -> result=%d expected=%d, attempts=%u expected=1",
-        static_cast<int>(result), static_cast<int>(WKUWPResultUnsupported), refused.attempts());
+        static_cast<int>(result), static_cast<int>(WKW10MResultUnsupported), refused.attempts());
     reportCheck("snapshot/no-retry",
-        result == WKUWPResultUnsupported && refused.attempts() == 1, message);
+        result == WKW10MResultUnsupported && refused.attempts() == 1, message);
 
     module.closePage(page);
 }
@@ -550,23 +550,23 @@ void checkSnapshotRetry(OwnershipProvider* provider, const wchar_t* path)
 // An accepted Write completes once with cancellation on cancel, never twice.
 void checkServiceWriteCancel()
 {
-    WebKit::PlatformServiceContextUWP* service = new (std::nothrow) WebKit::PlatformServiceContextUWP();
-    WKUWPPlatformServices table;
+    WebKit::PlatformServiceContextW10M* service = new (std::nothrow) WebKit::PlatformServiceContextW10M();
+    WKW10MPlatformServices table;
     service->buildTable(&table);
 
     CompletionTracker tracker;
     memset(&tracker, 0, sizeof(tracker));
     char message[256];
     uint8_t source[] = "hello";
-    WKUWPString text;
+    WKW10MString text;
     text.data = source;
     text.length = static_cast<uint32_t>(sizeof(source) - 1);
 
-    WKUWPResult result = table.requestClipboard(service, 7, 1, WKUWPClipboardWrite, &text, recordTestCompletion, &tracker);
+    WKW10MResult result = table.requestClipboard(service, 7, 1, WKW10MClipboardWrite, &text, recordTestCompletion, &tracker);
     snprintf(message, sizeof(message), "write request -> result=%d expected=0, pending=%u", static_cast<int>(result),
         service->pendingCount());
     reportCheck("service/write-accept",
-        result == WKUWPResultOK && service->pendingCount() == 1 && tracker.calls == 0, message);
+        result == WKW10MResultOK && service->pendingCount() == 1 && tracker.calls == 0, message);
 
     memset(source, 0xCD, sizeof(source));
     uint8_t copied[16];
@@ -582,21 +582,21 @@ void checkServiceWriteCancel()
         static_cast<int>(result), tracker.calls, static_cast<int>(tracker.lastResult),
         static_cast<int>(expectedCanceledResult()), service->pendingCount());
     reportCheck("service/cancel-once",
-        result == WKUWPResultOK && tracker.calls == 1 && tracker.lastResult == expectedCanceledResult()
+        result == WKW10MResultOK && tracker.calls == 1 && tracker.lastResult == expectedCanceledResult()
             && tracker.lastId == 1 && service->pendingCount() == 0,
         message);
 
     result = table.cancelClipboard(service, 1);
     snprintf(message, sizeof(message), "second cancel -> result=%d expected=%d, completions=%u",
-        static_cast<int>(result), static_cast<int>(WKUWPResultInvalidArgument), tracker.calls);
+        static_cast<int>(result), static_cast<int>(WKW10MResultInvalidArgument), tracker.calls);
     reportCheck("service/cancel-twice",
-        result == WKUWPResultInvalidArgument && tracker.calls == 1, message);
+        result == WKW10MResultInvalidArgument && tracker.calls == 1, message);
 
-    result = service->deliverCompletion(1, WKUWPResultOK, nullptr);
+    result = service->deliverCompletion(1, WKW10MResultOK, nullptr);
     snprintf(message, sizeof(message), "delivery after cancel -> result=%d expected=%d, completions=%u",
-        static_cast<int>(result), static_cast<int>(WKUWPResultInvalidArgument), tracker.calls);
+        static_cast<int>(result), static_cast<int>(WKW10MResultInvalidArgument), tracker.calls);
     reportCheck("service/no-second-delivery",
-        result == WKUWPResultInvalidArgument && tracker.calls == 1, message);
+        result == WKW10MResultInvalidArgument && tracker.calls == 1, message);
 
     service->release();
 }
@@ -604,38 +604,38 @@ void checkServiceWriteCancel()
 // A Read delivers its borrowed text once; repeats are refused.
 void checkServiceReadDeliver()
 {
-    WebKit::PlatformServiceContextUWP* service = new (std::nothrow) WebKit::PlatformServiceContextUWP();
-    WKUWPPlatformServices table;
+    WebKit::PlatformServiceContextW10M* service = new (std::nothrow) WebKit::PlatformServiceContextW10M();
+    WKW10MPlatformServices table;
     service->buildTable(&table);
 
     CompletionTracker tracker;
     memset(&tracker, 0, sizeof(tracker));
     char message[256];
-    WKUWPResult result = table.requestClipboard(service, 7, 2, WKUWPClipboardRead, nullptr, recordTestCompletion, &tracker);
+    WKW10MResult result = table.requestClipboard(service, 7, 2, WKW10MClipboardRead, nullptr, recordTestCompletion, &tracker);
     snprintf(message, sizeof(message), "read request -> result=%d expected=0, pending=%u", static_cast<int>(result),
         service->pendingCount());
-    reportCheck("service/read-accept", result == WKUWPResultOK && service->pendingCount() == 1, message);
+    reportCheck("service/read-accept", result == WKW10MResultOK && service->pendingCount() == 1, message);
 
     uint8_t source[] = "data";
-    WKUWPString text;
+    WKW10MString text;
     text.data = source;
     text.length = static_cast<uint32_t>(sizeof(source) - 1);
-    result = service->deliverCompletion(2, WKUWPResultOK, &text);
+    result = service->deliverCompletion(2, WKW10MResultOK, &text);
     memset(source, 0xCD, sizeof(source));
     snprintf(message, sizeof(message),
         "read delivery -> result=%d expected=0, completions=%u, text copied=%d, pending=%u", static_cast<int>(result),
         tracker.calls, tracker.textLength == 4 && memcmp(tracker.text, "data", 4) == 0 ? 1 : 0,
         service->pendingCount());
     reportCheck("service/read-deliver",
-        result == WKUWPResultOK && tracker.calls == 1 && tracker.textLength == 4
+        result == WKW10MResultOK && tracker.calls == 1 && tracker.textLength == 4
             && memcmp(tracker.text, "data", 4) == 0 && service->pendingCount() == 0,
         message);
 
-    result = service->deliverCompletion(2, WKUWPResultOK, &text);
+    result = service->deliverCompletion(2, WKW10MResultOK, &text);
     snprintf(message, sizeof(message), "second delivery -> result=%d expected=%d, completions=%u",
-        static_cast<int>(result), static_cast<int>(WKUWPResultInvalidArgument), tracker.calls);
+        static_cast<int>(result), static_cast<int>(WKW10MResultInvalidArgument), tracker.calls);
     reportCheck("service/read-once",
-        result == WKUWPResultInvalidArgument && tracker.calls == 1, message);
+        result == WKW10MResultInvalidArgument && tracker.calls == 1, message);
 
     service->release();
 }
@@ -643,33 +643,33 @@ void checkServiceReadDeliver()
 // Rejected requests complete nothing; a full table fails fast with cleanup.
 void checkServiceRejections()
 {
-    WebKit::PlatformServiceContextUWP* service = new (std::nothrow) WebKit::PlatformServiceContextUWP();
-    WKUWPPlatformServices table;
+    WebKit::PlatformServiceContextW10M* service = new (std::nothrow) WebKit::PlatformServiceContextW10M();
+    WKW10MPlatformServices table;
     service->buildTable(&table);
 
     CompletionTracker tracker;
     memset(&tracker, 0, sizeof(tracker));
     char message[256];
-    WKUWPString empty;
+    WKW10MString empty;
     empty.data = nullptr;
     empty.length = 0;
 
     const bool badKind = table.requestClipboard(service, 7, 3, 7, &empty, recordTestCompletion, &tracker)
-        == WKUWPResultInvalidArgument;
-    const bool nullCompletion = table.requestClipboard(service, 7, 3, WKUWPClipboardRead, nullptr, nullptr, &tracker)
-        == WKUWPResultInvalidArgument;
+        == WKW10MResultInvalidArgument;
+    const bool nullCompletion = table.requestClipboard(service, 7, 3, WKW10MClipboardRead, nullptr, nullptr, &tracker)
+        == WKW10MResultInvalidArgument;
     uint8_t byte = 0;
-    WKUWPString dangling;
+    WKW10MString dangling;
     dangling.data = nullptr;
     dangling.length = 1;
-    const bool nullText = table.requestClipboard(service, 7, 3, WKUWPClipboardWrite, &dangling, recordTestCompletion, &tracker)
-        == WKUWPResultInvalidArgument;
+    const bool nullText = table.requestClipboard(service, 7, 3, WKW10MClipboardWrite, &dangling, recordTestCompletion, &tracker)
+        == WKW10MResultInvalidArgument;
     (void)byte;
-    WKUWPString content;
+    WKW10MString content;
     content.data = &byte;
     content.length = 1;
-    const bool readWithText = table.requestClipboard(service, 7, 3, WKUWPClipboardRead, &content, recordTestCompletion, &tracker)
-        == WKUWPResultInvalidArgument;
+    const bool readWithText = table.requestClipboard(service, 7, 3, WKW10MClipboardRead, &content, recordTestCompletion, &tracker)
+        == WKW10MResultInvalidArgument;
     snprintf(message, sizeof(message), "bad kind/null completion/null text/read text rejected=%d%d%d%d, calls=%u",
         badKind ? 1 : 0, nullCompletion ? 1 : 0, nullText ? 1 : 0, readWithText ? 1 : 0, tracker.calls);
     reportCheck("service/rejections",
@@ -677,28 +677,28 @@ void checkServiceRejections()
             && service->pendingCount() == 0,
         message);
 
-    for (uint64_t id = 100; id < 100 + WebKit::PlatformServiceContextUWP::kMaxPendingOperations; ++id) {
-        if (table.requestClipboard(service, 7, id, WKUWPClipboardRead, nullptr, recordTestCompletion, &tracker)
-            != WKUWPResultOK) {
+    for (uint64_t id = 100; id < 100 + WebKit::PlatformServiceContextW10M::kMaxPendingOperations; ++id) {
+        if (table.requestClipboard(service, 7, id, WKW10MClipboardRead, nullptr, recordTestCompletion, &tracker)
+            != WKW10MResultOK) {
             reportCheck("service/table-full", false, "filling the operation table failed early");
             service->release();
             return;
         }
     }
-    WKUWPResult result = table.requestClipboard(service, 7, 200, WKUWPClipboardRead, nullptr, recordTestCompletion, &tracker);
+    WKW10MResult result = table.requestClipboard(service, 7, 200, WKW10MClipboardRead, nullptr, recordTestCompletion, &tracker);
     snprintf(message, sizeof(message), "seventeenth request -> result=%d expected=%d, pending=%u",
-        static_cast<int>(result), static_cast<int>(WKUWPResultBudgetExceeded), service->pendingCount());
+        static_cast<int>(result), static_cast<int>(WKW10MResultBudgetExceeded), service->pendingCount());
     reportCheck("service/table-full",
-        result == WKUWPResultBudgetExceeded
-            && service->pendingCount() == WebKit::PlatformServiceContextUWP::kMaxPendingOperations,
+        result == WKW10MResultBudgetExceeded
+            && service->pendingCount() == WebKit::PlatformServiceContextW10M::kMaxPendingOperations,
         message);
 
-    for (uint64_t id = 100; id < 100 + WebKit::PlatformServiceContextUWP::kMaxPendingOperations; ++id)
+    for (uint64_t id = 100; id < 100 + WebKit::PlatformServiceContextW10M::kMaxPendingOperations; ++id)
         table.cancelClipboard(service, id);
     snprintf(message, sizeof(message), "after draining: completions=%u expected=%u, pending=%u", tracker.calls,
-        WebKit::PlatformServiceContextUWP::kMaxPendingOperations, service->pendingCount());
+        WebKit::PlatformServiceContextW10M::kMaxPendingOperations, service->pendingCount());
     reportCheck("service/drain-once",
-        tracker.calls == WebKit::PlatformServiceContextUWP::kMaxPendingOperations && service->pendingCount() == 0,
+        tracker.calls == WebKit::PlatformServiceContextW10M::kMaxPendingOperations && service->pendingCount() == 0,
         message);
 
     service->release();
@@ -709,9 +709,9 @@ void checkServiceLifetime()
 {
     DestroyedTracker tracker;
     memset(&tracker, 0, sizeof(tracker));
-    WebKit::PlatformServiceContextUWP* service = new (std::nothrow) WebKit::PlatformServiceContextUWP();
+    WebKit::PlatformServiceContextW10M* service = new (std::nothrow) WebKit::PlatformServiceContextW10M();
     service->setDestroyedHook(onTestObjectDestroyed, &tracker);
-    WKUWPPlatformServices table;
+    WKW10MPlatformServices table;
     service->buildTable(&table);
 
     char message[256];
@@ -720,10 +720,10 @@ void checkServiceLifetime()
         service->refCount(), service->retainCalls());
     reportCheck("service/retain", service->refCount() == 2 && service->retainCalls() == 1, message);
 
-    WKUWPResult result = table.postWake(service);
+    WKW10MResult result = table.postWake(service);
     snprintf(message, sizeof(message), "postWake -> result=%d expected=0, wakes=%u", static_cast<int>(result),
         service->wakeCalls());
-    reportCheck("service/wake", result == WKUWPResultOK && service->wakeCalls() == 1, message);
+    reportCheck("service/wake", result == WKW10MResultOK && service->wakeCalls() == 1, message);
 
     table.releaseContext(service);
     snprintf(message, sizeof(message), "engine release -> refcount=%u expected=1, releases=%u, destroyed=%u",
@@ -743,16 +743,16 @@ void checkServiceLifetime()
 void checkServiceNullGuards()
 {
     char message[256];
-    const bool requestGuarded = WebKit::PlatformServiceContextUWP::requestClipboardThunk(nullptr, 7, 1, 0, nullptr, nullptr, nullptr)
-        == WKUWPResultInvalidArgument;
-    const bool cancelGuarded = WebKit::PlatformServiceContextUWP::cancelClipboardThunk(nullptr, 1) == WKUWPResultInvalidArgument;
-    const bool wakeGuarded = WebKit::PlatformServiceContextUWP::postWakeThunk(nullptr) == WKUWPResultInvalidArgument;
+    const bool requestGuarded = WebKit::PlatformServiceContextW10M::requestClipboardThunk(nullptr, 7, 1, 0, nullptr, nullptr, nullptr)
+        == WKW10MResultInvalidArgument;
+    const bool cancelGuarded = WebKit::PlatformServiceContextW10M::cancelClipboardThunk(nullptr, 1) == WKW10MResultInvalidArgument;
+    const bool wakeGuarded = WebKit::PlatformServiceContextW10M::postWakeThunk(nullptr) == WKW10MResultInvalidArgument;
     snprintf(message, sizeof(message), "null request/cancel/wake refused=%d%d%d", requestGuarded ? 1 : 0,
         cancelGuarded ? 1 : 0, wakeGuarded ? 1 : 0);
     reportCheck("service/null-guards", requestGuarded && cancelGuarded && wakeGuarded, message);
 
-    WebKit::PlatformServiceContextUWP* service = new (std::nothrow) WebKit::PlatformServiceContextUWP();
-    const bool unknownDelivery = service->deliverCompletion(0x9999, WKUWPResultOK, nullptr) == WKUWPResultInvalidArgument;
+    WebKit::PlatformServiceContextW10M* service = new (std::nothrow) WebKit::PlatformServiceContextW10M();
+    const bool unknownDelivery = service->deliverCompletion(0x9999, WKW10MResultOK, nullptr) == WKW10MResultInvalidArgument;
     uint32_t needed = 0;
     const bool unknownCopy = !service->copyOutText(0x9999, nullptr, 0, &needed);
     snprintf(message, sizeof(message), "unknown delivery/copy refused=%d%d", unknownDelivery ? 1 : 0,

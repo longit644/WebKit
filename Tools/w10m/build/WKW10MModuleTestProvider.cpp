@@ -1,12 +1,12 @@
 /*
- * WKUWPModuleTestProvider.cpp - configurable test double for the V1 engine
- * provider, used only by the task 3.3 EngineModuleUWP harness, the task 3.4
+ * WKW10MModuleTestProvider.cpp - configurable test double for the V1 engine
+ * provider, used only by the task 3.3 EngineModuleW10M harness, the task 3.4
  * callback-ownership harness and the task 3.5 bridge-ordering harness.
  *
  * This file is test tooling under Tools/w10m/build. It is never shipped, never
  * linked into the engine, the component or an app, and it proves nothing about
  * the real provider in Source/WebCore/platform/w10m/WKW10MEngineAPI.cpp. Its only
- * purpose is to let the consumer-side tests drive EngineModuleUWP and the task
+ * purpose is to let the consumer-side tests drive EngineModuleW10M and the task
  * 3.4 contexts through compatible resolution, truncated tables, null slots,
  * foreign identities, missing capabilities, working page slots, callback
  * attach/detach with deferred release, event dispatch with scrambled buffers,
@@ -29,7 +29,7 @@
 namespace {
 
 // Test build identity; distinct from any real engine build on purpose.
-const char kTestBuildId[] = "wkuwp-test-provider abi=1.0";
+const char kTestBuildId[] = "wkw10m-test-provider abi=1.0";
 
 // Defensive write bound, mirroring the real provider's rule.
 constexpr uint32_t kTestMaxDeclaredSize = 4096;
@@ -37,7 +37,7 @@ constexpr uint32_t kTestMaxDeclaredSize = 4096;
 // First handle handed out by the working createPage slot; zero is never valid.
 constexpr uint64_t kTestFirstHandle = 1;
 
-// Slot numbers for WKUWPTestProviderSetNullSlot, in table declaration order.
+// Slot numbers for WKW10MTestProviderSetNullSlot, in table declaration order.
 constexpr uint32_t kTestNullSlotNone = 0;
 
 // Default reported-extent override baked in at compile time.
@@ -46,20 +46,20 @@ constexpr uint32_t kTestNullSlotNone = 0;
 // part of the image rather than run-time configuration: DLL globals do not
 // survive an unload, so arming a fresh image through setters and then freeing
 // the setup handle would lose the setting before the test even loads it.
-#ifndef WKUWP_TEST_PROVIDER_DEFAULT_TRUNCATE
-#define WKUWP_TEST_PROVIDER_DEFAULT_TRUNCATE 0
+#ifndef WKW10M_TEST_PROVIDER_DEFAULT_TRUNCATE
+#define WKW10M_TEST_PROVIDER_DEFAULT_TRUNCATE 0
 #endif
 
 // Configurable provider behaviour, set by the exported setters.
 uint64_t g_capabilities = 0;
-uint32_t g_abiMajor = WKUWP_ABI_MAJOR_VERSION;
-uint32_t g_abiMinor = WKUWP_ABI_MINOR_VERSION;
-uint32_t g_truncateBytes = WKUWP_TEST_PROVIDER_DEFAULT_TRUNCATE;
+uint32_t g_abiMajor = WKW10M_ABI_MAJOR_VERSION;
+uint32_t g_abiMinor = WKW10M_ABI_MINOR_VERSION;
+uint32_t g_truncateBytes = WKW10M_TEST_PROVIDER_DEFAULT_TRUNCATE;
 uint32_t g_nullSlotIndex = kTestNullSlotNone;
-WKUWPResult g_createResult = WKUWPResultUnsupported;
-WKUWPResult g_closeResult = WKUWPResultOK;
-WKUWPResult g_shutdownResult = WKUWPResultOK;
-WKUWPResult g_pollResult = WKUWPResultOK;
+WKW10MResult g_createResult = WKW10MResultUnsupported;
+WKW10MResult g_closeResult = WKW10MResultOK;
+WKW10MResult g_shutdownResult = WKW10MResultOK;
+WKW10MResult g_pollResult = WKW10MResultOK;
 
 // Call counters the harness reads back through the exported getters.
 uint32_t g_discoveryCalls = 0;
@@ -132,14 +132,14 @@ struct TestAttachment {
     bool acked;
 
     // Engine-side copy of the consumer's table.
-    WKUWPPageCallbacks table;
+    WKW10MPageCallbacks table;
 };
 
 // Simulated attachment slots; zero-initialized, cleared by Reset.
 TestAttachment g_attachments[kTestMaxAttachments];
 
 // True when the test double has handed out this handle from createPage.
-bool pageKnown(WKUWPPageHandle page)
+bool pageKnown(WKW10MPageHandle page)
 {
     for (uint32_t index = 0; index < g_createdCount; ++index) {
         if (g_createdPages[index] == page)
@@ -149,14 +149,14 @@ bool pageKnown(WKUWPPageHandle page)
 }
 
 // Records a created handle for later attach and state validation.
-void recordCreated(WKUWPPageHandle page)
+void recordCreated(WKW10MPageHandle page)
 {
     if (g_createdCount < kTestMaxPages)
         g_createdPages[g_createdCount++] = page;
 }
 
 // Attachment slot for this page, or kTestMaxAttachments when never attached.
-uint32_t findAttachment(WKUWPPageHandle page)
+uint32_t findAttachment(WKW10MPageHandle page)
 {
     for (uint32_t index = 0; index < kTestMaxAttachments; ++index) {
         if (g_attachments[index].used && g_attachments[index].page == page)
@@ -174,28 +174,28 @@ void releaseAttachmentOnce(uint32_t index)
 }
 
 // Working createPage slot; hands out incrementing handles on success only.
-WKUWPResult __stdcall testCreatePage(const WKUWPPageOptions*, WKUWPPageHandle* page)
+WKW10MResult __stdcall testCreatePage(const WKW10MPageOptions*, WKW10MPageHandle* page)
 {
     ++g_createCalls;
     // Thread affinity is the outermost precondition: an off-owner-thread call
     // is rejected before any argument is read, exactly as the real engine must.
     if (!onOwnerThread())
-        return WKUWPResultWrongThread;
-    if (g_createResult != WKUWPResultOK)
+        return WKW10MResultWrongThread;
+    if (g_createResult != WKW10MResultOK)
         return g_createResult;
     if (!page)
-        return WKUWPResultInvalidArgument;
+        return WKW10MResultInvalidArgument;
     *page = g_nextHandle++;
     recordCreated(*page);
-    return WKUWPResultOK;
+    return WKW10MResultOK;
 }
 
 // Counting closePage slot; the harness decides the reported result.
-WKUWPResult __stdcall testClosePage(WKUWPPageHandle page)
+WKW10MResult __stdcall testClosePage(WKW10MPageHandle page)
 {
     ++g_closeCalls;
     if (!onOwnerThread())
-        return WKUWPResultWrongThread;
+        return WKW10MResultWrongThread;
     // Closing follows the same deferred safe release as detaching: an active
     // attachment goes inactive at once, and its acknowledgment runs now unless
     // a dispatch is logically active, in which case FireRelease runs it after.
@@ -209,64 +209,64 @@ WKUWPResult __stdcall testClosePage(WKUWPPageHandle page)
 }
 
 // Counting beginShutdown slot; the harness decides the reported result.
-WKUWPResult __stdcall testBeginShutdown()
+WKW10MResult __stdcall testBeginShutdown()
 {
     ++g_beginShutdownCalls;
     if (!onOwnerThread())
-        return WKUWPResultWrongThread;
+        return WKW10MResultWrongThread;
     return g_shutdownResult;
 }
 
 // Counting pollShutdown slot; the harness decides the reported result.
-WKUWPResult __stdcall testPollShutdown()
+WKW10MResult __stdcall testPollShutdown()
 {
     ++g_pollShutdownCalls;
     if (!onOwnerThread())
-        return WKUWPResultWrongThread;
+        return WKW10MResultWrongThread;
     return g_pollResult;
 }
 
 // Unimplemented initialize slot.
-WKUWPResult __stdcall testUnsupportedInitialize(const WKUWPEngineOptions*)
+WKW10MResult __stdcall testUnsupportedInitialize(const WKW10MEngineOptions*)
 {
-    return WKUWPResultUnsupported;
+    return WKW10MResultUnsupported;
 }
 
 // Unimplemented slot used for every table entry the tests do not drive.
-WKUWPResult __stdcall testUnsupportedNoArguments()
+WKW10MResult __stdcall testUnsupportedNoArguments()
 {
-    return WKUWPResultUnsupported;
+    return WKW10MResultUnsupported;
 }
 
 // Unimplemented single-unsigned slot used for setSuspended.
-WKUWPResult __stdcall testUnsupportedUnsignedFlag(uint32_t)
+WKW10MResult __stdcall testUnsupportedUnsignedFlag(uint32_t)
 {
-    return WKUWPResultUnsupported;
+    return WKW10MResultUnsupported;
 }
 
 // Unimplemented handle-only slot used for history, stop and detach entries.
-WKUWPResult __stdcall testUnsupportedHandleOnly(WKUWPPageHandle)
+WKW10MResult __stdcall testUnsupportedHandleOnly(WKW10MPageHandle)
 {
-    return WKUWPResultUnsupported;
+    return WKW10MResultUnsupported;
 }
 
 // Simulated setCallbacks slot; copies the table and retains once on install.
-WKUWPResult __stdcall testSetCallbacks(WKUWPPageHandle page, const WKUWPPageCallbacks* callbacks)
+WKW10MResult __stdcall testSetCallbacks(WKW10MPageHandle page, const WKW10MPageCallbacks* callbacks)
 {
     if (!onOwnerThread())
-        return WKUWPResultWrongThread;
+        return WKW10MResultWrongThread;
     if (page == 0 || !callbacks)
-        return WKUWPResultInvalidArgument;
+        return WKW10MResultInvalidArgument;
     if (!pageKnown(page))
-        return WKUWPResultInvalidArgument;
-    if (callbacks->header.structureVersion != WKUWP_STRUCTURE_VERSION)
-        return WKUWPResultInvalidArgument;
+        return WKW10MResultInvalidArgument;
+    if (callbacks->header.structureVersion != WKW10M_STRUCTURE_VERSION)
+        return WKW10MResultInvalidArgument;
     uint32_t index = findAttachment(page);
     if (index != kTestMaxAttachments) {
         // Replacing an active attachment is rejected until its detach is
         // acknowledged; re-attaching after a completed detach is allowed.
         if (g_attachments[index].active)
-            return WKUWPResultInvalidState;
+            return WKW10MResultInvalidState;
     } else {
         index = kTestMaxAttachments;
         for (uint32_t free = 0; free < kTestMaxAttachments; ++free) {
@@ -276,7 +276,7 @@ WKUWPResult __stdcall testSetCallbacks(WKUWPPageHandle page, const WKUWPPageCall
             }
         }
         if (index == kTestMaxAttachments)
-            return WKUWPResultInvalidState;
+            return WKW10MResultInvalidState;
     }
 
     // Retain before install, exactly once; the thunk null-guards for test tables.
@@ -287,116 +287,116 @@ WKUWPResult __stdcall testSetCallbacks(WKUWPPageHandle page, const WKUWPPageCall
     g_attachments[index].active = true;
     g_attachments[index].acked = false;
     memcpy(&g_attachments[index].table, callbacks, sizeof(g_attachments[index].table));
-    return WKUWPResultOK;
+    return WKW10MResultOK;
 }
 
 // Simulated detachCallbacks slot; deactivates now, releases now or later.
-WKUWPResult __stdcall testDetachCallbacks(WKUWPPageHandle page)
+WKW10MResult __stdcall testDetachCallbacks(WKW10MPageHandle page)
 {
     if (!onOwnerThread())
-        return WKUWPResultWrongThread;
+        return WKW10MResultWrongThread;
     if (page == 0)
-        return WKUWPResultInvalidArgument;
+        return WKW10MResultInvalidArgument;
     uint32_t index = findAttachment(page);
     if (index == kTestMaxAttachments)
-        return pageKnown(page) ? WKUWPResultOK : WKUWPResultInvalidArgument;
+        return pageKnown(page) ? WKW10MResultOK : WKW10MResultInvalidArgument;
     if (!g_attachments[index].active)
-        return WKUWPResultOK;
+        return WKW10MResultOK;
     // Inactive immediately; the release acknowledging it runs now, unless a
     // dispatch is logically active, in which case FireRelease runs it after.
     g_attachments[index].active = false;
     if (g_dispatching)
-        return WKUWPResultPending;
+        return WKW10MResultPending;
     releaseAttachmentOnce(index);
-    return WKUWPResultOK;
+    return WKW10MResultOK;
 }
 
 // Unimplemented navigation slots.
-WKUWPResult __stdcall testUnsupportedNavigation(WKUWPPageHandle, const WKUWPNavigationRequest*, uint64_t*)
+WKW10MResult __stdcall testUnsupportedNavigation(WKW10MPageHandle, const WKW10MNavigationRequest*, uint64_t*)
 {
-    return WKUWPResultUnsupported;
+    return WKW10MResultUnsupported;
 }
 
 // Simulated getState slot; mode 0 preserves the task 3.3 Unsupported default.
-WKUWPResult __stdcall testGetState(WKUWPPageHandle page, WKUWPPageState* state, uint8_t*,
+WKW10MResult __stdcall testGetState(WKW10MPageHandle page, WKW10MPageState* state, uint8_t*,
     uint32_t capacityBytes, uint32_t* requiredBytes)
 {
     ++g_stateCalls;
     if (!onOwnerThread())
-        return WKUWPResultWrongThread;
+        return WKW10MResultWrongThread;
     if (g_stateMode == 0)
-        return WKUWPResultUnsupported;
+        return WKW10MResultUnsupported;
     if (page == 0 || !pageKnown(page))
-        return WKUWPResultInvalidArgument;
+        return WKW10MResultInvalidArgument;
     if (!state || !requiredBytes)
-        return WKUWPResultInvalidArgument;
+        return WKW10MResultInvalidArgument;
     if (g_stateMode == 1) {
         // Size-probing engine: short storage reports only the need, leaving
         // state and storage untouched; adequate storage fills a minimal state.
         // Success deliberately leaves requiredBytes untouched.
         if (capacityBytes < kTestStateNeedBytes) {
             *requiredBytes = kTestStateNeedBytes;
-            return WKUWPResultBufferTooSmall;
+            return WKW10MResultBufferTooSmall;
         }
         memset(state, 0, sizeof(*state));
         state->header.structureSize = sizeof(*state);
-        state->header.structureVersion = WKUWP_STRUCTURE_VERSION;
+        state->header.structureVersion = WKW10M_STRUCTURE_VERSION;
         state->pageId = page;
         state->documentGeneration = 1;
-        return WKUWPResultOK;
+        return WKW10MResultOK;
     }
 
     // Ever-growing engine: every answer needs more than was offered, so only a
     // bounded retry can terminate the fetch.
     *requiredBytes = capacityBytes + kTestStateNeedBytes;
-    return WKUWPResultBufferTooSmall;
+    return WKW10MResultBufferTooSmall;
 }
 
 // Unimplemented certificate slot.
-WKUWPResult __stdcall testUnsupportedCertificate(WKUWPPageHandle, const WKUWPCertificateToken*, uint64_t*)
+WKW10MResult __stdcall testUnsupportedCertificate(WKW10MPageHandle, const WKW10MCertificateToken*, uint64_t*)
 {
-    return WKUWPResultUnsupported;
+    return WKW10MResultUnsupported;
 }
 
 // Unimplemented sendInput slot.
-WKUWPResult __stdcall testUnsupportedSendInput(WKUWPPageHandle, const WKUWPInputEvent*)
+WKW10MResult __stdcall testUnsupportedSendInput(WKW10MPageHandle, const WKW10MInputEvent*)
 {
-    return WKUWPResultUnsupported;
+    return WKW10MResultUnsupported;
 }
 
 // Unimplemented setFocus slot.
-WKUWPResult __stdcall testUnsupportedSetFocus(WKUWPPageHandle, uint32_t)
+WKW10MResult __stdcall testUnsupportedSetFocus(WKW10MPageHandle, uint32_t)
 {
-    return WKUWPResultUnsupported;
+    return WKW10MResultUnsupported;
 }
 
 // Unimplemented resize slot.
-WKUWPResult __stdcall testUnsupportedResize(WKUWPPageHandle, uint32_t, uint32_t, double, double)
+WKW10MResult __stdcall testUnsupportedResize(WKW10MPageHandle, uint32_t, uint32_t, double, double)
 {
-    return WKUWPResultUnsupported;
+    return WKW10MResultUnsupported;
 }
 
 // Unimplemented paint slot.
-WKUWPResult __stdcall testUnsupportedPaint(WKUWPPageHandle, const WKUWPPaintBuffer*)
+WKW10MResult __stdcall testUnsupportedPaint(WKW10MPageHandle, const WKW10MPaintBuffer*)
 {
-    return WKUWPResultUnsupported;
+    return WKW10MResultUnsupported;
 }
 
 // Unimplemented attachCompositor slot.
-WKUWPResult __stdcall testUnsupportedAttach(WKUWPPageHandle, const WKUWPCompositorOptions*)
+WKW10MResult __stdcall testUnsupportedAttach(WKW10MPageHandle, const WKW10MCompositorOptions*)
 {
-    return WKUWPResultUnsupported;
+    return WKW10MResultUnsupported;
 }
 
 // Unimplemented renderCompositor slot.
-WKUWPResult __stdcall testUnsupportedRender(WKUWPPageHandle, double)
+WKW10MResult __stdcall testUnsupportedRender(WKW10MPageHandle, double)
 {
-    return WKUWPResultUnsupported;
+    return WKW10MResultUnsupported;
 }
 
 // Nulls one table slot by declaration order, proving the consumer checks every
 // slot instead of assuming the fill.
-void applyNullSlot(WKUWPEngineAPI* api)
+void applyNullSlot(WKW10MEngineAPI* api)
 {
     if (g_nullSlotIndex == kTestNullSlotNone)
         return;
@@ -437,28 +437,28 @@ extern "C" {
 
 // Test discovery export; mirrors the real provider's negotiation order so the
 // consumer cannot tell them apart, except where a setter overrides the identity.
-__declspec(dllexport) WKUWPResult __stdcall WKUWPGetEngineAPI(
-    uint32_t minimumMajor, uint32_t minimumMinor, uint64_t requiredCapabilities, WKUWPEngineAPI* outAPI)
+__declspec(dllexport) WKW10MResult __stdcall WKW10MGetEngineAPI(
+    uint32_t minimumMajor, uint32_t minimumMinor, uint64_t requiredCapabilities, WKW10MEngineAPI* outAPI)
 {
     ++g_discoveryCalls;
     if (!outAPI)
-        return WKUWPResultInvalidArgument;
-    if (outAPI->header.structureVersion != WKUWP_STRUCTURE_VERSION)
-        return WKUWPResultAbiMismatch;
-    if (outAPI->header.structureSize < sizeof(WKUWPEngineAPI))
-        return WKUWPResultAbiMismatch;
+        return WKW10MResultInvalidArgument;
+    if (outAPI->header.structureVersion != WKW10M_STRUCTURE_VERSION)
+        return WKW10MResultAbiMismatch;
+    if (outAPI->header.structureSize < sizeof(WKW10MEngineAPI))
+        return WKW10MResultAbiMismatch;
     if (outAPI->header.structureSize > kTestMaxDeclaredSize)
-        return WKUWPResultAbiMismatch;
-    if (minimumMajor != WKUWP_ABI_MAJOR_VERSION)
-        return WKUWPResultAbiMismatch;
+        return WKW10MResultAbiMismatch;
+    if (minimumMajor != WKW10M_ABI_MAJOR_VERSION)
+        return WKW10MResultAbiMismatch;
     if (minimumMinor > g_abiMinor)
-        return WKUWPResultAbiMismatch;
+        return WKW10MResultAbiMismatch;
     if (requiredCapabilities & ~g_capabilities)
-        return WKUWPResultMissingCapability;
+        return WKW10MResultMissingCapability;
 
     memset(outAPI, 0, outAPI->header.structureSize);
-    outAPI->header.structureSize = sizeof(WKUWPEngineAPI);
-    outAPI->header.structureVersion = WKUWP_STRUCTURE_VERSION;
+    outAPI->header.structureSize = sizeof(WKW10MEngineAPI);
+    outAPI->header.structureVersion = WKW10M_STRUCTURE_VERSION;
     // The reported identity follows the setter, while negotiation above always
     // accepts major 1; that combination models a provider that answered
     // discovery yet reports an incompatible identity, which is exactly what the
@@ -498,21 +498,21 @@ __declspec(dllexport) WKUWPResult __stdcall WKUWPGetEngineAPI(
     // alone, without reading past the reported extent.
     if (g_truncateBytes)
         outAPI->header.structureSize = g_truncateBytes;
-    return WKUWPResultOK;
+    return WKW10MResultOK;
 }
 
 // Restores every default and zeroes every counter for the next test case.
-__declspec(dllexport) void __stdcall WKUWPTestProviderReset()
+__declspec(dllexport) void __stdcall WKW10MTestProviderReset()
 {
     g_capabilities = 0;
-    g_abiMajor = WKUWP_ABI_MAJOR_VERSION;
-    g_abiMinor = WKUWP_ABI_MINOR_VERSION;
-    g_truncateBytes = WKUWP_TEST_PROVIDER_DEFAULT_TRUNCATE;
+    g_abiMajor = WKW10M_ABI_MAJOR_VERSION;
+    g_abiMinor = WKW10M_ABI_MINOR_VERSION;
+    g_truncateBytes = WKW10M_TEST_PROVIDER_DEFAULT_TRUNCATE;
     g_nullSlotIndex = kTestNullSlotNone;
-    g_createResult = WKUWPResultUnsupported;
-    g_closeResult = WKUWPResultOK;
-    g_shutdownResult = WKUWPResultOK;
-    g_pollResult = WKUWPResultOK;
+    g_createResult = WKW10MResultUnsupported;
+    g_closeResult = WKW10MResultOK;
+    g_shutdownResult = WKW10MResultOK;
+    g_pollResult = WKW10MResultOK;
     g_discoveryCalls = 0;
     g_createCalls = 0;
     g_closeCalls = 0;
@@ -534,98 +534,98 @@ __declspec(dllexport) void __stdcall WKUWPTestProviderReset()
 }
 
 // Advertises a capability mask to negotiating consumers.
-__declspec(dllexport) void __stdcall WKUWPTestProviderSetCapabilities(uint64_t capabilities)
+__declspec(dllexport) void __stdcall WKW10MTestProviderSetCapabilities(uint64_t capabilities)
 {
     g_capabilities = capabilities;
 }
 
 // Overrides the identity reported in a successfully negotiated table.
-__declspec(dllexport) void __stdcall WKUWPTestProviderSetAbiVersion(uint32_t major, uint32_t minor)
+__declspec(dllexport) void __stdcall WKW10MTestProviderSetAbiVersion(uint32_t major, uint32_t minor)
 {
     g_abiMajor = major;
     g_abiMinor = minor;
 }
 
 // Overrides the reported filled extent after a successful fill.
-__declspec(dllexport) void __stdcall WKUWPTestProviderSetTruncateBytes(uint32_t bytes)
+__declspec(dllexport) void __stdcall WKW10MTestProviderSetTruncateBytes(uint32_t bytes)
 {
     g_truncateBytes = bytes;
 }
 
 // Nulls one table slot by declaration order; 0 disables the override.
-__declspec(dllexport) void __stdcall WKUWPTestProviderSetNullSlot(uint32_t slotIndex)
+__declspec(dllexport) void __stdcall WKW10MTestProviderSetNullSlot(uint32_t slotIndex)
 {
     g_nullSlotIndex = slotIndex;
 }
 
 // Decides the working createPage slot's next answer.
-__declspec(dllexport) void __stdcall WKUWPTestProviderSetCreateResult(WKUWPResult result)
+__declspec(dllexport) void __stdcall WKW10MTestProviderSetCreateResult(WKW10MResult result)
 {
     g_createResult = result;
 }
 
 // Decides the counting closePage slot's next answer.
-__declspec(dllexport) void __stdcall WKUWPTestProviderSetCloseResult(WKUWPResult result)
+__declspec(dllexport) void __stdcall WKW10MTestProviderSetCloseResult(WKW10MResult result)
 {
     g_closeResult = result;
 }
 
 // Decides the counting beginShutdown slot's next answer.
-__declspec(dllexport) void __stdcall WKUWPTestProviderSetShutdownResult(WKUWPResult result)
+__declspec(dllexport) void __stdcall WKW10MTestProviderSetShutdownResult(WKW10MResult result)
 {
     g_shutdownResult = result;
 }
 
 // Decides the counting pollShutdown slot's next answer.
-__declspec(dllexport) void __stdcall WKUWPTestProviderSetPollResult(WKUWPResult result)
+__declspec(dllexport) void __stdcall WKW10MTestProviderSetPollResult(WKW10MResult result)
 {
     g_pollResult = result;
 }
 
 // Number of discovery calls since the last reset.
-__declspec(dllexport) uint32_t __stdcall WKUWPTestProviderDiscoveryCalls()
+__declspec(dllexport) uint32_t __stdcall WKW10MTestProviderDiscoveryCalls()
 {
     return g_discoveryCalls;
 }
 
 // Number of createPage calls since the last reset.
-__declspec(dllexport) uint32_t __stdcall WKUWPTestProviderCreateCalls()
+__declspec(dllexport) uint32_t __stdcall WKW10MTestProviderCreateCalls()
 {
     return g_createCalls;
 }
 
 // Number of closePage calls since the last reset.
-__declspec(dllexport) uint32_t __stdcall WKUWPTestProviderCloseCalls()
+__declspec(dllexport) uint32_t __stdcall WKW10MTestProviderCloseCalls()
 {
     return g_closeCalls;
 }
 
 // Number of beginShutdown calls since the last reset.
-__declspec(dllexport) uint32_t __stdcall WKUWPTestProviderBeginShutdownCalls()
+__declspec(dllexport) uint32_t __stdcall WKW10MTestProviderBeginShutdownCalls()
 {
     return g_beginShutdownCalls;
 }
 
 // Number of pollShutdown calls since the last reset.
-__declspec(dllexport) uint32_t __stdcall WKUWPTestProviderPollShutdownCalls()
+__declspec(dllexport) uint32_t __stdcall WKW10MTestProviderPollShutdownCalls()
 {
     return g_pollShutdownCalls;
 }
 
 // Number of getState calls since the last reset, across all modes.
-__declspec(dllexport) uint32_t __stdcall WKUWPTestProviderStateCalls()
+__declspec(dllexport) uint32_t __stdcall WKW10MTestProviderStateCalls()
 {
     return g_stateCalls;
 }
 
 // Selects the getState behaviour mode for state-snapshot tests.
-__declspec(dllexport) void __stdcall WKUWPTestProviderSetStateMode(uint32_t mode)
+__declspec(dllexport) void __stdcall WKW10MTestProviderSetStateMode(uint32_t mode)
 {
     g_stateMode = mode;
 }
 
 // Marks a dispatch logically active so detach answers Pending until release.
-__declspec(dllexport) void __stdcall WKUWPTestProviderSetDispatching(uint32_t dispatching)
+__declspec(dllexport) void __stdcall WKW10MTestProviderSetDispatching(uint32_t dispatching)
 {
     g_dispatching = dispatching;
 }
@@ -636,7 +636,7 @@ __declspec(dllexport) void __stdcall WKUWPTestProviderSetDispatching(uint32_t di
 // before reading any argument, simulating the real engine's owner-thread rule.
 // Disabling returns the double to single-threaded service. Dispatch helpers
 // and FireRelease are the engine's own side of a dispatch and stay unchecked.
-__declspec(dllexport) void __stdcall WKUWPTestProviderSetEnforceThread(uint32_t enforce)
+__declspec(dllexport) void __stdcall WKW10MTestProviderSetEnforceThread(uint32_t enforce)
 {
     g_enforceThread = enforce;
     if (enforce)
@@ -647,15 +647,15 @@ __declspec(dllexport) void __stdcall WKUWPTestProviderSetEnforceThread(uint32_t 
 //
 // Covers both detach-pending and close-pending releases: closing follows the
 // same deferred safe release, so a close during dispatch also waits here.
-__declspec(dllexport) WKUWPResult __stdcall WKUWPTestProviderFireRelease(WKUWPPageHandle page)
+__declspec(dllexport) WKW10MResult __stdcall WKW10MTestProviderFireRelease(WKW10MPageHandle page)
 {
     uint32_t index = findAttachment(page);
     if (index == kTestMaxAttachments)
-        return pageKnown(page) ? WKUWPResultInvalidState : WKUWPResultInvalidArgument;
+        return pageKnown(page) ? WKW10MResultInvalidState : WKW10MResultInvalidArgument;
     if (g_attachments[index].active || g_attachments[index].acked)
-        return WKUWPResultInvalidState;
+        return WKW10MResultInvalidState;
     releaseAttachmentOnce(index);
-    return WKUWPResultOK;
+    return WKW10MResultOK;
 }
 
 // Copies harness text into the provider-owned dispatch buffer, truncating.
@@ -671,22 +671,22 @@ uint32_t copyDispatchText(const char* text, uint8_t* buffer)
 }
 
 // Delivers one notification into the attached table, then scrambles the source.
-__declspec(dllexport) WKUWPResult __stdcall WKUWPTestProviderDispatchNotify(
-    WKUWPPageHandle page, uint32_t eventKind, const char* uri, const char* title)
+__declspec(dllexport) WKW10MResult __stdcall WKW10MTestProviderDispatchNotify(
+    WKW10MPageHandle page, uint32_t eventKind, const char* uri, const char* title)
 {
     uint32_t index = findAttachment(page);
     if (index == kTestMaxAttachments || !g_attachments[index].active)
-        return WKUWPResultInvalidState;
+        return WKW10MResultInvalidState;
     if (!g_attachments[index].table.notify)
-        return WKUWPResultInvalidState;
-    WKUWPPageEvent event;
+        return WKW10MResultInvalidState;
+    WKW10MPageEvent event;
     memset(&event, 0, sizeof(event));
     event.header.structureSize = sizeof(event);
-    event.header.structureVersion = WKUWP_STRUCTURE_VERSION;
+    event.header.structureVersion = WKW10M_STRUCTURE_VERSION;
     event.pageId = page;
     event.callbackSequence = ++g_sequence;
     event.eventKind = eventKind;
-    event.contentKind = WKUWPContentRemote;
+    event.contentKind = WKW10MContentRemote;
     event.uri.data = g_eventUri;
     event.uri.length = copyDispatchText(uri, g_eventUri);
     event.title.data = g_eventTitle;
@@ -695,60 +695,60 @@ __declspec(dllexport) WKUWPResult __stdcall WKUWPTestProviderDispatchNotify(
     // The consumer must have copied what it keeps: nothing borrowed survives.
     memset(g_eventUri, 0xCD, sizeof(g_eventUri));
     memset(g_eventTitle, 0xCD, sizeof(g_eventTitle));
-    return WKUWPResultOK;
+    return WKW10MResultOK;
 }
 
 // Delivers one policy callback, reporting the consumer's answer and verdict.
-__declspec(dllexport) WKUWPResult __stdcall WKUWPTestProviderDispatchStarting(
-    WKUWPPageHandle page, const char* uri, uint32_t* cancelOut)
+__declspec(dllexport) WKW10MResult __stdcall WKW10MTestProviderDispatchStarting(
+    WKW10MPageHandle page, const char* uri, uint32_t* cancelOut)
 {
     uint32_t index = findAttachment(page);
     if (index == kTestMaxAttachments || !g_attachments[index].active)
-        return WKUWPResultInvalidState;
+        return WKW10MResultInvalidState;
     if (!g_attachments[index].table.starting || !cancelOut)
-        return WKUWPResultInvalidArgument;
-    WKUWPPageEvent event;
+        return WKW10MResultInvalidArgument;
+    WKW10MPageEvent event;
     memset(&event, 0, sizeof(event));
     event.header.structureSize = sizeof(event);
-    event.header.structureVersion = WKUWP_STRUCTURE_VERSION;
+    event.header.structureVersion = WKW10M_STRUCTURE_VERSION;
     event.pageId = page;
     event.callbackSequence = ++g_sequence;
-    event.eventKind = WKUWPEventStarting;
-    event.contentKind = WKUWPContentRemote;
+    event.eventKind = WKW10MEventStarting;
+    event.contentKind = WKW10MContentRemote;
     event.uri.data = g_eventUri;
     event.uri.length = copyDispatchText(uri, g_eventUri);
     // The provider sets cancel to 0 before the call, per the contract.
     uint32_t cancel = 0;
-    WKUWPResult result = g_attachments[index].table.starting(g_attachments[index].table.context, &event, &cancel);
+    WKW10MResult result = g_attachments[index].table.starting(g_attachments[index].table.context, &event, &cancel);
     *cancelOut = cancel;
     memset(g_eventUri, 0xCD, sizeof(g_eventUri));
     return result;
 }
 
 // Delivers a null notification, proving the consumer guards instead of faulting.
-__declspec(dllexport) WKUWPResult __stdcall WKUWPTestProviderDispatchNullNotify(WKUWPPageHandle page)
+__declspec(dllexport) WKW10MResult __stdcall WKW10MTestProviderDispatchNullNotify(WKW10MPageHandle page)
 {
     uint32_t index = findAttachment(page);
     if (index == kTestMaxAttachments || !g_attachments[index].active)
-        return WKUWPResultInvalidState;
+        return WKW10MResultInvalidState;
     if (!g_attachments[index].table.notify)
-        return WKUWPResultInvalidState;
+        return WKW10MResultInvalidState;
     g_attachments[index].table.notify(g_attachments[index].table.context, nullptr);
-    return WKUWPResultOK;
+    return WKW10MResultOK;
 }
 
 // Delivers a null policy callback, reporting the consumer's guard answer.
-__declspec(dllexport) WKUWPResult __stdcall WKUWPTestProviderDispatchNullStarting(
-    WKUWPPageHandle page, uint32_t* cancelOut)
+__declspec(dllexport) WKW10MResult __stdcall WKW10MTestProviderDispatchNullStarting(
+    WKW10MPageHandle page, uint32_t* cancelOut)
 {
     uint32_t index = findAttachment(page);
     if (index == kTestMaxAttachments || !g_attachments[index].active)
-        return WKUWPResultInvalidState;
+        return WKW10MResultInvalidState;
     if (!g_attachments[index].table.starting || !cancelOut)
-        return WKUWPResultInvalidArgument;
+        return WKW10MResultInvalidArgument;
     // A sentinel the consumer must leave alone while refusing the call.
     uint32_t cancel = 0xDEADBEEFu;
-    WKUWPResult result = g_attachments[index].table.starting(g_attachments[index].table.context, nullptr, &cancel);
+    WKW10MResult result = g_attachments[index].table.starting(g_attachments[index].table.context, nullptr, &cancel);
     *cancelOut = cancel;
     return result;
 }

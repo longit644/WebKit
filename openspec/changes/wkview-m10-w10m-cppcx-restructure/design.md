@@ -1,4 +1,4 @@
-# Design - M10 UWP C++/CX restructure
+# Design - M10 W10M C++/CX restructure
 
 ## Context
 

@@ -248,4 +248,3 @@ WK_PAGE_W10M_EXPORT unsigned __stdcall WKRenderCompositorW10M(void*, double over
 WK_PAGE_W10M_EXPORT long __stdcall WKInstallClipboardDispatcherW10M(void*, void* dispatcher);
 #undef WK_PAGE_W10M_EXPORT
 }
-

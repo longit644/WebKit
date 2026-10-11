@@ -15,11 +15,11 @@ unsigned services = 0, suspensionCalls = 0, completedResources = 0;
 // Provider-side suspension and pending delayed resource completion state.
 bool suspended = false, resourceReady = false;
 // Controlled originating result/reentrant request.
-WKUWPResult serviceResult = WKUWPResultOK, suspendResult = WKUWPResultOK;
+WKW10MResult serviceResult = WKW10MResultOK, suspendResult = WKW10MResultOK;
 // Optional native pump reentry used only by this provider test.
-OwnerThreadServicePumpUWP* reenter = nullptr;
+OwnerThreadServicePumpW10M* reenter = nullptr;
 // Optional per-view Close inside service before a frame could be admitted.
-FrameSchedulerUWP* closeDuringService = nullptr;
+FrameSchedulerW10M* closeDuringService = nullptr;
 
 // Preserve an earlier failure independently of subsequent passing checks.
 void check(bool value, const char* name)
@@ -30,7 +30,7 @@ void check(bool value, const char* name)
 }
 
 // Complete ready resource work without requesting or counting any presentation.
-WKUWPResult __stdcall service()
+WKW10MResult __stdcall service()
 {
     ++services;
     if (resourceReady && !suspended) { resourceReady = false; ++completedResources; }
@@ -40,22 +40,22 @@ WKUWPResult __stdcall service()
 }
 
 // Distinct process-service identity must not replace a live binding.
-WKUWPResult __stdcall foreignService() { return WKUWPResultOK; }
+WKW10MResult __stdcall foreignService() { return WKW10MResultOK; }
 
 // Explicit provider suspension is independent of every visual flag.
-WKUWPResult __stdcall setSuspended(uint32_t value)
+WKW10MResult __stdcall setSuspended(uint32_t value)
 {
     ++suspensionCalls;
-    if (suspendResult == WKUWPResultOK) suspended = !!value;
+    if (suspendResult == WKW10MResultOK) suspended = !!value;
     return suspendResult;
 }
 
 // Construct the exact V1 table prefix with only the relevant neutral process slots.
-WKUWPEngineAPI table()
+WKW10MEngineAPI table()
 {
-    WKUWPEngineAPI api { };
-    api.header = { sizeof(api), WKUWP_STRUCTURE_VERSION };
-    api.abiMajor = WKUWP_ABI_MAJOR_VERSION;
+    WKW10MEngineAPI api { };
+    api.header = { sizeof(api), WKW10M_STRUCTURE_VERSION };
+    api.abiMajor = WKW10M_ABI_MAJOR_VERSION;
     api.service = &service;
     api.setSuspended = &setSuspended;
     return api;
@@ -65,7 +65,7 @@ WKUWPEngineAPI table()
 void run()
 {
     auto api = table();
-    auto pump = std::make_shared<OwnerThreadServicePumpUWP>();
+    auto pump = std::make_shared<OwnerThreadServicePumpW10M>();
     check(pump->serviceNow() == HRESULT_FROM_WIN32(ERROR_NOT_READY), "unbound pump cannot service or invent readiness");
     auto shortAPI = api; shortAPI.header.structureSize = 8;
     check(pump->bind(&shortAPI) == HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH), "short table rejects before any service slot use");
@@ -73,7 +73,7 @@ void run()
     check(pump->bind(&api) == S_OK, "matching process binding is idempotent");
     auto foreign = api; foreign.service = &foreignService;
     check(pump->bind(&foreign) == HRESULT_FROM_WIN32(ERROR_ALREADY_INITIALIZED), "another engine cannot replace a copied process service identity");
-    FrameSchedulerUWP a, b;
+    FrameSchedulerW10M a, b;
     check(a.attach(pump) == S_OK && b.attach(pump) == S_OK && pump->clientCount() == 2, "two independent view leases share one native process pump");
     check(a.beginFrame(0) == S_FALSE && b.beginFrame(0) == S_FALSE && !services, "visually paused controls perform no rendering-driven service or frame work");
     resourceReady = true;
@@ -94,9 +94,9 @@ void run()
     check(pump->serviceNow() == S_OK && completedResources == 2 && pump->clientCount() == 2 && !suspensionCalls,
         "visual unload preserves service lease resource progress and active deadline clock");
     check(a.beginFrame(102) == S_FALSE && b.beginFrame(102) == S_OK && a.frameCount() == frameA, "unloaded A cannot block presentation or service for visible B");
-    suspendResult = static_cast<WKUWPResult>(E_ACCESSDENIED);
+    suspendResult = static_cast<WKW10MResult>(E_ACCESSDENIED);
     check(pump->setSuspended(true) == E_ACCESSDENIED && !pump->suspended(), "rejected process suspension preserves original HRESULT and active state");
-    suspendResult = WKUWPResultOK;
+    suspendResult = WKW10MResultOK;
     check(pump->setSuspended(true) == S_OK && pump->suspended() && suspended, "explicit app suspension reaches provider once");
     auto suspensions = suspensionCalls;
     check(pump->setSuspended(true) == S_OK && suspensionCalls == suspensions, "repeated suspension does not multiply provider suspension nesting");
@@ -107,12 +107,12 @@ void run()
     check(pump->setSuspended(false) == S_OK && pump->serviceNow() == S_OK && completedResources == 3,
         "resume ends explicit suspension and completes retained work before later frames");
     check(b.beginFrame(103) == S_OK, "resume admits a fresh frame without a stale suspended epoch");
-    serviceResult = static_cast<WKUWPResult>(E_ACCESSDENIED);
+    serviceResult = static_cast<WKW10MResult>(E_ACCESSDENIED);
     before = services;
     a.setPresentationEnabled(true);
     check(a.beginFrame(104) == E_ACCESSDENIED && b.beginFrame(104) == E_ACCESSDENIED && services == before + 1,
         "one failed process service result is shared exactly by both frame participants");
-    serviceResult = WKUWPResultOK;
+    serviceResult = WKW10MResultOK;
     check(a.beginFrame(105) == S_OK && b.beginFrame(105) == S_OK && services == before + 2, "later valid epoch recovers without repeating a failed epoch");
     reenter = pump.get();
     before = services;
@@ -136,15 +136,15 @@ void run()
     check(a.close() == S_OK && a.beginFrame(107) == RO_E_CLOSED && pump->clientCount() == 1, "closed A stays revoked while B keeps one service lease");
     check(b.beginFrame(107) == S_OK, "surviving peer continues normally after other view closes");
     check(b.close() == S_OK && !pump->clientCount() && pump->serviceNow() == S_FALSE, "last ordinary Close ends service demand without unloading engine code");
-    FrameSchedulerUWP recreated;
+    FrameSchedulerW10M recreated;
     check(recreated.attach(pump) == S_OK && recreated.setPresentationEnabled(true) == S_OK && recreated.beginFrame(0) == S_OK,
         "recreate starts a fresh SDK epoch after last-client teardown");
     recreated.close();
     check(!pump->clientCount(), "all native leases return to zero baseline");
-    std::shared_ptr<OwnerThreadServicePumpUWP> sharedA, sharedB;
-    check(OwnerThreadServicePumpUWP::acquire(&api, sharedA) == S_OK && OwnerThreadServicePumpUWP::acquire(&api, sharedB) == S_OK && sharedA == sharedB,
+    std::shared_ptr<OwnerThreadServicePumpW10M> sharedA, sharedB;
+    check(OwnerThreadServicePumpW10M::acquire(&api, sharedA) == S_OK && OwnerThreadServicePumpW10M::acquire(&api, sharedB) == S_OK && sharedA == sharedB,
         "separate caller acquisitions return the same process owner pump");
-    check(OwnerThreadServicePumpUWP::acquire(&foreign, sharedB) == HRESULT_FROM_WIN32(ERROR_ALREADY_INITIALIZED) && sharedA == sharedB,
+    check(OwnerThreadServicePumpW10M::acquire(&foreign, sharedB) == HRESULT_FROM_WIN32(ERROR_ALREADY_INITIALIZED) && sharedA == sharedB,
         "incompatible process acquisition leaves prior output ownership untouched");
 }
 

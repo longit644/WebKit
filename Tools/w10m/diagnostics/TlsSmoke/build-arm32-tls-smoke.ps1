@@ -3,7 +3,7 @@
 Builds, stages and packages the migrated TlsSmoke diagnostic (M10 task 8.7).
 .DESCRIPTION
 Builds the unchanged native transport probe payload (WebKitTlsProbe.dll) for
-ARM32 UWP with the discovered clang-cl toolchain, builds the C# application
+ARM32 W10M with the discovered clang-cl toolchain, builds the C# application
 host for ARM Release through .NET Native with the Community 2022 MSBuild, and
 packs a signable appx. All outputs live under a fresh -OutDir (default
 %TEMP%\opencode\tls-smoke); shared build trees are only read. This script
@@ -59,7 +59,7 @@ if (-not $VsPath) {
         }
     }
 }
-if (-not $VsPath) { throw 'No VS instance with the UWP C# targets; specify -VsPath' }
+if (-not $VsPath) { throw 'No VS instance with the W10M C# targets; specify -VsPath' }
 $msbuild = Join-Path $VsPath 'MSBuild\Current\Bin\MSBuild.exe'
 if (-not (Test-Path -LiteralPath $msbuild)) { throw "Community MSBuild missing: $msbuild" }
 Write-Host "MSBuild: $msbuild"
@@ -89,7 +89,7 @@ foreach ($required in @("$vcpkgInstalled\include\curl\curl.h", "$vcpkgInstalled\
 $cmake = Get-Command cmake -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
 if (-not $cmake) { throw 'cmake not on PATH' }
 
-Write-Host '--- native payload (ARM32 UWP) ---'
+Write-Host '--- native payload (ARM32 W10M) ---'
 $payloadBuild = Join-Path $OutDir 'payload\build'
 $payloadBin = Join-Path $OutDir 'payload\bin'
 New-Item -ItemType Directory -Path $payloadBuild, $payloadBin -Force | Out-Null

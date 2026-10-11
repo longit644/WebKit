@@ -1,4 +1,4 @@
-# M10 - UWP C++/CX architecture and restructuring
+# M10 - W10M C++/CX architecture and restructuring
 
 Author: Sol. Status: implementation in progress. M10 supersedes unfinished M9 architecture/requirements while preserving its implementation and historical device evidence. Sections 5-7 are complete; section 8 is in progress and uses C# application shells over the existing C++/CX component. No milestone completion is implied.
 
@@ -17,7 +17,7 @@ Public type remains WebKit.WebKitWebView. Authored component files stay directly
 - [artifact/build-and-packaging.md](artifact/build-and-packaging.md): compiler domains, metadata and runtime gates.
 - [artifact/acceptance-matrix.md](artifact/acceptance-matrix.md): host/device evidence, review resolutions and reference event traces.
 - [artifact/implementation-handoff.md](artifact/implementation-handoff.md): starting state and rules for the implementing model.
-- [artifact/csharp-toolchain.md](artifact/csharp-toolchain.md): C# UWP toolchain decision and Lumia proof gate.
+- [artifact/csharp-toolchain.md](artifact/csharp-toolchain.md): C# W10M toolchain decision and Lumia proof gate.
 - [artifact/csharp-app-hosts.md](artifact/csharp-app-hosts.md): section-8 C# shell/payload migrations and current evidence.
 - specs/: nine normative capability deltas with testable scenarios.
 - tasks.md: dependency-ordered implementation work with evidence recorded per completed task.

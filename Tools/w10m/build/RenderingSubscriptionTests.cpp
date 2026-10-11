@@ -21,7 +21,7 @@ void check(bool value, const char* name)
 }
 
 // Controlled CompositionTarget double issuing observable tokens.
-struct HookDouble : RenderHookUWP {
+struct HookDouble : RenderHookW10M {
     // Successful subscriptions and revocations observed.
     unsigned subscribes { 0 }, unsubscribes { 0 };
     // Last revoked token for exact-token assertions.
@@ -56,7 +56,7 @@ struct HookDouble : RenderHookUWP {
 void runLifecycle()
 {
     {
-        RenderSubscriptionUWP hooks;
+        RenderSubscriptionW10M hooks;
         HookDouble hook;
         check(hooks.attach(nullptr) == E_INVALIDARG, "null presentation port rejects");
         check(hooks.attach(&hook) == S_OK && hooks.subscribed() && hook.subscribes == 1, "attach subscribes the initial Loaded state once");
@@ -64,7 +64,7 @@ void runLifecycle()
         check(hooks.onLoaded() == S_OK && hook.subscribes == 1, "Loaded while active never duplicates the token");
     }
     {
-        RenderSubscriptionUWP hooks;
+        RenderSubscriptionW10M hooks;
         HookDouble hook;
         hooks.attach(&hook);
         auto first = hook.nextToken;
@@ -80,7 +80,7 @@ void runLifecycle()
         check(hook.subscribes == 5 && hook.unsubscribes == 4 && hooks.subscribed(), "three reparent cycles balance five subscribes with four revocations");
     }
     {
-        RenderSubscriptionUWP hooks;
+        RenderSubscriptionW10M hooks;
         HookDouble hook;
         hooks.attach(&hook);
         check(hooks.setSuspended(true) == S_OK && !hooks.subscribed() && hook.unsubscribes == 1, "suspend pauses callbacks");
@@ -94,7 +94,7 @@ void runLifecycle()
         check(hooks.onLoaded() == S_OK && hooks.subscribed(), "later load completes the pending resume");
     }
     {
-        RenderSubscriptionUWP hooks;
+        RenderSubscriptionW10M hooks;
         HookDouble hook;
         hooks.attach(&hook);
         check(hooks.close() == S_OK && !hooks.subscribed() && hook.unsubscribes == 1, "close revokes the token once");
@@ -106,7 +106,7 @@ void runLifecycle()
         check(hooks.disableAfterFailure() == S_OK, "disable after close is harmless");
     }
     {
-        RenderSubscriptionUWP hooks;
+        RenderSubscriptionW10M hooks;
         HookDouble hook;
         hooks.attach(&hook);
         check(hooks.disableAfterFailure() == S_OK && !hooks.subscribed(), "frame failure revokes callbacks");
@@ -115,7 +115,7 @@ void runLifecycle()
         check(hooks.close() == S_OK, "close after failure still completes");
     }
     {
-        RenderSubscriptionUWP hooks;
+        RenderSubscriptionW10M hooks;
         HookDouble hook;
         hook.subscribeResult = E_ACCESSDENIED;
         check(hooks.attach(&hook) == E_ACCESSDENIED && !hooks.subscribed(), "failed initial subscribe preserves the error with no token");
@@ -123,7 +123,7 @@ void runLifecycle()
         check(hooks.onLoaded() == S_OK && hooks.subscribed() && hook.subscribes == 1, "later load retries the failed subscription once");
     }
     {
-        RenderSubscriptionUWP hooks;
+        RenderSubscriptionW10M hooks;
         HookDouble hook;
         hooks.attach(&hook);
         hook.unsubscribeResult = E_ACCESSDENIED;
@@ -132,7 +132,7 @@ void runLifecycle()
         check(hooks.onUnloaded() == S_OK && !hooks.subscribed(), "retry revokes the retained token");
     }
     {
-        RenderSubscriptionUWP first, second;
+        RenderSubscriptionW10M first, second;
         HookDouble hookA, hookB;
         first.attach(&hookA);
         second.attach(&hookB);
@@ -144,7 +144,7 @@ void runLifecycle()
         check(!first.subscribed() && !second.subscribed(), "both instances return to baseline");
     }
     {
-        RenderSubscriptionUWP hooks;
+        RenderSubscriptionW10M hooks;
         HookDouble hook;
         hooks.attach(&hook);
         unsigned wrongThread = 0;

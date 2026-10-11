@@ -54,13 +54,13 @@ struct TransactionPage {
     // Real authored XAML/CX object that implements every public transaction.
     WebKitWebView^ view { ref new WebKitWebView() };
     // Frozen engine table bound through the actual native page controller.
-    WKUWPEngineAPI api { };
+    WKW10MEngineAPI api { };
     // Retained copied provider callback table.
-    WKUWPPageCallbacks callbacks { };
+    WKW10MPageCallbacks callbacks { };
     // Page/main/document/sequence identities supplied by the provider.
     uint64_t page, nextId { 0 }, active { 0 }, generation { 0 }, sequence { 0 };
     // Active content policy and current proposed URI.
-    uint32_t kind { WKUWPContentRemote };
+    uint32_t kind { WKW10MContentRemote };
     std::string target;
     // Actual filtered native/property/policy/terminal trace.
     std::vector<std::string> events;
@@ -71,7 +71,7 @@ struct TransactionPage {
     // Last immutable completion retained after provider buffer reuse.
     WebKitNavigationCompletedEventArgs^ completed;
     // Provider-owned current certificate decision.
-    WKUWPCertificateToken decision { 0, 0 };
+    WKW10MCertificateToken decision { 0, 0 };
     // Controlled native admission/decision failures without allocating any main ID.
     bool rejectNext { false }, certificateFailure { false };
     // Simulate an asynchronously acknowledged policy veto with an owed terminal.
@@ -87,7 +87,7 @@ struct TransactionPage {
         transactionPages[page] = this;
         api.header = { sizeof(api), 1 };
         api.abiMajor = 1;
-        api.capabilities = WKUWPCapabilityStructuredNotifications | WKUWPCapabilityHostHtml | WKUWPCapabilityCertificateDecisions;
+        api.capabilities = WKW10MCapabilityStructuredNotifications | WKW10MCapabilityHostHtml | WKW10MCapabilityCertificateDecisions;
         api.setCallbacks = &attach;
         api.navigate = &navigate;
         api.loadHtml = &html;
@@ -121,7 +121,7 @@ struct TransactionPage {
     // Suppress expired local subscriber captures before provider/native fixture release.
     ~TransactionPage()
     {
-        if (attached) static_cast<PageCallbacksUWP*>(callbacks.context)->deactivate();
+        if (attached) static_cast<PageCallbacksW10M*>(callbacks.context)->deactivate();
         view->Close();
         if (attached) callbacks.releaseContext(callbacks.context);
         transactionPages.erase(page);
@@ -135,9 +135,9 @@ struct TransactionPage {
     }
 
     // Build a current strictly ordered V1 signal whose bytes are borrowed only for dispatch.
-    WKUWPPageEvent packet(uint32_t type)
+    WKW10MPageEvent packet(uint32_t type)
     {
-        WKUWPPageEvent result { };
+        WKW10MPageEvent result { };
         result.header = { sizeof(result), 1 };
         result.pageId = page;
         result.navigationId = active;
@@ -151,10 +151,10 @@ struct TransactionPage {
     }
 
     // Finish one provider navigation before callbacks may reenter and allocate another ID.
-    void finish(uint32_t outcome = WKUWPOutcomeCompleted, uint32_t domain = WKUWPErrorDomainNone, int code = 0, WKUWPCertificateToken token = { 0, 0 })
+    void finish(uint32_t outcome = WKW10MOutcomeCompleted, uint32_t domain = WKW10MErrorDomainNone, int code = 0, WKW10MCertificateToken token = { 0, 0 })
     {
         if (!active) return;
-        auto value = packet(WKUWPEventCompleted);
+        auto value = packet(WKW10MEventCompleted);
         auto related = target;
         value.uri = { reinterpret_cast<const uint8_t*>(related.data()), static_cast<uint32_t>(related.size()) };
         value.outcome = outcome;
@@ -170,117 +170,117 @@ struct TransactionPage {
     void commit()
     {
         ++generation;
-        auto value = packet(WKUWPEventSourceChanged);
+        auto value = packet(WKW10MEventSourceChanged);
         callbacks.notify(callbacks.context, &value);
     }
 
     // Admit and trace one fresh Remote/HostHtml proposal, honoring real policy precedence.
     void begin(std::string uri, uint32_t content, uint64_t* id)
     {
-        finish(WKUWPOutcomeCancelled);
+        finish(WKW10MOutcomeCancelled);
         target = std::move(uri);
         kind = content;
         active = ++nextId;
         if (id) *id = active;
         events.push_back("N" + std::to_string(active));
-        auto value = packet(WKUWPEventStarting);
+        auto value = packet(WKW10MEventStarting);
         uint32_t cancel = 0;
         auto result = callbacks.starting(callbacks.context, &value, &cancel);
         if (cancel) {
-            if (!holdPolicyTerminal) finish(WKUWPOutcomeCancelled);
+            if (!holdPolicyTerminal) finish(WKW10MOutcomeCancelled);
         }
-        else if (result != WKUWPResultOK) finish(WKUWPOutcomeFailed, WKUWPErrorDomainPlatform, result);
+        else if (result != WKW10MResultOK) finish(WKW10MOutcomeFailed, WKW10MErrorDomainPlatform, result);
         else if (certificateFailure) {
             certificateFailure = false;
             decision = { 12000 + page, 1 };
-            finish(WKUWPOutcomeFailed, WKUWPErrorDomainTransport, 60, decision);
+            finish(WKW10MOutcomeFailed, WKW10MErrorDomainTransport, 60, decision);
         }
     }
 
     // Controlled readiness is separate from document navigation identity.
-    static HRESULT __stdcall initialize(void*, SourceActionUWP kind, const WKUWPString*)
+    static HRESULT __stdcall initialize(void*, SourceActionW10M kind, const WKW10MString*)
     {
-        return kind == SourceActionUWP::Initialize ? S_OK : E_NOTIMPL;
+        return kind == SourceActionW10M::Initialize ? S_OK : E_NOTIMPL;
     }
 
     // Retain the provider's actual frozen attachment once.
-    static WKUWPResult __stdcall attach(uint64_t page, const WKUWPPageCallbacks* table)
+    static WKW10MResult __stdcall attach(uint64_t page, const WKW10MPageCallbacks* table)
     {
         auto self = find(page);
-        if (!self || self->attached) return WKUWPResultInvalidArgument;
+        if (!self || self->attached) return WKW10MResultInvalidArgument;
         self->callbacks = *table;
         table->retainContext(table->context);
         self->attached = true;
-        return WKUWPResultOK;
+        return WKW10MResultOK;
     }
 
     // Reject admission or begin exactly the borrowed Remote target through V1 policy.
-    static WKUWPResult __stdcall navigate(uint64_t page, const WKUWPNavigationRequest* request, uint64_t* id)
+    static WKW10MResult __stdcall navigate(uint64_t page, const WKW10MNavigationRequest* request, uint64_t* id)
     {
         auto self = find(page);
-        if (!self) return WKUWPResultClosed;
-        if (self->rejectNext) { self->rejectNext = false; return static_cast<WKUWPResult>(E_ACCESSDENIED); }
+        if (!self) return WKW10MResultClosed;
+        if (self->rejectNext) { self->rejectNext = false; return static_cast<WKW10MResult>(E_ACCESSDENIED); }
         self->decision = { 0, 0 };
-        self->begin(std::string(reinterpret_cast<const char*>(request->uri.data), request->uri.length), WKUWPContentRemote, id);
-        return WKUWPResultOK;
+        self->begin(std::string(reinterpret_cast<const char*>(request->uri.data), request->uri.length), WKW10MContentRemote, id);
+        return WKW10MResultOK;
     }
 
     // Revalidate a copied warning pair at provider execution; generic HTML invalidates it.
-    static WKUWPResult __stdcall html(uint64_t page, const WKUWPNavigationRequest* request, uint64_t* id)
+    static WKW10MResult __stdcall html(uint64_t page, const WKW10MNavigationRequest* request, uint64_t* id)
     {
         auto self = find(page);
-        if (!self) return WKUWPResultClosed;
+        if (!self) return WKW10MResultClosed;
         ++self->htmlCalls;
         if (request->warningToken.issuer && (request->warningToken.issuer != self->decision.issuer || request->warningToken.decision != self->decision.decision))
-            return WKUWPResultInvalidCertificateToken;
+            return WKW10MResultInvalidCertificateToken;
         if (!request->warningToken.issuer) self->decision = { 0, 0 };
         self->markup.assign(reinterpret_cast<const char*>(request->html.data), request->html.length);
-        self->begin("about:blank", WKUWPContentHostHtml, id);
+        self->begin("about:blank", WKW10MContentHostHtml, id);
         if (self->active) { self->commit(); self->finish(); }
-        return WKUWPResultOK;
+        return WKW10MResultOK;
     }
 
     // No-op page commands still end provider pending consent but invent no main identity.
-    static WKUWPResult __stdcall noop(uint64_t page)
+    static WKW10MResult __stdcall noop(uint64_t page)
     {
         auto self = find(page);
-        if (!self) return WKUWPResultClosed;
+        if (!self) return WKW10MResultClosed;
         self->decision = { 0, 0 };
-        return WKUWPResultOK;
+        return WKW10MResultOK;
     }
 
     // Cancel active work once; queued Stop must not run during the old notification.
-    static WKUWPResult __stdcall stop(uint64_t page)
+    static WKW10MResult __stdcall stop(uint64_t page)
     {
         auto self = find(page);
-        if (!self) return WKUWPResultClosed;
+        if (!self) return WKW10MResultClosed;
         self->decision = { 0, 0 };
-        self->finish(WKUWPOutcomeCancelled);
-        return WKUWPResultOK;
+        self->finish(WKW10MOutcomeCancelled);
+        return WKW10MResultOK;
     }
 
     // Invalidated queued retries reject before provider work or fresh ID allocation.
-    static WKUWPResult __stdcall retry(uint64_t page, const WKUWPCertificateToken* token, uint64_t* id)
+    static WKW10MResult __stdcall retry(uint64_t page, const WKW10MCertificateToken* token, uint64_t* id)
     {
         auto self = find(page);
-        if (!self) return WKUWPResultClosed;
+        if (!self) return WKW10MResultClosed;
         ++self->retryCalls;
-        if (token->issuer != self->decision.issuer || token->decision != self->decision.decision) return WKUWPResultInvalidCertificateToken;
+        if (token->issuer != self->decision.issuer || token->decision != self->decision.decision) return WKW10MResultInvalidCertificateToken;
         self->decision = { 0, 0 };
-        self->begin("https://example.test/retry", WKUWPContentRemote, id);
-        return WKUWPResultOK;
+        self->begin("https://example.test/retry", WKW10MContentRemote, id);
+        return WKW10MResultOK;
     }
 
     // Trace one native cleanup request only after all owed public transactions finish.
-    static WKUWPResult __stdcall close(uint64_t page)
+    static WKW10MResult __stdcall close(uint64_t page)
     {
         auto self = find(page);
-        if (!self) return WKUWPResultClosed;
+        if (!self) return WKW10MResultClosed;
         self->events.push_back("Z");
         ++self->closes;
-        self->finish(WKUWPOutcomeCancelled);
+        self->finish(WKW10MOutcomeCancelled);
         if (self->attached) { self->attached = false; self->callbacks.releaseContext(self->callbacks.context); }
-        return WKUWPResultOK;
+        return WKW10MResultOK;
     }
 };
 
@@ -370,7 +370,7 @@ void runTransactions(TransactionReport& report)
             [&f](WebKitWebView^, WebKitNavigationCompletedEventArgs^) { f.view->Close(); });
         f.finish();
         report.trace(f.events, { "P0", "C1", "Z" }, "reference trace Close in Completed never invents cancellation A");
-        report.check(f.terminalCounts[1] == 1 && f.view->ControlPhase() == ControlPhaseUWP::Closed, "Completed Close releases the instance only after its single terminal");
+        report.check(f.terminalCounts[1] == 1 && f.view->ControlPhase() == ControlPhaseW10M::Closed, "Completed Close releases the instance only after its single terminal");
     }
     {
         TransactionPage f(608);
@@ -379,7 +379,7 @@ void runTransactions(TransactionReport& report)
         f.view->PropertyChanged += ref new PropertyChangedEventHandler([&](Object^, PropertyChangedEventArgs^ args) {
             if (args->PropertyName != L"IsLoading" || f.view->IsLoading || !armed) return;
             armed = false;
-            auto next = f.packet(WKUWPEventTitleChanged);
+            auto next = f.packet(WKW10MEventTitleChanged);
             next.documentGeneration = 0;
             // Stable invalid-generation payload must never overwrite the terminal snapshot.
             constexpr char staleTitle[] = "stale title";
@@ -509,7 +509,7 @@ void runTransactions(TransactionReport& report)
         report.check(f.nextId == 1 && f.view->IsLoading && traceSource(f.view) == L"https://example.test/pending-veto",
             "commands waiting for asynchronous policy terminal leave A snapshot and main identity frozen");
         f.holdPolicyTerminal = false;
-        f.finish(WKUWPOutcomeCancelled);
+        f.finish(WKW10MOutcomeCancelled);
         report.check(f.view->DeferredCommandFailures() == 1 && f.view->LastDeferredCommandError() == E_ACCESSDENIED
                 && f.terminalCounts[1] == 1 && f.nextId == 2 && f.view->IsLoading,
             "policy-wait commands are deferred even outside callbacks and failure cannot strand later FIFO work");
@@ -522,7 +522,7 @@ void runTransactions(TransactionReport& report)
             [&f](WebKitWebView^, WebKitNavigationStartingEventArgs^) { f.view->Close(); throw Exception::CreateException(E_ACCESSDENIED); });
         f.view->Source = traceUri(L"https://example.test/close-in-policy");
         report.check(f.closes == 1 && f.terminalCounts[1] == 1 && f.completed->ErrorDomain == WebKitNavigationErrorDomain::None
-                && f.view->ControlPhase() == ControlPhaseUWP::Closed,
+                && f.view->ControlPhase() == ControlPhaseW10M::Closed,
             "Starting Close overrides throw with one Cancelled and one native cleanup");
         report.trace(f.events, { "N1", "P1", "S1", "P0", "X1", "Z" },
             "reference trace Starting Close delivers cancellation before revocation");
@@ -541,7 +541,7 @@ void runTransactions(TransactionReport& report)
 } // namespace
 
 // Diagnostic-only XAML-owner entry recording exact actual/reference notification traces.
-extern "C" __declspec(dllexport) HRESULT __stdcall WKUWPTestTransactions(const wchar_t* path)
+extern "C" __declspec(dllexport) HRESULT __stdcall WKW10MTestTransactions(const wchar_t* path)
 {
     TransactionReport report;
     try { runTransactions(report); }

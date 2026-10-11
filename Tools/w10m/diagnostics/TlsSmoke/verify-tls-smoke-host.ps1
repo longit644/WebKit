@@ -35,16 +35,19 @@ function Get-Markers([string]$text) {
     return @([regex]::Matches($text, 'logResult\("([^"]+)"') | ForEach-Object { $_.Groups[1].Value })
 }
 
-Write-Host '--- 1. inventory from committed HEAD ---'
+Write-Host '--- 1. inventory from committed baseline ---'
+# Pinned pre-migration commit: Tools/uwp/TlsSmoke was moved by the
+# diagnostic-host migration and no longer exists on HEAD.
+$baseline = 'fe5c620b1aaeb143934e738c7b155fe733913d01'
 Push-Location $repo
 try {
-    # HEAD intentionally points at the pre-migration source location.
-    $headCpp = (& git show 'HEAD:Tools/uwp/TlsSmoke/TlsSmoke.cpp' 2>&1) -join "`n"
+    # Baseline intentionally points at the pre-migration source location.
+    $headCpp = (& git show "$baseline`:Tools/uwp/TlsSmoke/TlsSmoke.cpp" 2>&1) -join "`n"
     $headReadCode = $LASTEXITCODE
 }
 finally { Pop-Location }
 if ($headReadCode -ne 0 -or -not $headCpp -or $headCpp -match '(?m)^fatal:') {
-    throw 'Could not read historical HEAD baseline Tools/uwp/TlsSmoke/TlsSmoke.cpp; refusing to continue without the semantic reference'
+    throw 'Could not read historical baseline Tools/uwp/TlsSmoke/TlsSmoke.cpp; refusing to continue without the semantic reference'
 }
 $headMarkers = Get-Markers $headCpp
 if ($headMarkers.Count -eq 0 -or $headCpp -notmatch '(?s)enum TlsProbeLogBoolean\s*\{' -or
@@ -59,7 +62,7 @@ Write-Host "    HEAD markers: $($headMarkers.Count); new payload markers: $($new
 # sites moved (tls-startup/tls-package-path into C#, tls-ca-present stays).
 $headPhase = @($headMarkers | Where-Object { $_ -ne 'tls-startup' -and $_ -ne 'tls-package-path' })
 Assert-True (($newMarkers -join '|') -eq ($headPhase -join '|')) 'payload marker names and phase ordering unchanged' `
-    "HEAD: $($headPhase -join ',')"
+    "baseline: $($headPhase -join ',')"
 $headEnums = [regex]::Matches($headCpp, '(?s)enum TlsProbe\w+ \{.*?\};') | ForEach-Object { $_.Value }
 $newEnums = [regex]::Matches($newCpp, '(?s)enum TlsProbe\w+ \{.*?\};') | ForEach-Object { $_.Value }
 Assert-True (($newEnums -join "`n") -eq ($headEnums -join "`n")) 'probe enums numerically identical'

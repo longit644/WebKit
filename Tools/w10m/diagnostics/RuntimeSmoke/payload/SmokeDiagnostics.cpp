@@ -19,7 +19,7 @@ using namespace Microsoft::WRL;
 namespace UI = ABI::Windows::UI::Core;
 
 // The BGRA stride unit below must stay the ABI bytes-per-pixel value.
-static_assert(UWPBytesPerBGRA == 4, "smoke snapshot assumes 4-byte BGRA pixels");
+static_assert(W10MBytesPerBGRA == 4, "smoke snapshot assumes 4-byte BGRA pixels");
 
 // Diagnostic process result conventions: zero is success.
 constexpr unsigned kDiagnosticSuccess = 0;
@@ -122,7 +122,7 @@ extern "C" __declspec(dllexport) unsigned __stdcall WKRunSmokeDiagnostics(
     // The historical "worker-started" label is retained for protocol
     // stability; since version 1.0.0.10 this sequence runs on the owning
     // UI/engine thread rather than a background worker.
-    logResult("worker-started", WKPageLogFalseUWP);
+    logResult("worker-started", WKPageLogFalseW10M);
     HMODULE smoke = LoadPackagedLibrary(L"WebKitRuntimeSmoke.dll", kDefaultPackagedLibraryFlags);
     if (!smoke) {
         logResult("load-runtime-smoke", GetLastError());
@@ -169,7 +169,7 @@ extern "C" __declspec(dllexport) unsigned __stdcall WKRunSmokeDiagnostics(
     releaseString(script);
     releaseContext(context);
     HMODULE webCore = LoadPackagedLibrary(L"WebCore.dll", kDefaultPackagedLibraryFlags);
-    logResult("load-webcore", webCore ? WKPageLogFalseUWP : GetLastError());
+    logResult("load-webcore", webCore ? WKPageLogFalseW10M : GetLastError());
     if (!webCore)
         return kDiagnosticFailure;
     // Declared signature (SmokeDiagnostics.h); no inline reinterpret_cast.
@@ -199,7 +199,7 @@ extern "C" __declspec(dllexport) unsigned __stdcall WKRunSmokeDiagnostics(
     };
     auto pixels = std::make_shared<PixelFrame>();
     // BGRA backing store for the one-frame render below.
-    pixels->bytes = static_cast<unsigned char*>(HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, width * height * UWPBytesPerBGRA));
+    pixels->bytes = static_cast<unsigned char*>(HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, width * height * W10MBytesPerBGRA));
     if (!pixels->bytes) {
         logResult("page-pixel-allocation", ERROR_NOT_ENOUGH_MEMORY);
         return kDiagnosticFailure;
@@ -216,13 +216,13 @@ extern "C" __declspec(dllexport) unsigned __stdcall WKRunSmokeDiagnostics(
     HRESULT windowResult = coreWindowUnknown
         ? reinterpret_cast<IUnknown*>(coreWindowUnknown)->QueryInterface(IID_PPV_ARGS(&window))
         : E_POINTER;
-    auto* presenter = new WebKit::WebKitWebViewPresenterUWP;
+    auto* presenter = new WebKit::WebKitWebViewPresenterW10M;
     HRESULT result = SUCCEEDED(windowResult)
         ? presenter->initializeForCoreWindow(window.Get(), width, height)
         : windowResult;
     logResult("page-d3d11-initialize", result);
     if (SUCCEEDED(result)) {
-        result = presenter->present(pixels->bytes, width * UWPBytesPerBGRA);
+        result = presenter->present(pixels->bytes, width * W10MBytesPerBGRA);
         logResult("page-d3d11-present", result);
     }
     return kDiagnosticSuccess;

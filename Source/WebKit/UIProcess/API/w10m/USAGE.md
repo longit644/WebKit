@@ -1,4 +1,4 @@
-# Embedding WebKitWebView on UWP / Windows 10 Mobile
+# Embedding WebKitWebView on W10M / Windows 10 Mobile
 
 ## Contract and current integration state
 
@@ -245,7 +245,7 @@ fails fail-closed rather than claiming success):
 - Sessions/trust/fonts: engine isolation, immutable policy and canonical
   fingerprint implement; production consumption needs their bits.
 
-`Tools/uwp/CXWebViewCompiledProbe` imports only generated public WinMD and stages
-XBF/PRI. `Tools/uwp/CXStateTests` tests typed consumer semantics against controlled
+`Tools/w10m/CXWebViewCompiledProbe` imports only generated public WinMD and stages
+XBF/PRI. `Tools/w10m/CXStateTests` tests typed consumer semantics against controlled
 V1 inputs; its exports are excluded from production. Exact package/build/report
 evidence lives in the M10 `artifact/` directory and the task checklist.

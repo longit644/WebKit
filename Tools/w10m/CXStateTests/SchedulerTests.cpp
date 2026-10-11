@@ -34,25 +34,25 @@ struct SchedulerRun : std::enable_shared_from_this<SchedulerRun> {
     std::wstring path;
     std::string base;
     // Actual SDK action returned to the diagnostic host; readiness is not faked.
-    InitializationActionUWP^ action;
+    InitializationActionW10M^ action;
     // Real public controls provide XAML lifetime/weak-target participants.
     WebKitWebView^ viewA { ref new WebKitWebView() };
     // Independent second real public XAML control, never a globally routed target.
     WebKitWebView^ viewB { ref new WebKitWebView() };
     // Shared private CX owner driver and separate native per-view eligibility.
-    FrameSchedulerDriverUWP^ driver;
-    std::shared_ptr<FrameSchedulerUWP> schedulerA { std::make_shared<FrameSchedulerUWP>() }, schedulerB { std::make_shared<FrameSchedulerUWP>() };
+    FrameSchedulerDriverW10M^ driver;
+    std::shared_ptr<FrameSchedulerW10M> schedulerA { std::make_shared<FrameSchedulerW10M>() }, schedulerB { std::make_shared<FrameSchedulerW10M>() };
     // Shared service binding uses the real module's frozen service slot.
-    std::shared_ptr<OwnerThreadServicePumpUWP> pump;
+    std::shared_ptr<OwnerThreadServicePumpW10M> pump;
     // Native V1 and legacy diagnostic operation pointers; no engine code is linked.
-    WKUWPEngineAPI api { };
-    decltype(&WKCreatePageUWP) create { nullptr };
-    decltype(&WKDestroyPageUWP) destroy { nullptr };
-    decltype(&WKNavigatePageUWP) navigate { nullptr };
-    decltype(&WKLoadHTMLUWP) html { nullptr };
-    decltype(&WKPageNeedsPaintUWP) needsPaint { nullptr };
-    decltype(&WKGetPageStateUWP) state { nullptr };
-    decltype(&WKInstallClipboardDispatcherUWP) installDispatcher { nullptr };
+    WKW10MEngineAPI api { };
+    decltype(&WKCreatePageW10M) create { nullptr };
+    decltype(&WKDestroyPageW10M) destroy { nullptr };
+    decltype(&WKNavigatePageW10M) navigate { nullptr };
+    decltype(&WKLoadHTMLW10M) html { nullptr };
+    decltype(&WKPageNeedsPaintW10M) needsPaint { nullptr };
+    decltype(&WKGetPageStateW10M) state { nullptr };
+    decltype(&WKInstallClipboardDispatcherW10M) installDispatcher { nullptr };
     // Independently owned real native pages whose resources progress without paint/tick.
     void* pageA { nullptr }, *pageB { nullptr };
     // Driver participant identities survive copied callback snapshots until removal.
@@ -104,7 +104,7 @@ struct SchedulerRun : std::enable_shared_from_this<SchedulerRun> {
     void nativeLog(const char* page, const char* name, unsigned long value)
     {
         std::string stage(name);
-        if (stage.find("navigation-") != 0 && stage.find("uwp-load-") != 0) return;
+        if (stage.find("navigation-") != 0 && stage.find("w10m-load-") != 0) return;
         if (lines.size() > 16000) return;
         lines += page; lines += ": "; lines += stage; lines += "=" + std::to_string(value) + "\r\n";
     }
@@ -118,7 +118,7 @@ struct SchedulerRun : std::enable_shared_from_this<SchedulerRun> {
     }
 
     // Create actual engine pages and SDK hooks while both participants are visually paused.
-    void start(const wchar_t* output, const wchar_t* fixture, InitializationActionUWP^ observation)
+    void start(const wchar_t* output, const wchar_t* fixture, InitializationActionW10M^ observation)
     {
         path = output; action = observation;
         auto count = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, fixture, -1, nullptr, 0, nullptr, nullptr);
@@ -128,18 +128,18 @@ struct SchedulerRun : std::enable_shared_from_this<SchedulerRun> {
         base.pop_back();
         auto engine = LoadPackagedLibrary(L"WebCore.dll", 0);
         if (!engine) throw Exception::CreateException(HRESULT_FROM_WIN32(GetLastError()));
-        auto discover = operation<decltype(&WKUWPGetEngineAPI)>(engine, "WKUWPGetEngineAPI");
-        api.header = { sizeof(api), WKUWP_STRUCTURE_VERSION };
-        check(discover(1, 0, 0, &api) == WKUWPResultOK && api.service && api.setSuspended,
+        auto discover = operation<decltype(&WKW10MGetEngineAPI)>(engine, "WKW10MGetEngineAPI");
+        api.header = { sizeof(api), WKW10M_STRUCTURE_VERSION };
+        check(discover(1, 0, 0, &api) == WKW10MResultOK && api.service && api.setSuspended,
             "actual engine negotiation supplies process service and suspension slots");
-        check(api.service() == WKUWPResultNotInitialized, "real service rejects before native engine initialization");
-        create = operation<decltype(create)>(engine, "WKCreatePageUWP");
-        destroy = operation<decltype(destroy)>(engine, "WKDestroyPageUWP");
-        navigate = operation<decltype(navigate)>(engine, "WKNavigatePageUWP");
-        html = operation<decltype(html)>(engine, "WKLoadHTMLUWP");
-        needsPaint = operation<decltype(needsPaint)>(engine, "WKPageNeedsPaintUWP");
-        state = operation<decltype(state)>(engine, "WKGetPageStateUWP");
-        installDispatcher = operation<decltype(installDispatcher)>(engine, "WKInstallClipboardDispatcherUWP");
+        check(api.service() == WKW10MResultNotInitialized, "real service rejects before native engine initialization");
+        create = operation<decltype(create)>(engine, "WKCreatePageW10M");
+        destroy = operation<decltype(destroy)>(engine, "WKDestroyPageW10M");
+        navigate = operation<decltype(navigate)>(engine, "WKNavigatePageW10M");
+        html = operation<decltype(html)>(engine, "WKLoadHTMLW10M");
+        needsPaint = operation<decltype(needsPaint)>(engine, "WKPageNeedsPaintW10M");
+        state = operation<decltype(state)>(engine, "WKGetPageStateW10M");
+        installDispatcher = operation<decltype(installDispatcher)>(engine, "WKInstallClipboardDispatcherW10M");
         auto package = Windows::ApplicationModel::Package::Current->InstalledLocation->Path;
         auto fonts = package + L"\\Fonts";
         unsigned result = 0;
@@ -152,8 +152,8 @@ struct SchedulerRun : std::enable_shared_from_this<SchedulerRun> {
         check(SUCCEEDED(installDispatcher(pageA, reinterpret_cast<IInspectable*>(dispatcher)))
                 && SUCCEEDED(installDispatcher(pageB, reinterpret_cast<IInspectable*>(dispatcher))),
             "two native pages reuse owner dispatcher wake instead of frame polling");
-        driver = FrameSchedulerDriverUWP::Acquire(&api, dispatcher);
-        auto same = FrameSchedulerDriverUWP::Acquire(&api, dispatcher);
+        driver = FrameSchedulerDriverW10M::Acquire(&api, dispatcher);
+        auto same = FrameSchedulerDriverW10M::Acquire(&api, dispatcher);
         check(driver == same, "two acquisitions share one actual CX owner timer/rendering driver");
         std::weak_ptr<SchedulerRun> weak = shared_from_this();
         WeakReference weakA(viewA), weakB(viewB);
@@ -192,7 +192,7 @@ struct SchedulerRun : std::enable_shared_from_this<SchedulerRun> {
     int height(void* page)
     {
         unsigned dirty = 0;
-        WKPageStateUWP value { };
+        WKPageStateW10M value { };
         return !needsPaint(page, &dirty) && !state(page, &value) ? value.contentHeight : -1;
     }
 
@@ -250,7 +250,7 @@ struct SchedulerRun : std::enable_shared_from_this<SchedulerRun> {
                 workerChecks += ownerDriver->RequestWake() == S_OK;
                 workerChecks += ownerDriver->RequestWake() == S_OK;
                 workerChecks += ownScheduler->setPresentationEnabled(true) == RPC_E_WRONG_THREAD;
-                workerChecks += api.service() == WKUWPResultWrongThread;
+                workerChecks += api.service() == WKW10MResultWrongThread;
             });
             worker.join();
             phase = 3;
@@ -298,10 +298,10 @@ struct SchedulerRun : std::enable_shared_from_this<SchedulerRun> {
 } // namespace
 
 // Diagnostic-only CX-to-CX SDK action entry; shipping builds exclude this export.
-extern "C" __declspec(dllexport) IAsyncAction^ __stdcall WKUWPTestScheduler(const wchar_t* path, const wchar_t* fixtureBase)
+extern "C" __declspec(dllexport) IAsyncAction^ __stdcall WKW10MTestScheduler(const wchar_t* path, const wchar_t* fixtureBase)
 {
     auto dispatcher = Window::Current->Dispatcher;
-    auto action = ref new InitializationActionUWP(dispatcher, [](unsigned int) { });
+    auto action = ref new InitializationActionW10M(dispatcher, [](unsigned int) { });
     auto run = std::make_shared<SchedulerRun>();
     activeSchedulerRun = run;
     try { run->start(path, fixtureBase, action); }

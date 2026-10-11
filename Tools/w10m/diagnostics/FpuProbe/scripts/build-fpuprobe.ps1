@@ -5,7 +5,7 @@
 .DESCRIPTION
     Pipeline, all outputs fresh under -OutDir (never inside shared build dirs):
       1. Configures and builds the ARM native payload DLL from repository
-         sources with the pinned clang ARM32-UWP toolchain (--parallel 4),
+         sources with the pinned clang ARM32-W10M toolchain (--parallel 4),
          warning-free.
       2. Runs check-fpuprobe-expectations.ps1 (inventory + host arithmetic +
          ARM export inspection).

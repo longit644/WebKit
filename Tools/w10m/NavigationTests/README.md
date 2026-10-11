@@ -1,4 +1,4 @@
-# UWP navigation/resource fixtures
+# W10M navigation/resource fixtures
 
 These deterministic HTTP endpoints verify the M9 resource-loader integration. They do not themselves implement a browser. Response checks validate the fixture server; native/device checks must establish resource execution, security and cancellation.
 

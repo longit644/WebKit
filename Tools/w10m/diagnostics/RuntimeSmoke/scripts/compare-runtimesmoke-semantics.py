@@ -15,7 +15,10 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[5]
 NEW = REPO / "Tools/w10m/diagnostics/RuntimeSmoke"
-# These HEAD paths intentionally name the pre-migration sources.
+# Pinned pre-migration commit: the Tools/uwp paths below were moved by the
+# diagnostic-host migration and no longer exist on HEAD.
+BASELINE = "fe5c620b1aaeb143934e738c7b155fe733913d01"
+# These baseline paths intentionally name the pre-migration sources.
 OLD_PROBE = "Tools/uwp/RuntimeSmoke/RuntimeSmoke.cpp"
 OLD_HOST = "Tools/uwp/RuntimeSmoke/SmokeHost.cpp"
 FOUNDATION = "http://schemas.microsoft.com/appx/manifest/foundation/windows10"
@@ -33,7 +36,7 @@ def check(condition, message):
 def head_blob(path):
     """Read a committed blob without touching the working tree."""
     return subprocess.check_output(
-        ["git", "show", f"HEAD:{path}"], cwd=REPO, text=True,
+        ["git", "show", f"{BASELINE}:{path}"], cwd=REPO, text=True,
         encoding="utf-8")
 
 
@@ -115,7 +118,7 @@ def main():
         check(f'"{stage}"' in driver, f"log stage preserved: {stage}")
 
     # The D3D presentation path survived in the driver.
-    for token in ("WebKitWebViewPresenterUWP",
+    for token in ("WebKitWebViewPresenterW10M",
                   "initializeForCoreWindow",
                   "present(pixels->bytes"):
         check(token in driver, f"presentation preserved: {token}")
@@ -127,11 +130,12 @@ def main():
               f"native activation retired from payload: {token}")
 
     # The first-page signature is declared (not an inline cast) and matches
-    # the engine definition spelling parameter by parameter.
+    # the engine definition spelling parameter by parameter. The driver still
+    # binds the preserved binary's UWP export; the current engine spells W10M.
     engine = (REPO / "Source/WebCore/platform/w10m/FirstPageW10M.cpp"
               ).read_text(encoding="utf-8")
     engine_signature = re.search(
-        r"WKRenderFirstPageUWP\(\s*(.*?)\s*\)", engine, re.S).group(1)
+        r"WKRenderFirstPageW10M\(\s*(.*?)\s*\)", engine, re.S).group(1)
     header_signature = re.search(
         r"WKRenderFirstPageUWPType\)\(\s*(.*?)\s*\)", header, re.S).group(1)
     normalize = lambda text: re.sub(r"\s+", " ", text).strip()
@@ -146,7 +150,7 @@ def main():
           "declared log sink matches the engine spelling")
 
     # The engine payload and its exports are untouched by this migration.
-    check(re.search(r"unsigned __stdcall WKRenderFirstPageUWP\s*\(", engine) is not None,
+    check(re.search(r"unsigned __stdcall WKRenderFirstPageW10M\s*\(", engine) is not None,
           "current Windows 10 Mobile engine retains the first-page export signature")
 
     # The C# host mirrors the engine viewport bound and snapshot defaults.

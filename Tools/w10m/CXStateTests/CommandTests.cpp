@@ -45,7 +45,7 @@ template<typename F> bool commandThrows(F operation, HRESULT expected)
 }
 
 // Copy borrowed frozen UTF8 request/event spans by explicit byte length.
-std::string copiedSpan(const WKUWPString& span)
+std::string copiedSpan(const WKW10MString& span)
 {
     return span.length ? std::string(reinterpret_cast<const char*>(span.data), span.length) : std::string();
 }
@@ -60,9 +60,9 @@ struct CommandPage {
     // Real public XAML/CX control under test.
     WebKitWebView^ view { ref new WebKitWebView() };
     // Frozen copied engine table bound through the production native controller.
-    WKUWPEngineAPI api { };
+    WKW10MEngineAPI api { };
     // Provider-owned retained callback attachment.
-    WKUWPPageCallbacks callbacks { };
+    WKW10MPageCallbacks callbacks { };
     // Opaque page identity used for all table operations.
     uint64_t page;
     // Monotonic main IDs, allocated by this provider rather than the control.
@@ -72,7 +72,7 @@ struct CommandPage {
     // Committed document generation and callback sequence.
     uint64_t generation { 0 }, sequence { 0 };
     // Fixed active content policy copied into V1 events.
-    uint32_t kind { WKUWPContentRemote };
+    uint32_t kind { WKW10MContentRemote };
     // Current proposed URI and actual committed provider URI.
     std::string target, committed;
     // Provider-owned remote history entries; host HTML never enters this list.
@@ -89,7 +89,7 @@ struct CommandPage {
     WebKitNavigationCompletedEventArgs^ completed;
     WebKitNavigationStartingEventArgs^ starting;
     // Pending failure decision and monotonically increasing failure revision.
-    WKUWPCertificateToken decision { 0, 0 };
+    WKW10MCertificateToken decision { 0, 0 };
     uint64_t revision { 0 };
     // Exact failed HTTPS target to which the pending decision is bound.
     std::string failedTarget;
@@ -100,16 +100,16 @@ struct CommandPage {
     // Native operations/results used as explicit request-shape oracles.
     bool requestShape { true }, attached { false };
     // Warning pair most recently passed through loadHtml.
-    WKUWPCertificateToken warningSeen { 0, 0 };
+    WKW10MCertificateToken warningSeen { 0, 0 };
 
     // Construct a distinct provider page and bind its actual frozen table/retained callbacks.
     explicit CommandPage(uint64_t id) : page(id)
     {
         commandPages[page] = this;
-        api.header = { sizeof(api), WKUWP_STRUCTURE_VERSION };
-        api.abiMajor = WKUWP_ABI_MAJOR_VERSION;
-        api.abiMinor = WKUWP_ABI_MINOR_VERSION;
-        api.capabilities = WKUWPCapabilityStructuredNotifications | WKUWPCapabilityHostHtml | WKUWPCapabilityCertificateDecisions;
+        api.header = { sizeof(api), WKW10M_STRUCTURE_VERSION };
+        api.abiMajor = WKW10M_ABI_MAJOR_VERSION;
+        api.abiMinor = WKW10M_ABI_MINOR_VERSION;
+        api.capabilities = WKW10MCapabilityStructuredNotifications | WKW10MCapabilityHostHtml | WKW10MCapabilityCertificateDecisions;
         api.setCallbacks = &setCallbacks;
         api.navigate = &navigate;
         api.loadHtml = &loadHtml;
@@ -133,7 +133,7 @@ struct CommandPage {
     // Close the fixture while its provider/context is alive, then erase per-page routing.
     ~CommandPage()
     {
-        if (attached) static_cast<PageCallbacksUWP*>(callbacks.context)->deactivate();
+        if (attached) static_cast<PageCallbacksW10M*>(callbacks.context)->deactivate();
         view->Close();
         if (attached) {
             callbacks.releaseContext(callbacks.context);
@@ -150,10 +150,10 @@ struct CommandPage {
     }
 
     // Build a current explicit V1 signal with actual provider history availability.
-    WKUWPPageEvent event(uint32_t type)
+    WKW10MPageEvent event(uint32_t type)
     {
-        WKUWPPageEvent value { };
-        value.header = { sizeof(value), WKUWP_STRUCTURE_VERSION };
+        WKW10MPageEvent value { };
+        value.header = { sizeof(value), WKW10M_STRUCTURE_VERSION };
         value.pageId = page;
         value.callbackSequence = ++sequence;
         value.navigationId = active;
@@ -168,10 +168,10 @@ struct CommandPage {
     }
 
     // Emit one terminal before provider buffer/active state can be reused by reentrant work.
-    void finish(uint32_t outcome = WKUWPOutcomeCompleted, uint32_t domain = WKUWPErrorDomainNone, int code = 0, WKUWPCertificateToken token = { 0, 0 })
+    void finish(uint32_t outcome = WKW10MOutcomeCompleted, uint32_t domain = WKW10MErrorDomainNone, int code = 0, WKW10MCertificateToken token = { 0, 0 })
     {
         if (!active) return;
-        auto value = event(WKUWPEventCompleted);
+        auto value = event(WKW10MEventCompleted);
         auto related = target;
         value.uri = { reinterpret_cast<const uint8_t*>(related.data()), static_cast<uint32_t>(related.size()) };
         value.outcome = outcome;
@@ -186,16 +186,16 @@ struct CommandPage {
     // Allocate a fresh proposal and honor the real public Starting verdict/HRESULT.
     bool begin(std::string uri, uint32_t content, uint64_t* id)
     {
-        finish(WKUWPOutcomeCancelled);
+        finish(WKW10MOutcomeCancelled);
         target = std::move(uri);
         kind = content;
         active = ++nextId;
         if (id) *id = active;
-        auto value = event(WKUWPEventStarting);
+        auto value = event(WKW10MEventStarting);
         uint32_t cancel = 0;
         auto result = callbacks.starting(callbacks.context, &value, &cancel);
-        if (cancel) { finish(WKUWPOutcomeCancelled); return false; }
-        if (result != WKUWPResultOK) { finish(WKUWPOutcomeFailed, WKUWPErrorDomainPlatform, result); return false; }
+        if (cancel) { finish(WKW10MOutcomeCancelled); return false; }
+        if (result != WKW10MResultOK) { finish(WKW10MOutcomeFailed, WKW10MErrorDomainPlatform, result); return false; }
         return true;
     }
 
@@ -204,158 +204,158 @@ struct CommandPage {
     {
         ++generation;
         committed = target;
-        auto value = event(WKUWPEventSourceChanged);
+        auto value = event(WKW10MEventSourceChanged);
         callbacks.notify(callbacks.context, &value);
         finish();
     }
 
     // Controlled shared initialization records readiness separately from all page commands.
-    static HRESULT __stdcall initialize(void*, SourceActionUWP action, const WKUWPString*)
+    static HRESULT __stdcall initialize(void*, SourceActionW10M action, const WKW10MString*)
     {
-        return action == SourceActionUWP::Initialize ? S_OK : E_NOTIMPL;
+        return action == SourceActionW10M::Initialize ? S_OK : E_NOTIMPL;
     }
 
     // Provider attachment retains the exact copied callback context once.
-    static WKUWPResult __stdcall setCallbacks(uint64_t page, const WKUWPPageCallbacks* table)
+    static WKW10MResult __stdcall setCallbacks(uint64_t page, const WKW10MPageCallbacks* table)
     {
         auto self = find(page);
-        if (!self || !table || self->attached) return WKUWPResultInvalidArgument;
+        if (!self || !table || self->attached) return WKW10MResultInvalidArgument;
         self->callbacks = *table;
         table->retainContext(table->context);
         self->attached = true;
-        return WKUWPResultOK;
+        return WKW10MResultOK;
     }
 
     // Load an actual Remote-shaped request; only accepted commits change provider history.
-    static WKUWPResult __stdcall navigate(uint64_t page, const WKUWPNavigationRequest* request, uint64_t* id)
+    static WKW10MResult __stdcall navigate(uint64_t page, const WKW10MNavigationRequest* request, uint64_t* id)
     {
         auto self = find(page);
-        if (!self || !request || !id) return WKUWPResultInvalidArgument;
+        if (!self || !request || !id) return WKW10MResultInvalidArgument;
         ++self->remoteCalls;
         self->requestShape = self->requestShape && request->header.structureSize == sizeof(*request)
-            && request->header.structureVersion == 1 && request->contentKind == WKUWPContentRemote
+            && request->header.structureVersion == 1 && request->contentKind == WKW10MContentRemote
             && request->uri.length && !request->html.length && !request->warningToken.issuer && !request->warningToken.decision;
         self->decision = { 0, 0 };
-        if (!self->begin(copiedSpan(request->uri), WKUWPContentRemote, id)) return WKUWPResultOK;
+        if (!self->begin(copiedSpan(request->uri), WKW10MContentRemote, id)) return WKW10MResultOK;
         if (self->failCertificate) {
             self->failCertificate = false;
             self->failedTarget = self->target;
             self->decision = { 9000 + page, ++self->revision };
-            self->finish(WKUWPOutcomeFailed, WKUWPErrorDomainTransport, 60, self->decision);
-            return WKUWPResultOK;
+            self->finish(WKW10MOutcomeFailed, WKW10MErrorDomainTransport, 60, self->decision);
+            return WKW10MResultOK;
         }
         if (!self->history.empty()) self->history.resize(self->cursor + 1);
         self->history.push_back(self->target);
         self->cursor = self->history.size() - 1;
         self->hostText.clear();
         self->commit();
-        return WKUWPResultOK;
+        return WKW10MResultOK;
     }
 
     // Submit isolated HostHtml bytes with empty URI; an associated pair must match exactly.
-    static WKUWPResult __stdcall loadHtml(uint64_t page, const WKUWPNavigationRequest* request, uint64_t* id)
+    static WKW10MResult __stdcall loadHtml(uint64_t page, const WKW10MNavigationRequest* request, uint64_t* id)
     {
         auto self = find(page);
-        if (!self || !request || !id) return WKUWPResultInvalidArgument;
+        if (!self || !request || !id) return WKW10MResultInvalidArgument;
         ++self->htmlCalls;
-        self->requestShape = self->requestShape && request->contentKind == WKUWPContentHostHtml && !request->uri.length && !request->uri.data;
+        self->requestShape = self->requestShape && request->contentKind == WKW10MContentHostHtml && !request->uri.length && !request->uri.data;
         self->warningSeen = request->warningToken;
         if (request->warningToken.issuer || request->warningToken.decision) {
             if (request->warningToken.issuer != self->decision.issuer || request->warningToken.decision != self->decision.decision)
-                return WKUWPResultInvalidCertificateToken;
+                return WKW10MResultInvalidCertificateToken;
         } else self->decision = { 0, 0 };
         auto markup = copiedSpan(request->html);
-        if (!self->begin("about:blank", WKUWPContentHostHtml, id)) return WKUWPResultOK;
+        if (!self->begin("about:blank", WKW10MContentHostHtml, id)) return WKW10MResultOK;
         self->hostText = std::move(markup);
         self->commit();
-        return WKUWPResultOK;
+        return WKW10MResultOK;
     }
 
     // Traverse the actual provider cursor without inserting transient host content.
-    static WKUWPResult __stdcall back(uint64_t page)
+    static WKW10MResult __stdcall back(uint64_t page)
     {
         auto self = find(page);
-        if (!self) return WKUWPResultInvalidArgument;
+        if (!self) return WKW10MResultInvalidArgument;
         ++self->backCalls;
         self->decision = { 0, 0 };
-        if (!self->cursor) return WKUWPResultOK;
+        if (!self->cursor) return WKW10MResultOK;
         auto previous = self->cursor - 1;
-        if (!self->begin(self->history[previous], WKUWPContentRemote, nullptr)) return WKUWPResultOK;
+        if (!self->begin(self->history[previous], WKW10MContentRemote, nullptr)) return WKW10MResultOK;
         self->cursor = previous;
         self->hostText.clear();
         self->commit();
-        return WKUWPResultOK;
+        return WKW10MResultOK;
     }
 
     // Traverse the actual provider's next remote neighbor after transient dismissal.
-    static WKUWPResult __stdcall forward(uint64_t page)
+    static WKW10MResult __stdcall forward(uint64_t page)
     {
         auto self = find(page);
-        if (!self) return WKUWPResultInvalidArgument;
+        if (!self) return WKW10MResultInvalidArgument;
         ++self->forwardCalls;
         self->decision = { 0, 0 };
-        if (self->cursor + 1 >= self->history.size()) return WKUWPResultOK;
+        if (self->cursor + 1 >= self->history.size()) return WKW10MResultOK;
         auto next = self->cursor + 1;
-        if (!self->begin(self->history[next], WKUWPContentRemote, nullptr)) return WKUWPResultOK;
+        if (!self->begin(self->history[next], WKW10MContentRemote, nullptr)) return WKW10MResultOK;
         self->cursor = next;
         self->hostText.clear();
         self->commit();
-        return WKUWPResultOK;
+        return WKW10MResultOK;
     }
 
     // Reload the provider's current remote content without another history entry.
-    static WKUWPResult __stdcall reload(uint64_t page)
+    static WKW10MResult __stdcall reload(uint64_t page)
     {
         auto self = find(page);
-        if (!self) return WKUWPResultInvalidArgument;
+        if (!self) return WKW10MResultInvalidArgument;
         ++self->reloadCalls;
         self->decision = { 0, 0 };
-        if (self->committed.empty()) return WKUWPResultOK;
-        if (self->begin(self->committed, WKUWPContentRemote, nullptr)) self->commit();
-        return WKUWPResultOK;
+        if (self->committed.empty()) return WKW10MResultOK;
+        if (self->begin(self->committed, WKW10MContentRemote, nullptr)) self->commit();
+        return WKW10MResultOK;
     }
 
     // Cancel only outstanding work and invalidate pending consent, not the current document.
-    static WKUWPResult __stdcall stop(uint64_t page)
+    static WKW10MResult __stdcall stop(uint64_t page)
     {
         auto self = find(page);
-        if (!self) return WKUWPResultInvalidArgument;
+        if (!self) return WKW10MResultInvalidArgument;
         ++self->stopCalls;
         self->decision = { 0, 0 };
-        self->finish(WKUWPOutcomeCancelled);
-        return WKUWPResultOK;
+        self->finish(WKW10MOutcomeCancelled);
+        return WKW10MResultOK;
     }
 
     // Consume consent atomically before a new-ID retry of the exact stored failed target.
-    static WKUWPResult __stdcall proceed(uint64_t page, const WKUWPCertificateToken* token, uint64_t* id)
+    static WKW10MResult __stdcall proceed(uint64_t page, const WKW10MCertificateToken* token, uint64_t* id)
     {
         auto self = find(page);
-        if (!self || !token || !id) return WKUWPResultInvalidArgument;
+        if (!self || !token || !id) return WKW10MResultInvalidArgument;
         ++self->retryCalls;
         if (!token->issuer || token->issuer != self->decision.issuer || token->decision != self->decision.decision)
-            return WKUWPResultInvalidCertificateToken;
+            return WKW10MResultInvalidCertificateToken;
         self->decision = { 0, 0 };
         self->armed = true;
-        if (!self->begin(self->failedTarget, WKUWPContentRemote, id)) return WKUWPResultOK;
+        if (!self->begin(self->failedTarget, WKW10MContentRemote, id)) return WKW10MResultOK;
         if (!self->history.empty()) self->history.resize(self->cursor + 1);
         self->history.push_back(self->target);
         self->cursor = self->history.size() - 1;
         self->commit();
-        return WKUWPResultOK;
+        return WKW10MResultOK;
     }
 
     // Acknowledge native page/context close; no opaque capability survives the page.
-    static WKUWPResult __stdcall close(uint64_t page)
+    static WKW10MResult __stdcall close(uint64_t page)
     {
         auto self = find(page);
-        if (!self) return WKUWPResultClosed;
+        if (!self) return WKW10MResultClosed;
         self->decision = { 0, 0 };
-        self->finish(WKUWPOutcomeCancelled);
+        self->finish(WKW10MOutcomeCancelled);
         if (self->attached) {
             self->callbacks.releaseContext(self->callbacks.context);
             self->attached = false;
         }
-        return WKUWPResultOK;
+        return WKW10MResultOK;
     }
 };
 
@@ -499,16 +499,16 @@ void runCommands(CommandReport& report)
         report.check(immediateConsumption && frozen && f.retryCalls == 1 && f.nextId == 2,
             "reentrant retry consumes before enqueue but defers provider work until old completion unwinds");
     }
-    report.check(PageControllerUWP::resultToHRESULT(WKUWPResultInvalidCertificateToken) == E_INVALIDARG
-            && PageControllerUWP::resultToHRESULT(WKUWPResultWrongThread) == RPC_E_WRONG_THREAD
-            && PageControllerUWP::resultToHRESULT(static_cast<WKUWPResult>(E_ACCESSDENIED)) == E_ACCESSDENIED,
+    report.check(PageControllerW10M::resultToHRESULT(WKW10MResultInvalidCertificateToken) == E_INVALIDARG
+            && PageControllerW10M::resultToHRESULT(WKW10MResultWrongThread) == RPC_E_WRONG_THREAD
+            && PageControllerW10M::resultToHRESULT(static_cast<WKW10MResult>(E_ACCESSDENIED)) == E_ACCESSDENIED,
         "native operation result mapping is explicit and preserves originating HRESULT");
 }
 
 } // namespace
 
 // Diagnostic-only export: public commands must execute against the exact frozen table.
-extern "C" __declspec(dllexport) HRESULT __stdcall WKUWPTestCommands(const wchar_t* path)
+extern "C" __declspec(dllexport) HRESULT __stdcall WKW10MTestCommands(const wchar_t* path)
 {
     CommandReport report;
     try { runCommands(report); }

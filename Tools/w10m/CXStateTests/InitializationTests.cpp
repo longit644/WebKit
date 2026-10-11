@@ -51,7 +51,7 @@ struct InitializationDriver {
     // Monotonic callback sequence for this controlled page.
     uint64_t sequence { 0 };
     // Last initialized immutable configuration holder, retained by the control.
-    const ValidatedWebViewOptionsUWP* configuration { nullptr };
+    const ValidatedWebViewOptionsW10M* configuration { nullptr };
     // Last proposed URI, independent of copied Source during handler reentrancy.
     std::wstring target;
 
@@ -77,28 +77,28 @@ struct InitializationDriver {
     }
 
     // Observe initialization/remote/cleanup work and emit only a Starting signal.
-    static HRESULT __stdcall command(void* context, SourceActionUWP kind, const WKUWPString* uri)
+    static HRESULT __stdcall command(void* context, SourceActionW10M kind, const WKW10MString* uri)
     {
         auto& self = *static_cast<InitializationDriver*>(context);
-        if (kind == SourceActionUWP::Initialize) {
+        if (kind == SourceActionW10M::Initialize) {
             ++self.initializes;
             self.attempt = self.view->InitializationAttemptId();
             self.configuration = self.view->ValidatedInitializationOptions();
             return S_OK;
         }
-        if (kind == SourceActionUWP::Close) { ++self.closes; return S_OK; }
-        if (kind == SourceActionUWP::Stop) return S_OK;
-        if (kind != SourceActionUWP::Navigate) return E_INVALIDARG;
+        if (kind == SourceActionW10M::Close) { ++self.closes; return S_OK; }
+        if (kind == SourceActionW10M::Stop) return S_OK;
+        if (kind != SourceActionW10M::Navigate) return E_INVALIDARG;
         ++self.navigates;
         auto length = MultiByteToWideChar(CP_UTF8, 0, reinterpret_cast<const char*>(uri->data), static_cast<int>(uri->length), nullptr, 0);
         self.target.resize(length);
         MultiByteToWideChar(CP_UTF8, 0, reinterpret_cast<const char*>(uri->data), static_cast<int>(uri->length), &self.target[0], length);
-        WKUWPPageEvent event { };
-        event.header = { sizeof(event), WKUWP_STRUCTURE_VERSION };
+        WKW10MPageEvent event { };
+        event.header = { sizeof(event), WKW10M_STRUCTURE_VERSION };
         event.pageId = self.page;
         event.callbackSequence = ++self.sequence;
         event.navigationId = ++self.navigation;
-        event.eventKind = WKUWPEventStarting;
+        event.eventKind = WKW10MEventStarting;
         event.uri = *uri;
         event.isLoading = 1;
         uint32_t cancel = 0;
@@ -160,7 +160,7 @@ void runInitialization(InitializationReport& report)
         peer->Completed = ref new AsyncActionCompletedHandler([&](IAsyncAction^, AsyncStatus status) { if (status == AsyncStatus::Completed) ++peerCalls; });
         info(canceled)->Cancel();
         report.check(info(canceled)->Status == AsyncStatus::Canceled && info(canceled)->ErrorCode.Value == E_ABORT && canceledCalls == 1, "Cancel ends only that caller as Canceled/E_ABORT");
-        report.check(info(peer)->Status == AsyncStatus::Started && f.view->ControlPhase() == ControlPhaseUWP::Initializing && f.closes == 0, "independent Cancel keeps peer and shared attempt live");
+        report.check(info(peer)->Status == AsyncStatus::Started && f.view->ControlPhase() == ControlPhaseW10M::Initializing && f.closes == 0, "independent Cancel keeps peer and shared attempt live");
         report.check(throwsResult([&] { canceled->GetResults(); }, E_ABORT), "canceled observation GetResults preserves E_ABORT");
         f.resolve();
         report.check(peerCalls == 1 && canceledCalls == 1 && info(canceled)->Status == AsyncStatus::Canceled, "readiness cannot retroactively succeed canceled actions");
@@ -178,7 +178,7 @@ void runInitialization(InitializationReport& report)
         info(closed)->Close();
         report.check(throwsResult([&] { (void)info(closed)->Status; }, RO_E_CLOSED)
                 && throwsResult([&] { closed->GetResults(); }, RO_E_CLOSED), "IAsyncInfo.Close releases a pending observation with closed read/result semantics");
-        report.check(f.view->ControlPhase() == ControlPhaseUWP::Initializing && info(peer)->Status == AsyncStatus::Started, "action Close never cancels shared initialization or peers");
+        report.check(f.view->ControlPhase() == ControlPhaseW10M::Initializing && info(peer)->Status == AsyncStatus::Started, "action Close never cancels shared initialization or peers");
         f.resolve();
         report.check(!closedCalls && peerCalls == 1, "closed action suppresses delivery while peer completes normally");
     }
@@ -187,7 +187,7 @@ void runInitialization(InitializationReport& report)
         auto a = f.view->EnsureInitializedAsync(), b = f.view->EnsureInitializedAsync();
         info(a)->Cancel(); info(b)->Close();
         f.view->Source = remote(L"https://example.test/after-all-observers-ended");
-        report.check(f.initializes == 1 && f.view->ControlPhase() == ControlPhaseUWP::Initializing, "attempt continues after every caller ends its observation");
+        report.check(f.initializes == 1 && f.view->ControlPhase() == ControlPhaseW10M::Initializing, "attempt continues after every caller ends its observation");
         f.resolve();
         report.check(f.navigates == 1 && f.target == L"https://example.test/after-all-observers-ended", "Source-driven use still starts after all observations end");
     }
@@ -303,7 +303,7 @@ void runInitialization(InitializationReport& report)
 } // namespace
 
 // Diagnostic-only export: exercise actual IAsyncAction/IAsyncInfo on the XAML owner.
-extern "C" __declspec(dllexport) HRESULT __stdcall WKUWPTestInitialization(const wchar_t* path)
+extern "C" __declspec(dllexport) HRESULT __stdcall WKW10MTestInitialization(const wchar_t* path)
 {
     InitializationReport report;
     try { runInitialization(report); }

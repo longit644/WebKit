@@ -1,4 +1,4 @@
-// UWP/ARM32 MSVC-STL supplement (v0) for the WebKitWebViewUWP port.
+// W10M/ARM32 MSVC-STL supplement (v0) for the WebKitWebViewW10M port.
 // The ARM-store CRT ships no STL binary (no msvcprt): std::filesystem is
 // header-implemented in MSVC's STL but calls these __std_fs_* primitives,
 // plus a few math/intrin helpers. All extern "C" (link names are bare).
@@ -64,7 +64,7 @@ enum class __std_win_error : unsigned long {
     // Another process or handle prevents the requested sharing mode.
     _Sharing_violation = 32,
 
-    // The operation is unsupported by the UWP implementation.
+    // The operation is unsupported by the W10M implementation.
     _Not_supported = 50,
 
     // The requested network path is unavailable.

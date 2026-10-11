@@ -54,7 +54,7 @@ constexpr uint32_t kTestTruncatedBytes = 64;
 typedef void(__stdcall* SetU64)(uint64_t);
 typedef void(__stdcall* SetU32Pair)(uint32_t, uint32_t);
 typedef void(__stdcall* SetU32)(uint32_t);
-typedef void(__stdcall* SetResult)(WKUWPResult);
+typedef void(__stdcall* SetResult)(WKW10MResult);
 typedef void(__stdcall* ResetFunction)();
 typedef uint32_t(__stdcall* CounterFunction)();
 
@@ -111,61 +111,61 @@ bool loadTestProvider(const wchar_t* path, TestProvider* provider)
     provider->library = LoadLibraryW(path);
     if (!provider->library)
         return false;
-    return resolveSetter(provider->library, "WKUWPTestProviderSetCapabilities",
+    return resolveSetter(provider->library, "WKW10MTestProviderSetCapabilities",
                reinterpret_cast<void**>(&provider->setCapabilities))
-        && resolveSetter(provider->library, "WKUWPTestProviderSetAbiVersion",
+        && resolveSetter(provider->library, "WKW10MTestProviderSetAbiVersion",
             reinterpret_cast<void**>(&provider->setAbiVersion))
-        && resolveSetter(provider->library, "WKUWPTestProviderSetTruncateBytes",
+        && resolveSetter(provider->library, "WKW10MTestProviderSetTruncateBytes",
             reinterpret_cast<void**>(&provider->setTruncateBytes))
-        && resolveSetter(provider->library, "WKUWPTestProviderSetNullSlot",
+        && resolveSetter(provider->library, "WKW10MTestProviderSetNullSlot",
             reinterpret_cast<void**>(&provider->setNullSlot))
-        && resolveSetter(provider->library, "WKUWPTestProviderSetCreateResult",
+        && resolveSetter(provider->library, "WKW10MTestProviderSetCreateResult",
             reinterpret_cast<void**>(&provider->setCreateResult))
-        && resolveSetter(provider->library, "WKUWPTestProviderSetCloseResult",
+        && resolveSetter(provider->library, "WKW10MTestProviderSetCloseResult",
             reinterpret_cast<void**>(&provider->setCloseResult))
-        && resolveSetter(provider->library, "WKUWPTestProviderSetShutdownResult",
+        && resolveSetter(provider->library, "WKW10MTestProviderSetShutdownResult",
             reinterpret_cast<void**>(&provider->setShutdownResult))
-        && resolveSetter(provider->library, "WKUWPTestProviderSetPollResult",
+        && resolveSetter(provider->library, "WKW10MTestProviderSetPollResult",
             reinterpret_cast<void**>(&provider->setPollResult))
-        && resolveSetter(provider->library, "WKUWPTestProviderReset",
+        && resolveSetter(provider->library, "WKW10MTestProviderReset",
             reinterpret_cast<void**>(&provider->reset))
-        && resolveSetter(provider->library, "WKUWPTestProviderDiscoveryCalls",
+        && resolveSetter(provider->library, "WKW10MTestProviderDiscoveryCalls",
             reinterpret_cast<void**>(&provider->discoveryCalls))
-        && resolveSetter(provider->library, "WKUWPTestProviderCreateCalls",
+        && resolveSetter(provider->library, "WKW10MTestProviderCreateCalls",
             reinterpret_cast<void**>(&provider->createCalls))
-        && resolveSetter(provider->library, "WKUWPTestProviderCloseCalls",
+        && resolveSetter(provider->library, "WKW10MTestProviderCloseCalls",
             reinterpret_cast<void**>(&provider->closeCalls))
-        && resolveSetter(provider->library, "WKUWPTestProviderBeginShutdownCalls",
+        && resolveSetter(provider->library, "WKW10MTestProviderBeginShutdownCalls",
             reinterpret_cast<void**>(&provider->beginShutdownCalls))
-        && resolveSetter(provider->library, "WKUWPTestProviderPollShutdownCalls",
+        && resolveSetter(provider->library, "WKW10MTestProviderPollShutdownCalls",
             reinterpret_cast<void**>(&provider->pollShutdownCalls));
 }
 
 // Valid creation options accepted by the working test slot.
-void writeTestPageOptions(WKUWPPageOptions* options)
+void writeTestPageOptions(WKW10MPageOptions* options)
 {
     memset(options, 0, sizeof(*options));
     options->header.structureSize = sizeof(*options);
-    options->header.structureVersion = WKUWP_STRUCTURE_VERSION;
+    options->header.structureVersion = WKW10M_STRUCTURE_VERSION;
 }
 
 // Compatible resolution binds once and stays bound without a second load.
 void checkCompatibleResolution(TestProvider* provider, const wchar_t* path)
 {
     provider->reset();
-    WebKit::EngineModuleUWP module;
+    WebKit::EngineModuleW10M module;
 
-    WKUWPResult result = module.bind(path, 0, 0);
+    WKW10MResult result = module.bind(path, 0, 0);
     char message[256];
     snprintf(message, sizeof(message), "bind -> result=%d expected=0, bound=%d, api=%p", static_cast<int>(result),
         module.isBound() ? 1 : 0, module.api());
-    reportCheck("bind/compatible", result == WKUWPResultOK && module.isBound() && module.api(), message);
+    reportCheck("bind/compatible", result == WKW10MResultOK && module.isBound() && module.api(), message);
     if (!module.api()) {
         reportCheck("bind/identity", false, "compatible negotiation failed, cannot continue");
         return;
     }
 
-    const bool identity = module.api()->abiMajor == WKUWP_ABI_MAJOR_VERSION && module.api()->initialize
+    const bool identity = module.api()->abiMajor == WKW10M_ABI_MAJOR_VERSION && module.api()->initialize
         && module.api()->createPage && module.api()->closePage && module.api()->beginShutdown
         && module.api()->pollShutdown;
     snprintf(message, sizeof(message), "negotiated table names major 1 with callable slots=%d", identity ? 1 : 0);
@@ -176,7 +176,7 @@ void checkCompatibleResolution(TestProvider* provider, const wchar_t* path)
     snprintf(message, sizeof(message), "second bind -> result=%d, discovery calls %u -> %u", static_cast<int>(result),
         callsBefore, provider->discoveryCalls());
     reportCheck("bind/idempotent",
-        result == WKUWPResultOK && provider->discoveryCalls() == callsBefore, message);
+        result == WKW10MResultOK && provider->discoveryCalls() == callsBefore, message);
 
     snprintf(message, sizeof(message), "module handle=%p, image loaded=%d, open pages=%u", module.moduleHandle(),
         isModuleLoaded(path) ? 1 : 0, module.openPageCount());
@@ -188,28 +188,28 @@ void checkCompatibleResolution(TestProvider* provider, const wchar_t* path)
 void checkCapabilityGatedSuccess(TestProvider* provider, const wchar_t* path)
 {
     provider->reset();
-    provider->setCapabilities(WKUWPCapabilityStructuredNotifications | WKUWPCapabilityHostHtml);
-    WebKit::EngineModuleUWP module;
+    provider->setCapabilities(WKW10MCapabilityStructuredNotifications | WKW10MCapabilityHostHtml);
+    WebKit::EngineModuleW10M module;
 
-    WKUWPResult result = module.bind(path, 0, WKUWPCapabilityStructuredNotifications);
+    WKW10MResult result = module.bind(path, 0, WKW10MCapabilityStructuredNotifications);
     char message[256];
     snprintf(message, sizeof(message), "bind with a delivered capability -> result=%d expected=0",
         static_cast<int>(result));
-    reportCheck("capability/delivered", result == WKUWPResultOK && module.isBound(), message);
+    reportCheck("capability/delivered", result == WKW10MResultOK && module.isBound(), message);
 }
 
 // A requested capability the provider does not deliver fails before pinning.
 void checkMissingCapability(TestProvider* provider, const wchar_t* path)
 {
     provider->reset();
-    WebKit::EngineModuleUWP module;
+    WebKit::EngineModuleW10M module;
 
-    WKUWPResult result = module.bind(path, 0, WKUWPCapabilityStructuredNotifications);
+    WKW10MResult result = module.bind(path, 0, WKW10MCapabilityStructuredNotifications);
     char message[256];
     snprintf(message, sizeof(message), "bind with an undelivered capability -> result=%d expected=%d, bound=%d",
-        static_cast<int>(result), static_cast<int>(WKUWPResultMissingCapability), module.isBound() ? 1 : 0);
+        static_cast<int>(result), static_cast<int>(WKW10MResultMissingCapability), module.isBound() ? 1 : 0);
     reportCheck("capability/missing",
-        result == WKUWPResultMissingCapability && !module.isBound() && !module.api(), message);
+        result == WKW10MResultMissingCapability && !module.isBound() && !module.api(), message);
 }
 
 // A provider that reports a foreign major is rejected as an incompatible identity.
@@ -217,14 +217,14 @@ void checkForeignMajor(TestProvider* provider, const wchar_t* path)
 {
     provider->reset();
     provider->setAbiVersion(2, 0);
-    WebKit::EngineModuleUWP module;
+    WebKit::EngineModuleW10M module;
 
-    WKUWPResult result = module.bind(path, 0, 0);
+    WKW10MResult result = module.bind(path, 0, 0);
     char message[256];
     snprintf(message, sizeof(message), "bind reporting major 2 -> result=%d expected=%d, bound=%d",
-        static_cast<int>(result), static_cast<int>(WKUWPResultAbiMismatch), module.isBound() ? 1 : 0);
+        static_cast<int>(result), static_cast<int>(WKW10MResultAbiMismatch), module.isBound() ? 1 : 0);
     reportCheck("identity/foreign-major",
-        result == WKUWPResultAbiMismatch && !module.isBound() && !module.api(), message);
+        result == WKW10MResultAbiMismatch && !module.isBound() && !module.api(), message);
 }
 
 // A provider whose reported extent does not cover the table is rejected on size.
@@ -232,15 +232,15 @@ void checkTruncatedTable(TestProvider* provider, const wchar_t* path)
 {
     provider->reset();
     provider->setTruncateBytes(kTestTruncatedBytes);
-    WebKit::EngineModuleUWP module;
+    WebKit::EngineModuleW10M module;
 
-    WKUWPResult result = module.bind(path, 0, 0);
+    WKW10MResult result = module.bind(path, 0, 0);
     char message[256];
     snprintf(message, sizeof(message), "bind with a %u-byte reported extent -> result=%d expected=%d, bound=%d",
-        kTestTruncatedBytes, static_cast<int>(result), static_cast<int>(WKUWPResultAbiMismatch),
+        kTestTruncatedBytes, static_cast<int>(result), static_cast<int>(WKW10MResultAbiMismatch),
         module.isBound() ? 1 : 0);
     reportCheck("identity/truncated",
-        result == WKUWPResultAbiMismatch && !module.isBound() && !module.api(), message);
+        result == WKW10MResultAbiMismatch && !module.isBound() && !module.api(), message);
 }
 
 // A provider with a null slot is rejected instead of handing out a dead call.
@@ -248,14 +248,14 @@ void checkNullSlot(TestProvider* provider, const wchar_t* path)
 {
     provider->reset();
     provider->setNullSlot(kTestClosePageSlot);
-    WebKit::EngineModuleUWP module;
+    WebKit::EngineModuleW10M module;
 
-    WKUWPResult result = module.bind(path, 0, 0);
+    WKW10MResult result = module.bind(path, 0, 0);
     char message[256];
     snprintf(message, sizeof(message), "bind with a null closePage slot -> result=%d expected=%d, bound=%d",
-        static_cast<int>(result), static_cast<int>(WKUWPResultAbiMismatch), module.isBound() ? 1 : 0);
+        static_cast<int>(result), static_cast<int>(WKW10MResultAbiMismatch), module.isBound() ? 1 : 0);
     reportCheck("identity/null-slot",
-        result == WKUWPResultAbiMismatch && !module.isBound() && !module.api(), message);
+        result == WKW10MResultAbiMismatch && !module.isBound() && !module.api(), message);
 }
 
 // A module without the discovery export is not a V1 engine.
@@ -267,41 +267,41 @@ void checkMissingExport()
         return;
     }
     wcscat_s(systemPath, L"\\kernel32.dll");
-    WebKit::EngineModuleUWP module;
+    WebKit::EngineModuleW10M module;
 
-    WKUWPResult result = module.bind(systemPath, 0, 0);
+    WKW10MResult result = module.bind(systemPath, 0, 0);
     char message[256];
     snprintf(message, sizeof(message), "bind without the discovery export -> result=%d expected=%d, bound=%d",
-        static_cast<int>(result), static_cast<int>(WKUWPResultAbiMismatch), module.isBound() ? 1 : 0);
+        static_cast<int>(result), static_cast<int>(WKW10MResultAbiMismatch), module.isBound() ? 1 : 0);
     reportCheck("identity/missing-export",
-        result == WKUWPResultAbiMismatch && !module.isBound() && !module.api(), message);
+        result == WKW10MResultAbiMismatch && !module.isBound() && !module.api(), message);
 }
 
 // A null module path is the caller's own bug, reported before any load.
 void checkNullPath()
 {
-    WebKit::EngineModuleUWP module;
+    WebKit::EngineModuleW10M module;
 
-    WKUWPResult result = module.bind(nullptr, 0, 0);
+    WKW10MResult result = module.bind(nullptr, 0, 0);
     char message[128];
     snprintf(message, sizeof(message), "bind with a null path -> result=%d expected=%d, bound=%d",
-        static_cast<int>(result), static_cast<int>(WKUWPResultInvalidArgument), module.isBound() ? 1 : 0);
+        static_cast<int>(result), static_cast<int>(WKW10MResultInvalidArgument), module.isBound() ? 1 : 0);
     reportCheck("argument/null-path",
-        result == WKUWPResultInvalidArgument && !module.isBound() && !module.api(), message);
+        result == WKW10MResultInvalidArgument && !module.isBound() && !module.api(), message);
 }
 
 // Every operation on an unbound module reports NotInitialized without an engine.
 void checkUnboundOperations()
 {
-    WebKit::EngineModuleUWP module;
-    WKUWPPageOptions options;
+    WebKit::EngineModuleW10M module;
+    WKW10MPageOptions options;
     writeTestPageOptions(&options);
-    WKUWPPageHandle page = kUntouchedHandle;
+    WKW10MPageHandle page = kUntouchedHandle;
 
-    const bool createRejected = module.createPage(&options, &page) == WKUWPResultNotInitialized;
-    const bool closeRejected = module.closePage(7) == WKUWPResultNotInitialized;
-    const bool shutdownRejected = module.beginShutdown() == WKUWPResultNotInitialized;
-    const bool pollRejected = module.pollShutdown() == WKUWPResultNotInitialized;
+    const bool createRejected = module.createPage(&options, &page) == WKW10MResultNotInitialized;
+    const bool closeRejected = module.closePage(7) == WKW10MResultNotInitialized;
+    const bool shutdownRejected = module.beginShutdown() == WKW10MResultNotInitialized;
+    const bool pollRejected = module.pollShutdown() == WKW10MResultNotInitialized;
 
     char message[256];
     snprintf(message, sizeof(message), "create/close/shutdown/poll without binding -> %d%d%d%d, handle untouched=%d",
@@ -317,31 +317,31 @@ void checkUnboundOperations()
 void checkCloseRecreateBaseline(TestProvider* provider, const wchar_t* path)
 {
     provider->reset();
-    provider->setCreateResult(WKUWPResultOK);
-    WebKit::EngineModuleUWP module;
-    if (module.bind(path, 0, 0) != WKUWPResultOK) {
+    provider->setCreateResult(WKW10MResultOK);
+    WebKit::EngineModuleW10M module;
+    if (module.bind(path, 0, 0) != WKW10MResultOK) {
         reportCheck("page/baseline", false, "compatible negotiation failed, cannot continue");
         return;
     }
 
-    WKUWPPageOptions options;
+    WKW10MPageOptions options;
     writeTestPageOptions(&options);
     char message[256];
 
-    WKUWPPageHandle first = kUntouchedHandle;
-    WKUWPResult result = module.createPage(&options, &first);
+    WKW10MPageHandle first = kUntouchedHandle;
+    WKW10MResult result = module.createPage(&options, &first);
     snprintf(message, sizeof(message), "create -> result=%d, handle=0x%llx, open=%u, engine creates=%u",
         static_cast<int>(result), first, module.openPageCount(), provider->createCalls());
-    reportCheck("page/create", result == WKUWPResultOK && first != 0 && module.openPageCount() == 1 && provider->createCalls() == 1, message);
+    reportCheck("page/create", result == WKW10MResultOK && first != 0 && module.openPageCount() == 1 && provider->createCalls() == 1, message);
 
     result = module.closePage(first);
     snprintf(message, sizeof(message), "close -> result=%d, open=%u, engine closes=%u", static_cast<int>(result),
         module.openPageCount(), provider->closeCalls());
-    reportCheck("page/close", result == WKUWPResultOK && module.openPageCount() == 0 && provider->closeCalls() == 1, message);
+    reportCheck("page/close", result == WKW10MResultOK && module.openPageCount() == 0 && provider->closeCalls() == 1, message);
 
-    WKUWPPageHandle second = kUntouchedHandle;
+    WKW10MPageHandle second = kUntouchedHandle;
     result = module.createPage(&options, &second);
-    const bool recreated = result == WKUWPResultOK && second != 0 && second != first
+    const bool recreated = result == WKW10MResultOK && second != 0 && second != first
         && module.openPageCount() == 1;
     snprintf(message, sizeof(message), "recreate -> result=%d, distinct handle=%d, open=%u", static_cast<int>(result),
         second != first ? 1 : 0, module.openPageCount());
@@ -350,23 +350,23 @@ void checkCloseRecreateBaseline(TestProvider* provider, const wchar_t* path)
     result = module.closePage(second);
     snprintf(message, sizeof(message), "close again -> result=%d, open=%u, engine closes=%u", static_cast<int>(result),
         module.openPageCount(), provider->closeCalls());
-    reportCheck("page/baseline", result == WKUWPResultOK && module.openPageCount() == 0 && provider->closeCalls() == 2, message);
+    reportCheck("page/baseline", result == WKW10MResultOK && module.openPageCount() == 0 && provider->closeCalls() == 2, message);
 }
 
 // Handles this object never created never reach the engine.
 void checkUnknownHandles(TestProvider* provider, const wchar_t* path)
 {
     provider->reset();
-    provider->setCreateResult(WKUWPResultOK);
-    WebKit::EngineModuleUWP module;
-    if (module.bind(path, 0, 0) != WKUWPResultOK) {
+    provider->setCreateResult(WKW10MResultOK);
+    WebKit::EngineModuleW10M module;
+    if (module.bind(path, 0, 0) != WKW10MResultOK) {
         reportCheck("page/unknown", false, "compatible negotiation failed, cannot continue");
         return;
     }
 
     const uint32_t closesBefore = provider->closeCalls();
-    const bool foreignRejected = module.closePage(0x1234) == WKUWPResultInvalidArgument;
-    const bool zeroRejected = module.closePage(0) == WKUWPResultInvalidArgument;
+    const bool foreignRejected = module.closePage(0x1234) == WKW10MResultInvalidArgument;
+    const bool zeroRejected = module.closePage(0) == WKW10MResultInvalidArgument;
 
     char message[256];
     snprintf(message, sizeof(message), "foreign/zero close -> rejected=%d%d, engine closes %u -> %u",
@@ -380,85 +380,85 @@ void checkUnknownHandles(TestProvider* provider, const wchar_t* path)
 void checkFailedCreation(TestProvider* provider, const wchar_t* path)
 {
     provider->reset();
-    provider->setCreateResult(WKUWPResultUnsupported);
-    WebKit::EngineModuleUWP module;
-    if (module.bind(path, 0, 0) != WKUWPResultOK) {
+    provider->setCreateResult(WKW10MResultUnsupported);
+    WebKit::EngineModuleW10M module;
+    if (module.bind(path, 0, 0) != WKW10MResultOK) {
         reportCheck("page/failed-creation", false, "compatible negotiation failed, cannot continue");
         return;
     }
 
-    WKUWPPageOptions options;
+    WKW10MPageOptions options;
     writeTestPageOptions(&options);
-    WKUWPPageHandle page = kUntouchedHandle;
-    WKUWPResult result = module.createPage(&options, &page);
+    WKW10MPageHandle page = kUntouchedHandle;
+    WKW10MResult result = module.createPage(&options, &page);
 
     char message[256];
     snprintf(message, sizeof(message), "refused creation -> result=%d expected=%d, handle untouched=%d, open=%u",
-        static_cast<int>(result), static_cast<int>(WKUWPResultUnsupported), page == kUntouchedHandle ? 1 : 0,
+        static_cast<int>(result), static_cast<int>(WKW10MResultUnsupported), page == kUntouchedHandle ? 1 : 0,
         module.openPageCount());
     reportCheck("page/failed-creation",
-        result == WKUWPResultUnsupported && page == kUntouchedHandle && module.openPageCount() == 0, message);
+        result == WKW10MResultUnsupported && page == kUntouchedHandle && module.openPageCount() == 0, message);
 }
 
 // Shutdown latches: creation fails locally afterwards and progress passes through.
 void checkShutdownLatch(TestProvider* provider, const wchar_t* path)
 {
     provider->reset();
-    provider->setCreateResult(WKUWPResultOK);
-    WebKit::EngineModuleUWP module;
-    if (module.bind(path, 0, 0) != WKUWPResultOK) {
+    provider->setCreateResult(WKW10MResultOK);
+    WebKit::EngineModuleW10M module;
+    if (module.bind(path, 0, 0) != WKW10MResultOK) {
         reportCheck("shutdown/begin", false, "compatible negotiation failed, cannot continue");
         return;
     }
 
     char message[256];
-    WKUWPResult result = module.beginShutdown();
+    WKW10MResult result = module.beginShutdown();
     snprintf(message, sizeof(message), "beginShutdown -> result=%d expected=0, latched=%d, engine calls=%u",
         static_cast<int>(result), module.isShuttingDown() ? 1 : 0, provider->beginShutdownCalls());
     reportCheck("shutdown/begin",
-        result == WKUWPResultOK && module.isShuttingDown() && provider->beginShutdownCalls() == 1, message);
+        result == WKW10MResultOK && module.isShuttingDown() && provider->beginShutdownCalls() == 1, message);
 
-    WKUWPPageOptions options;
+    WKW10MPageOptions options;
     writeTestPageOptions(&options);
-    WKUWPPageHandle page = kUntouchedHandle;
+    WKW10MPageHandle page = kUntouchedHandle;
     const uint32_t createsBefore = provider->createCalls();
     result = module.createPage(&options, &page);
     snprintf(message, sizeof(message), "creation after shutdown -> result=%d expected=%d, engine creates %u -> %u",
-        static_cast<int>(result), static_cast<int>(WKUWPResultShuttingDown), createsBefore,
+        static_cast<int>(result), static_cast<int>(WKW10MResultShuttingDown), createsBefore,
         provider->createCalls());
     reportCheck("shutdown/creation-blocked",
-        result == WKUWPResultShuttingDown && provider->createCalls() == createsBefore
+        result == WKW10MResultShuttingDown && provider->createCalls() == createsBefore
             && page == kUntouchedHandle && module.openPageCount() == 0,
         message);
 
-    provider->setPollResult(WKUWPResultPending);
+    provider->setPollResult(WKW10MResultPending);
     result = module.pollShutdown();
     snprintf(message, sizeof(message), "pollShutdown -> result=%d expected=%d, engine polls=%u",
-        static_cast<int>(result), static_cast<int>(WKUWPResultPending), provider->pollShutdownCalls());
+        static_cast<int>(result), static_cast<int>(WKW10MResultPending), provider->pollShutdownCalls());
     reportCheck("shutdown/poll-pending",
-        result == WKUWPResultPending && provider->pollShutdownCalls() == 1, message);
+        result == WKW10MResultPending && provider->pollShutdownCalls() == 1, message);
 
-    provider->setPollResult(WKUWPResultOK);
+    provider->setPollResult(WKW10MResultOK);
     result = module.pollShutdown();
     snprintf(message, sizeof(message), "pollShutdown -> result=%d expected=0, engine polls=%u", static_cast<int>(result),
         provider->pollShutdownCalls());
-    reportCheck("shutdown/poll-done", result == WKUWPResultOK && provider->pollShutdownCalls() == 2, message);
+    reportCheck("shutdown/poll-done", result == WKW10MResultOK && provider->pollShutdownCalls() == 2, message);
 
     result = module.beginShutdown();
     snprintf(message, sizeof(message), "second beginShutdown -> result=%d expected=0, engine calls=%u",
         static_cast<int>(result), provider->beginShutdownCalls());
     reportCheck("shutdown/idempotent",
-        result == WKUWPResultOK && provider->beginShutdownCalls() == 2, message);
+        result == WKW10MResultOK && provider->beginShutdownCalls() == 2, message);
 }
 
 // The pinned image stays loaded across binding, failed calls and shutdown.
 void checkPinningLifecycle(TestProvider* provider, const wchar_t* path)
 {
     provider->reset();
-    WebKit::EngineModuleUWP module;
+    WebKit::EngineModuleW10M module;
     char message[256];
 
-    if (module.bind(path, 0, 0) != WKUWPResultOK) {
+    if (module.bind(path, 0, 0) != WKW10MResultOK) {
         reportCheck("pinning/bound", false, "compatible negotiation failed, cannot continue");
         return;
     }
@@ -484,15 +484,15 @@ void checkPinningLifecycle(TestProvider* provider, const wchar_t* path)
 // what the module under test freed.
 void checkRejectionUnloads(const wchar_t* path)
 {
-    WebKit::EngineModuleUWP module;
+    WebKit::EngineModuleW10M module;
 
-    WKUWPResult result = module.bind(path, 0, 0);
+    WKW10MResult result = module.bind(path, 0, 0);
     char message[256];
     snprintf(message, sizeof(message), "rejected bind -> result=%d expected=%d, bound=%d, image loaded=%d",
-        static_cast<int>(result), static_cast<int>(WKUWPResultAbiMismatch), module.isBound() ? 1 : 0,
+        static_cast<int>(result), static_cast<int>(WKW10MResultAbiMismatch), module.isBound() ? 1 : 0,
         isModuleLoaded(path) ? 1 : 0);
     reportCheck("pinning/rejection-unloads",
-        result == WKUWPResultAbiMismatch && !module.isBound() && !isModuleLoaded(path), message);
+        result == WKW10MResultAbiMismatch && !module.isBound() && !isModuleLoaded(path), message);
 }
 
 } // namespace
@@ -510,7 +510,7 @@ int main(int argc, char** argv)
     setvbuf(stdout, nullptr, _IONBF, 0);
 
     if (argc < 4) {
-        printf("usage: EngineModuleUWPTests <provider-module> <lifecycle-module> <rejection-module>\n");
+        printf("usage: EngineModuleW10MTests <provider-module> <lifecycle-module> <rejection-module>\n");
         return 2;
     }
 
@@ -567,6 +567,6 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    printf("All EngineModuleUWP ownership checks passed.\n");
+    printf("All EngineModuleW10M ownership checks passed.\n");
     return 0;
 }
