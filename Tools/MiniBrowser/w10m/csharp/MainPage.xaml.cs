@@ -146,6 +146,14 @@ namespace WebKitMiniBrowser
             ApplyVisibleBounds();
         }
 
+        /// <summary>Reapplies safe-area margins when the OS resumes the application.</summary>
+        /// <param name="sender">The current application.</param>
+        /// <param name="args">The resume notification.</param>
+        private void OnResuming(object sender, object args)
+        {
+            ApplyVisibleBounds();
+        }
+
         /// <summary>Applies safe-area margins after the page first receives its layout slot.</summary>
         /// <param name="sender">The loaded page.</param>
         /// <param name="args">The routed Loaded event.</param>
@@ -157,6 +165,7 @@ namespace WebKitMiniBrowser
                 navigationManager.BackRequested += OnBackRequested;
                 inputPane.Showing += OnInputPaneShowing;
                 inputPane.Hiding += OnInputPaneHiding;
+                Application.Current.Resuming += OnResuming;
                 ViewModel.PropertyChanged += OnViewModelPropertyChanged;
                 subscriptionsActive = true;
             }
@@ -178,6 +187,7 @@ namespace WebKitMiniBrowser
                 navigationManager.BackRequested -= OnBackRequested;
                 inputPane.Showing -= OnInputPaneShowing;
                 inputPane.Hiding -= OnInputPaneHiding;
+                Application.Current.Resuming -= OnResuming;
                 ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
                 subscriptionsActive = false;
             }

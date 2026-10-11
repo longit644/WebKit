@@ -77,7 +77,9 @@
                         <Setter Target="AddressInput.Padding" Value="6,6,6,2" />
                         <Setter Target="AddressInput.FontSize" Value="14" />
                         <Setter Target="AddressInput.Background"
-                                Value="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}" />
+                                Value="{ThemeResource TextControlBackgroundFocused}" />
+                        <Setter Target="AddressInput.Foreground"
+                                Value="{ThemeResource TextControlForegroundFocused}" />
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>

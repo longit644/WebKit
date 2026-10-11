@@ -52,9 +52,11 @@ namespace WebKitMiniBrowser
         }
 
         /// <summary>
-        /// Invoked when the OS suspends the application. Suspension lifetime
-        /// and control Close belong to task 8.8; this shell only releases the
-        /// deferral so suspension is never blocked here.
+        /// Invoked when the OS suspends the application. The hosted control owns
+        /// its Loaded/Unloaded subscriptions and page state, which must survive
+        /// suspension, so this shell must not Close or dispose the browser here;
+        /// it only releases the deferral so suspension is never blocked. The page
+        /// refreshes its safe-area margins on <see cref="MainPage"/> resume.
         /// </summary>
         /// <param name="sender">The application instance.</param>
         /// <param name="e">Suspension details.</param>
