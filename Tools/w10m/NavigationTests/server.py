@@ -29,6 +29,10 @@ DEFAULT_LARGE_RESPONSE_BYTES = 1024 * 1024
 DELAYED_IMAGE_MS = 3000
 MIN_FIXTURE_DELAY_MS = 0
 MIN_LARGE_RESPONSE_BYTES = 0
+REPORT_KINDS = ('scroll', 'history', 'fetch', 'xhr', 'cookie', 'security', 'font', 'visual', 'policy', 'budget')
+MAX_REPORT_BYTES = 64 * 1024
+REDACTED = '<redacted>'
+SENSITIVE_KEYS = ('cookie', 'authorization', 'credential', 'password', 'passwd', 'token', 'secret', 'set-cookie', 'value')
 
 
 def png():
@@ -59,6 +63,226 @@ document.getElementById('script').textContent='PASS external script order: '+win
 fetch('api/data').then(r=>r.json()).then(v=>document.getElementById('fetch').textContent='PASS fetch: '+v.value);
 var x=new XMLHttpRequest();x.open('GET','api/data');x.onload=function(){document.getElementById('xhr').textContent='PASS XHR: '+JSON.parse(x.responseText).value;};x.send();
 fetch('cookies/set').then(()=>fetch('cookies/echo')).then(r=>r.json()).then(v=>document.getElementById('cookie').textContent=v.cookie.indexOf('m9=fixture')>=0?'PASS cookie':'FAIL cookie');'''
+POLICY_HTML = (b'<h1>CSP fixture</h1><p id="policy">pending: inline script must stay blocked</p>'
+               b'<script>window.fixtureInlineExecuted=true;'
+               b'document.getElementById("policy").textContent="FAIL script executed";</script>'
+               b'<img src="assets/image.png">')
+VISUAL_HTML = b'''<!doctype html><html><head><meta charset="utf-8"><title>Visual oracle fixture</title>
+<link rel="stylesheet" href="/assets/style.css"></head><body>
+<h1 id="heading">Visual oracle</h1>
+<img id="vimage" src="/assets/image.png" width="96" height="96" alt="Oracle image">
+<p id="vresult">pending: needs computed style and decoded image</p>
+<script>
+var vcolor = getComputedStyle(document.getElementById("heading")).color.replace(/\\s+/g, "");
+var vimg = document.getElementById("vimage");
+function vdone(ok) {
+  document.getElementById("vresult").textContent = ok ? "PASS visual" : "FAIL visual";
+  fetch("/report", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({kind: "visual", ok: ok})});
+}
+function vcheck() { vdone(vcolor === "rgb(0,128,0)" && vimg.naturalWidth === 2); }
+if (vimg.complete) { vcheck(); } else { vimg.onload = vcheck; vimg.onerror = function() { vdone(false); }; }
+</script></body></html>'''
+SCROLL_HTML = b'''<!doctype html><html><head><meta charset="utf-8"><title>Scroll report fixture</title></head><body>
+<p id="scroll">pending: needs programmatic scroll outcome</p>
+<div style="height:1600px">Scroll fixture</div>
+<script>
+addEventListener("load", function() { setTimeout(function() {
+  window.scrollTo(0, 800);
+  var y = window.scrollY || document.documentElement.scrollTop;
+  var ok = y > 0;
+  document.getElementById("scroll").textContent = ok ? "PASS scroll: " + y : "FAIL scroll";
+  fetch("/report", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({kind: "scroll", y: y, ok: ok})});
+}, 100); });
+</script></body></html>'''
+HISTORY_REPORT_HTML = b'''<!doctype html><html><head><meta charset="utf-8"><title>History report fixture</title></head><body>
+<p id="history">pending: needs history outcome</p>
+<script>
+history.pushState({}, "", "?v=1");
+history.replaceState({}, "", "?v=2");
+var hok = location.search === "?v=2";
+document.getElementById("history").textContent = hok ? "PASS history: ?v=2" : "FAIL history";
+fetch("/report", {method: "POST", headers: {"Content-Type": "application/json"},
+  body: JSON.stringify({kind: "history", search: location.search, ok: hok})});
+</script></body></html>'''
+FETCH_REPORT_HTML = b'''<!doctype html><html><head><meta charset="utf-8"><title>Fetch report fixture</title></head><body>
+<p id="fetchreport">pending: needs fetch outcome</p>
+<script>
+fetch("api/data").then(function(r) { return r.json(); }).then(function(v) {
+  var ok = v.value === "fixture-data";
+  document.getElementById("fetchreport").textContent = ok ? "PASS fetch report" : "FAIL fetch report";
+  fetch("/report", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({kind: "fetch", ok: ok})});
+});
+</script></body></html>'''
+XHR_REPORT_HTML = b'''<!doctype html><html><head><meta charset="utf-8"><title>XHR report fixture</title></head><body>
+<p id="xhrreport">pending: needs XHR outcome</p>
+<script>
+var x = new XMLHttpRequest();
+x.open("GET", "api/data");
+x.onload = function() {
+  var ok = JSON.parse(x.responseText).value === "fixture-data";
+  document.getElementById("xhrreport").textContent = ok ? "PASS XHR report" : "FAIL XHR report";
+  fetch("/report", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({kind: "xhr", ok: ok})});
+};
+x.send();
+</script></body></html>'''
+COOKIE_REPORT_HTML = b'''<!doctype html><html><head><meta charset="utf-8"><title>Cookie report fixture</title></head><body>
+<p id="creport">pending: needs stored cookie round-trip</p>
+<script>
+fetch("cookies/set", {credentials: "same-origin"})
+  .then(function() { return fetch("cookies/echo", {credentials: "same-origin"}); })
+  .then(function(r) { return r.json(); })
+  .then(function(v) {
+    var present = v.cookie.indexOf("m9=fixture") >= 0;
+    document.getElementById("creport").textContent = present ? "PASS cookie report" : "FAIL cookie report";
+    fetch("/report", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({kind: "cookie", present: present})});
+  });
+</script></body></html>'''
+SECURITY_REPORT_HTML = b'''<!doctype html><html><head><meta charset="utf-8"><title>Security report fixture</title></head><body>
+<p id="secreport">pending: needs protocol and cookie-visibility outcome</p>
+<script>
+var visible = document.cookie.indexOf("m9=") >= 0;
+document.getElementById("secreport").textContent = "done: " + location.protocol;
+fetch("/report", {method: "POST", headers: {"Content-Type": "application/json"},
+  body: JSON.stringify({kind: "security", protocol: location.protocol, cookie_visible: visible})});
+</script></body></html>'''
+FONT_REPORT_HTML = b'''<!doctype html><html><head><meta charset="utf-8"><title>Font report fixture</title></head><body>
+<link rel="stylesheet" href="/assets/style.css">
+<p id="fontprobe" class="fixture-font">pending: needs renderer font match</p>
+<script>
+function fcheck() {
+  var fam = getComputedStyle(document.getElementById("fontprobe")).fontFamily;
+  var matched = fam.indexOf("Fixture") >= 0 && !!document.fonts && document.fonts.check("16px Fixture");
+  document.getElementById("fontprobe").textContent = matched ? "PASS font" : "FAIL font";
+  fetch("/report", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({kind: "font", matched: !!matched})});
+}
+if (document.fonts && document.fonts.ready) { document.fonts.ready.then(fcheck); }
+else { addEventListener("load", fcheck); }
+</script></body></html>'''
+
+
+def sanitize_report(node):
+    """Return a copy of a report with credential/cookie values redacted."""
+    if isinstance(node, dict):
+        redacted = {}
+        for key, val in node.items():
+            if any(token in str(key).lower() for token in SENSITIVE_KEYS):
+                redacted[key] = REDACTED
+            else:
+                redacted[key] = sanitize_report(val)
+        return redacted
+    if isinstance(node, list):
+        return [sanitize_report(item) for item in node]
+    return node
+
+
+def _report_body(entry):
+    """Unwrap a stored report entry to the reporter-supplied payload."""
+    if isinstance(entry, dict) and isinstance(entry.get('report'), dict):
+        return entry['report']
+    return entry if isinstance(entry, dict) else {}
+
+
+def check_policy_oracle(page_body, policy_text, control_executed):
+    """Pass only when the inline script demonstrably did not run.
+
+    Static PASS text baked into the fixture is rejected. The caller must
+    also show a live-script control page executed, otherwise silence proves
+    nothing about CSP enforcement.
+    """
+    text = page_body.decode('utf-8', 'replace') if isinstance(page_body, bytes) else str(page_body)
+    if 'PASS script blocked' in text:
+        return False
+    if 'fixtureInlineExecuted' not in text or 'FAIL script executed' not in text:
+        return False
+    if not control_executed:
+        return False
+    if 'FAIL' in policy_text:
+        return False
+    lowered = str(policy_text).lower()
+    return 'pending' in lowered or 'blocked' in lowered
+
+
+def check_visual_evidence(result_text, computed_color, natural_width):
+    """Require computed-style color and decoded-image width behind PASS text."""
+    if 'PASS' not in str(result_text) or 'FAIL' in str(result_text):
+        return False
+    if str(computed_color).replace(' ', '') != 'rgb(0,128,0)':
+        return False
+    return natural_width == PNG_WIDTH
+
+
+def check_budget_response(content_type, body_length, requested_bytes):
+    """The main-document budget route must serve capped text/html of exact size."""
+    if not str(content_type).startswith('text/html'):
+        return False
+    expected = min(max(int(requested_bytes), 0), MAX_LARGE_RESPONSE_BYTES)
+    return body_length == expected
+
+
+def check_scroll_report(entry):
+    """A scroll report passes only with a positive scrolled offset."""
+    body = _report_body(entry)
+    return body.get('kind') == 'scroll' and body.get('ok') is True and isinstance(body.get('y'), int) and body['y'] > 0
+
+
+def check_history_report(entry):
+    """A history report passes only with the replaced query string."""
+    body = _report_body(entry)
+    return body.get('kind') == 'history' and body.get('ok') is True and body.get('search') == '?v=2'
+
+
+def check_fetch_report(entry):
+    """A fetch report passes only with success and no leaked cookie value."""
+    body = _report_body(entry)
+    if body.get('kind') != 'fetch' or body.get('ok') is not True:
+        return False
+    return 'm9=fixture' not in json.dumps(body)
+
+
+def check_xhr_report(entry):
+    """An XHR report passes only with success and no leaked cookie value."""
+    body = _report_body(entry)
+    if body.get('kind') != 'xhr' or body.get('ok') is not True:
+        return False
+    return 'm9=fixture' not in json.dumps(body)
+
+
+def check_cookie_report(entry):
+    """A cookie report passes only with presence proven and values withheld."""
+    body = _report_body(entry)
+    if body.get('kind') != 'cookie' or body.get('present') is not True:
+        return False
+    return 'm9=fixture' not in json.dumps(body)
+
+
+def check_security_report(entry):
+    """A security report passes only with an http(s) protocol and no values."""
+    body = _report_body(entry)
+    if body.get('kind') != 'security' or body.get('protocol') not in ('http:', 'https:'):
+        return False
+    return 'm9=fixture' not in json.dumps(body)
+
+
+def check_font_report(entry):
+    """A font report passes only when the renderer matched the Fixture face."""
+    body = _report_body(entry)
+    return body.get('kind') == 'font' and body.get('matched') is True
+
+
+def check_report_isolation(entries):
+    """Stored reports must carry an origin and no credential/cookie values."""
+    if not entries:
+        return False
+    if 'm9=fixture' in json.dumps(entries):
+        return False
+    return all(isinstance(item, dict) and isinstance(item.get('origin'), str) and isinstance(item.get('kind'), str)
+               for item in entries)
 
 
 class FixtureServer(ThreadingHTTPServer):
@@ -71,6 +295,7 @@ class FixtureServer(ThreadingHTTPServer):
         super().__init__(address, FixtureHandler)
         self.font_path = font_path
         self.requests = []
+        self.reports = []
         self.request_lock = threading.Lock()
 
 
@@ -190,8 +415,7 @@ class FixtureHandler(BaseHTTPRequestHandler):
         elif path == '/cookies/echo':
             self.respond(json.dumps({'cookie': self.headers.get('Cookie', '')}).encode(), 'application/json')
         elif path == '/policy.html':
-            self.respond(b'<h1>CSP fixture</h1><p id="policy">PASS script blocked</p>'
-                         b'<script>document.getElementById("policy").textContent="FAIL script executed";</script><img src="assets/image.png">',
+            self.respond(POLICY_HTML,
                          'text/html', headers=(('Content-Security-Policy', "default-src 'self'; script-src 'none'; img-src 'none'"),))
         elif path == '/cross-origin.html':
             origin = args.get('origin', [''])[0]
@@ -221,10 +445,83 @@ class FixtureHandler(BaseHTTPRequestHandler):
                 self.respond(b'Invalid size', status=HTTPStatus.BAD_REQUEST)
                 return
             self.respond(b'x' * size, 'application/octet-stream')
+        elif path == '/visual.html':
+            self.respond(VISUAL_HTML, 'text/html; charset=utf-8')
+        elif path == '/scroll.html':
+            self.respond(SCROLL_HTML, 'text/html; charset=utf-8')
+        elif path == '/history-report.html':
+            self.respond(HISTORY_REPORT_HTML, 'text/html; charset=utf-8')
+        elif path == '/fetch-report.html':
+            self.respond(FETCH_REPORT_HTML, 'text/html; charset=utf-8')
+        elif path == '/xhr-report.html':
+            self.respond(XHR_REPORT_HTML, 'text/html; charset=utf-8')
+        elif path == '/cookie-report.html':
+            self.respond(COOKIE_REPORT_HTML, 'text/html; charset=utf-8')
+        elif path == '/security-report.html':
+            self.respond(SECURITY_REPORT_HTML, 'text/html; charset=utf-8')
+        elif path == '/font-report.html':
+            self.respond(FONT_REPORT_HTML, 'text/html; charset=utf-8')
+        elif path == '/large-page':
+            try:
+                size = max(MIN_LARGE_RESPONSE_BYTES, min(MAX_LARGE_RESPONSE_BYTES, int(args.get('bytes', [str(DEFAULT_LARGE_RESPONSE_BYTES)])[0])))
+            except ValueError:
+                self.respond(b'Invalid size', status=HTTPStatus.BAD_REQUEST)
+                return
+            head = b'<!doctype html><html><head><title>Main-document budget fixture</title></head><body><h1>Budget</h1><p>'
+            tail = b'</p></body></html>'
+            self.respond(head + b'x' * max(0, size - len(head) - len(tail)) + tail, 'text/html; charset=utf-8')
+        elif path == '/reports':
+            wanted = args.get('kind', [None])[0]
+            with self.server.request_lock:
+                entries = [entry for entry in self.server.reports if wanted is None or entry['kind'] == wanted]
+            self.respond(json.dumps(entries).encode(), 'application/json')
         elif path == '/requests':
             with self.server.request_lock:
                 requests = list(self.server.requests)
             self.respond(json.dumps(requests).encode(), 'application/json')
+        else:
+            self.respond(b'Unknown fixture path', status=HTTPStatus.NOT_FOUND)
+
+    def do_POST(self):
+        """Record one JSON outcome report with values redacted and origin kept."""
+        parts = urlsplit(self.path)
+        path = parts.path
+        with self.server.request_lock:
+            self.server.requests.append(path)
+        if path == '/report':
+            try:
+                length = int(self.headers.get('Content-Length') or 0)
+            except ValueError:
+                length = 0
+            if length <= 0 or length > MAX_REPORT_BYTES:
+                self.respond(b'Missing or oversized report', status=HTTPStatus.BAD_REQUEST)
+                return
+            try:
+                payload = json.loads(self.rfile.read(length).decode('utf-8'))
+            except (ValueError, UnicodeDecodeError):
+                self.respond(b'Malformed report', status=HTTPStatus.BAD_REQUEST)
+                return
+            if not isinstance(payload, dict) or payload.get('kind') not in REPORT_KINDS:
+                self.respond(b'Malformed report', status=HTTPStatus.BAD_REQUEST)
+                return
+            entry = {'kind': payload['kind'],
+                     'origin': self.headers.get('Origin', 'none'),
+                     'report': sanitize_report(payload)}
+            with self.server.request_lock:
+                self.server.reports.append(entry)
+            self.respond(b'{"status":"recorded"}', 'application/json')
+        else:
+            self.respond(b'Unknown fixture path', status=HTTPStatus.NOT_FOUND)
+
+    def do_DELETE(self):
+        """Clear stored fixture reports without recording header values."""
+        parts = urlsplit(self.path)
+        with self.server.request_lock:
+            self.server.requests.append(parts.path)
+        if parts.path == '/reports':
+            with self.server.request_lock:
+                self.server.reports.clear()
+            self.respond(b'{"status":"cleared"}', 'application/json')
         else:
             self.respond(b'Unknown fixture path', status=HTTPStatus.NOT_FOUND)
 
