@@ -34,7 +34,7 @@ class PublicControlContractTests(unittest.TestCase):
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("// Authored empty fixture body.\n", encoding="utf-8")
             (repository / SOURCES[0]).write_text(
-                "HandleStarting(const WKUWPPageEvent& event) {}\nHandleNotification(const WKUWPPageEvent& event) {}\n"
+                "HandleStarting(const WKW10MPageEvent& event) {}\nHandleNotification(const WKW10MPageEvent& event) {}\n"
                 "event.errorCode; event.hasHttpStatus; event.certificateToken;\n"
                 "ref new WebKitNavigationCompletedEventArgs; ref new WebKitNavigationStartingEventArgs;\n" + mutation,
                 encoding="utf-8",
