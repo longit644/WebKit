@@ -182,8 +182,9 @@ namespace WebKitMiniBrowser
     }
 }
 #if !POLICY_RULES_ONLY
-namespace WebKitMiniBrowser
+namespace WebKitMiniBrowser.Services
 {
+    using WebKitMiniBrowser;
     using Windows.UI.Xaml;
     using WebKit;
     /// <summary>Applies app-owned navigation policy and gates certificate consent on warning-page commit.</summary>

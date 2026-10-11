@@ -87,8 +87,20 @@
     <Compile Include="MainPage.xaml.cs">
       <DependentUpon>MainPage.xaml</DependentUpon>
     </Compile>
-    <Compile Include="BrowserViewModel.cs" />
-    <Compile Include="BrowserPolicy.cs" />
+    <Compile Include="ViewModels\BrowserViewModel.cs" />
+    <Compile Include="Services\BrowserPolicy.cs" />
+    <Compile Include="Services\BrowserService.cs" />
+    <Compile Include="Services\ToastNotificationService.cs" />
+    <Compile Include="Services\Interfaces\IBrowserService.cs" />
+    <Compile Include="Services\Interfaces\IToastNotificationService.cs" />
+    <Compile Include="DependencyInjection\MiniBrowserServiceLocator.cs" />
+    <Compile Include="Models\BrowserNavigationState.cs" />
+    <Compile Include="Views\Controls\AddressBarControl.xaml.cs">
+      <DependentUpon>AddressBarControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\Controls\BrowserAppBarControl.xaml.cs">
+      <DependentUpon>BrowserAppBarControl.xaml</DependentUpon>
+    </Compile>
     <Compile Include="VisibleBoundsHelper.cs" />
     <Compile Include="LayoutDiagnostics.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -104,6 +116,14 @@
       <SubType>Designer</SubType>
     </ApplicationDefinition>
     <Page Include="MainPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\Controls\AddressBarControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\Controls\BrowserAppBarControl.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
@@ -132,6 +152,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NETCore.UniversalWindowsPlatform" Version="6.0.15" />
+    <PackageReference Include="MvvmLightLibs" Version="5.4.1.1" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\Microsoft\WindowsXaml\v17.0\Microsoft.Windows.UI.Xaml.CSharp.targets" />
 </Project>

@@ -4,6 +4,7 @@ using Windows.ApplicationModel.Activation;
 using Windows.UI.ViewManagement;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
+using WebKitMiniBrowser.DependencyInjection;
 
 namespace WebKitMiniBrowser
 {
@@ -20,6 +21,7 @@ namespace WebKitMiniBrowser
         public App()
         {
             InitializeComponent();
+            MiniBrowserServiceLocator.ConfigureApplicationServices();
             Suspending += OnSuspending;
         }
 

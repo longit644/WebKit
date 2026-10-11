@@ -5,13 +5,14 @@ using System.Diagnostics;
 using Windows.ApplicationModel;
 using Windows.Storage;
 using Windows.System;
-using Windows.Data.Xml.Dom;
 using Windows.UI.Core;
-using Windows.UI.Notifications;
 using Windows.UI.ViewManagement;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Media.Animation;
+using WebKitMiniBrowser.DependencyInjection;
+using WebKitMiniBrowser.ViewModels;
+using WebKitMiniBrowser.Views.Controls;
 
 namespace WebKitMiniBrowser
 {
@@ -21,9 +22,6 @@ namespace WebKitMiniBrowser
     /// </summary>
     public sealed partial class MainPage : Page
     {
-        /// <summary>Policy owner for app navigation, warning consent, and local assets.</summary>
-        private readonly BrowserPolicy browserPolicy;
-
         /// <summary>The app view supplying logical visible-bounds changes.</summary>
         private readonly ApplicationView applicationView;
 
@@ -60,6 +58,48 @@ namespace WebKitMiniBrowser
         /// <summary>The MVVM command/state source used by the page and its app-bar panel.</summary>
         public BrowserViewModel ViewModel { get; private set; }
 
+        /// <summary>Gets the address control's compact browser chrome grid.</summary>
+        private Grid BrowserChrome { get { return AddressBar.BrowserChrome; } }
+
+        /// <summary>Gets the address control's editable address field.</summary>
+        private TextBox AddressBox { get { return AddressBar.AddressBox; } }
+
+        /// <summary>Gets the address control's overflow toggle button.</summary>
+        private Button MoreButton { get { return AddressBar.MoreButton; } }
+
+        /// <summary>Gets the app-bar overlay shown while dismissing the panel.</summary>
+        private Grid MenuOverlay { get { return BrowserAppBar.MenuOverlay; } }
+
+        /// <summary>Gets the address-editing scrim owned by the app-bar surface.</summary>
+        private Button AddressEditingOverlay { get { return BrowserAppBar.AddressEditingOverlay; } }
+
+        /// <summary>Gets the app-bar menu sheet.</summary>
+        private Border MenuSheet { get { return BrowserAppBar.MenuSheet; } }
+
+        /// <summary>Gets the secondary app-bar actions scroller.</summary>
+        private ScrollViewer MenuScroll { get { return BrowserAppBar.MenuScroll; } }
+
+        /// <summary>Gets the app-bar menu sheet translation transform.</summary>
+        private Windows.UI.Xaml.Media.TranslateTransform MenuSheetTranslation { get { return BrowserAppBar.MenuSheetTranslation; } }
+
+        /// <summary>Gets the clip geometry for the app-bar overlay.</summary>
+        private Windows.UI.Xaml.Media.RectangleGeometry MenuOverlayClip { get { return BrowserAppBar.MenuOverlayClip; } }
+
+        /// <summary>Gets the Forward item for app-bar focus management.</summary>
+        private Button ForwardMenuButton { get { return BrowserAppBar.ForwardMenuButton; } }
+
+        /// <summary>Gets the Local demo item for app-bar focus management.</summary>
+        private Button DemoMenuButton { get { return BrowserAppBar.DemoMenuButton; } }
+
+        /// <summary>Gets the primary Hello action host for responsive sizing.</summary>
+        private Grid HelloActionHost { get { return BrowserAppBar.HelloActionHost; } }
+
+        /// <summary>Gets the primary Hello action for responsive sizing.</summary>
+        private AppBarButton HelloActionButton { get { return BrowserAppBar.HelloActionButton; } }
+
+        /// <summary>Gets the menu's top-edge divider for optional diagnostics.</summary>
+        private Border MenuTopDivider { get { return BrowserAppBar.MenuTopDivider; } }
+
 #if LAYOUT_DIAGNOSTICS
         /// <summary>Coalesces optional layout-report writes until the previous snapshot completes.</summary>
         private bool layoutReportQueued;
@@ -76,13 +116,16 @@ namespace WebKitMiniBrowser
             InitializeComponent();
             string packagePath = Package.Current.InstalledLocation.Path;
             string overridePath = Path.Combine(ApplicationData.Current.LocalFolder.Path, "blocked-override.html");
-            browserPolicy = new BrowserPolicy(
+            MiniBrowserServiceLocator.ConfigureBrowserPage(
                 Browser,
                 Path.Combine(packagePath, "Assets", "blocked.html"),
                 overridePath,
                 Path.Combine(packagePath, "Assets", "demo.html"));
-            ViewModel = new BrowserViewModel(Browser, browserPolicy);
+            ViewModel = MiniBrowserServiceLocator.Get<BrowserViewModel>();
             DataContext = ViewModel;
+            AddressBar.AddressBox.KeyDown += OnAddressKeyDown;
+            AddressBar.AddressBox.GotFocus += OnAddressGotFocus;
+            AddressBar.AddressBox.LostFocus += OnAddressLostFocus;
 
             applicationView = ApplicationView.GetForCurrentView();
             navigationManager = SystemNavigationManager.GetForCurrentView();
@@ -115,7 +158,6 @@ namespace WebKitMiniBrowser
                 inputPane.Showing += OnInputPaneShowing;
                 inputPane.Hiding += OnInputPaneHiding;
                 ViewModel.PropertyChanged += OnViewModelPropertyChanged;
-                ViewModel.HelloNotificationRequested += OnHelloNotificationRequested;
                 subscriptionsActive = true;
             }
 
@@ -137,7 +179,6 @@ namespace WebKitMiniBrowser
                 inputPane.Showing -= OnInputPaneShowing;
                 inputPane.Hiding -= OnInputPaneHiding;
                 ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
-                ViewModel.HelloNotificationRequested -= OnHelloNotificationRequested;
                 subscriptionsActive = false;
             }
 
@@ -277,8 +318,6 @@ namespace WebKitMiniBrowser
         /// <summary>Applies editor geometry and focus while leaving editing state in the ViewModel.</summary>
         private void ApplyAddressEditing()
         {
-            VisualStateManager.GoToState(this,
-                ViewModel.IsAddressEditing ? "EditingAddress" : "CompactAddress", false);
             if (ViewModel.IsAddressEditing)
             {
                 CollapseMenuImmediately();
@@ -414,18 +453,6 @@ namespace WebKitMiniBrowser
             ApplyVisibleBounds();
         }
 
-        /// <summary>Displays the Hello sample action as a native Windows toast notification.</summary>
-        /// <param name="sender">The browser view model requesting the system notification.</param>
-        /// <param name="args">The notification request event.</param>
-        private void OnHelloNotificationRequested(object sender, EventArgs args)
-        {
-            XmlDocument toastXml = ToastNotificationManager.GetTemplateContent(ToastTemplateType.ToastText02);
-            XmlNodeList textNodes = toastXml.GetElementsByTagName("text");
-            textNodes.Item(0).AppendChild(toastXml.CreateTextNode("Hello"));
-            textNodes.Item(1).AppendChild(toastXml.CreateTextNode("Hello from MiniBrowser."));
-            ToastNotificationManager.CreateToastNotifier().Show(new ToastNotification(toastXml));
-        }
-
         /// <summary>
         /// Computes and applies the margins that keep shell content within the
         /// current visible bounds.
@@ -481,7 +508,7 @@ namespace WebKitMiniBrowser
 
                 UpdateLayout();
                 await LayoutDiagnostics.CaptureAsync(this, ShellRoot, BrowserChrome, LoadingProgress, AddressBox,
-                    MenuSheet, ViewModel.IsMenuOpen, ViewModel.IsAddressEditing);
+                    AddressBar, BrowserAppBar, MenuSheet, ViewModel.IsMenuOpen, ViewModel.IsAddressEditing);
             }
             catch (System.Exception exception)
             {

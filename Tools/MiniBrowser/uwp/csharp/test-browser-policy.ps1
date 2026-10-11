@@ -10,7 +10,7 @@ param(
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-$source = Join-Path $PSScriptRoot 'BrowserPolicy.cs'
+$source = Join-Path $PSScriptRoot 'Services\BrowserPolicy.cs'
 $csc = Join-Path $MsBuildPath 'Roslyn\csc.exe'
 foreach ($required in @($source, $csc)) {
     if (-not (Test-Path -LiteralPath $required)) { throw "Required policy-check input missing: $required" }

@@ -59,8 +59,11 @@ $markup = Get-Content "$source\MainPage.xaml" -Raw
 if ($markup -match 'Source=') { throw 'MainPage.xaml must not declare a Source (null at startup)' }
 # Additional actions are a root-docked app-bar panel rather than a detached context menu.
 if ($markup -match '<MenuFlyout|<Button\.Flyout') { throw 'Use the bottom app-bar panel, not a context-menu Flyout' }
-foreach ($pattern in @('x:Name="MenuSheet"', 'x:Name="MenuOverlay"', 'ToggleMenuCommand', 'CloseMenuCommand')) {
-    if ($markup -notmatch $pattern) { throw "Bottom menu is missing required MVVM wiring: $pattern" }
+$appBarMarkup = Get-Content "$source\Views\Controls\BrowserAppBarControl.xaml" -Raw
+$addressBarMarkup = Get-Content "$source\Views\Controls\AddressBarControl.xaml" -Raw
+$menuMarkup = $markup + $appBarMarkup + $addressBarMarkup
+foreach ($pattern in @('x:Name="MenuSheetElement"', 'x:Name="MenuOverlayElement"', 'ToggleMenuCommand', 'CloseMenuCommand')) {
+    if ($menuMarkup -notmatch $pattern) { throw "Bottom menu is missing required MVVM wiring: $pattern" }
 }
 # Gate 3 (static half): no framework .cpp may be referenced by the shell project
 # (comments stripped so the documenting comment itself cannot trip the gate).

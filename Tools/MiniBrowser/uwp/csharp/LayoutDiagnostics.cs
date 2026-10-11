@@ -14,6 +14,7 @@ using Windows.UI.ViewManagement;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Controls.Primitives;
+using WebKitMiniBrowser.Views.Controls;
 
 namespace WebKitMiniBrowser
 {
@@ -80,7 +81,8 @@ namespace WebKitMiniBrowser
         /// <param name="addressEditing">Whether the address is being edited and its layout and focus checks must be evaluated.</param>
         /// <returns>A task completing when the report has been written.</returns>
         internal static async Task CaptureAsync(Page page, Grid shellRoot, Grid browserChrome, ProgressBar loadingProgress,
-            TextBox addressBox, Border menuSheet, bool menuOpen, bool addressEditing)
+            TextBox addressBox, AddressBarControl addressBar, BrowserAppBarControl appBar,
+            Border menuSheet, bool menuOpen, bool addressEditing)
         {
             try
             {
@@ -94,13 +96,17 @@ namespace WebKitMiniBrowser
                     throw new ArgumentNullException(nameof(loadingProgress));
                 if (addressBox == null)
                     throw new ArgumentNullException(nameof(addressBox));
+                if (addressBar == null)
+                    throw new ArgumentNullException(nameof(addressBar));
+                if (appBar == null)
+                    throw new ArgumentNullException(nameof(appBar));
                 if (menuSheet == null)
                     throw new ArgumentNullException(nameof(menuSheet));
 
                 page.UpdateLayout();
                 // Capture before any await so a later rotation cannot mix this snapshot's geometry.
                 string snapshot = CreateSnapshot(page, shellRoot, browserChrome, loadingProgress,
-                    addressBox, menuSheet, menuOpen, addressEditing);
+                    addressBox, addressBar, appBar, menuSheet, menuOpen, addressEditing);
                 await ReportGate.WaitAsync();
                 try
                 {
@@ -136,7 +142,8 @@ namespace WebKitMiniBrowser
         /// <param name="addressEditing">Whether the address layout and focus must satisfy the additional editing checks.</param>
         /// <returns>A version-tagged snapshot with its complete failure count.</returns>
         private static string CreateSnapshot(Page page, Grid shellRoot, Grid browserChrome, ProgressBar loadingProgress,
-            TextBox addressBox, Border menuSheet, bool menuOpen, bool addressEditing)
+            TextBox addressBox, AddressBarControl addressBar, BrowserAppBarControl appBar,
+            Border menuSheet, bool menuOpen, bool addressEditing)
         {
             Window window = Window.Current;
             if (window == null)
@@ -162,12 +169,12 @@ namespace WebKitMiniBrowser
             VerticalAlignment addressVerticalContentAlignment = addressBox.VerticalContentAlignment;
             double addressFontSize = addressBox.FontSize;
             Thickness addressPadding = addressBox.Padding;
-            Visibility? reloadButtonVisibility = GetNamedElementVisibility(page, "ReloadButton");
-            Visibility? stopButtonVisibility = GetNamedElementVisibility(page, "StopButton");
-            Visibility? moreButtonVisibility = GetNamedElementVisibility(page, "MoreButton");
-            Visibility? addressDividerVisibility = GetNamedElementVisibility(page, "AddressDivider");
-            AppBarButton helloActionButton = page.FindName("HelloActionButton") as AppBarButton;
-            Border menuTopDivider = page.FindName("MenuTopDivider") as Border;
+            Visibility? reloadButtonVisibility = addressBar.ReloadActionElement.Visibility;
+            Visibility? stopButtonVisibility = addressBar.StopActionElement.Visibility;
+            Visibility? moreButtonVisibility = addressBar.MoreButton.Visibility;
+            Visibility? addressDividerVisibility = addressBar.AddressDividerElement.Visibility;
+            AppBarButton helloActionButton = appBar.HelloActionButton;
+            Border menuTopDivider = appBar.MenuTopDivider;
             Rect helloActionSize = helloActionButton == null ? new Rect()
                 : new Rect(0, 0, helloActionButton.ActualWidth, helloActionButton.ActualHeight);
             double menuWidth = menuSheet.Width;
@@ -407,16 +414,6 @@ namespace WebKitMiniBrowser
                 return null;
 
             return new Rect(margins.Left, margins.Top, width, height);
-        }
-
-        /// <summary>Reads only the visibility metadata of an element in the page's name scope.</summary>
-        /// <param name="page">The page whose name scope contains the browser controls.</param>
-        /// <param name="name">The element's XAML name.</param>
-        /// <returns>The visibility, or null when the named element is unavailable.</returns>
-        private static Visibility? GetNamedElementVisibility(Page page, string name)
-        {
-            FrameworkElement element = page.FindName(name) as FrameworkElement;
-            return element == null ? (Visibility?)null : element.Visibility;
         }
 
         /// <summary>Formats visibility metadata without treating a missing element as collapsed.</summary>
