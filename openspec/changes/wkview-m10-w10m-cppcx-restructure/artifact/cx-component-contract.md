@@ -2,7 +2,7 @@
 
 ## Source and revision
 
-The authored root is `Source/WebKit/UIProcess/API/uwp/`, with `WebKitWebView.h/.cpp`, `WebKitNavigationTypes.h`, `WebKitNavigationEventArgs.h/.cpp`, `WebKitWebViewOptions.h/.cpp`, and `WebKitCertificateFailureToken.h/.cpp`. Public names have no implementation `UWP` suffix. Native helpers retain it.
+The authored root is `Source/WebKit/UIProcess/API/w10m/`, with `WebKitWebView.h/.cpp`, `WebKitNavigationTypes.h`, `WebKitNavigationEventArgs.h/.cpp`, `WebKitWebViewOptions.h/.cpp`, and `WebKitCertificateFailureToken.h/.cpp`. Public names have no implementation `W10M` suffix. Native helpers retain it.
 
 Metadata revision 2 uses the new default interface `WebKit.IWebKitWebViewV2`, IID `B0CACD92-A344-4B7B-9E94-99C3C3BFB35C`. No incompatible prototype IID is reused. The revision is recorded by this interface identity and the build manifest, separately from the compiler's ordinary WinRT type version 1.
 
