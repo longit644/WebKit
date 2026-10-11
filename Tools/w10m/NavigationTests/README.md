@@ -2,12 +2,32 @@
 
 These deterministic HTTP endpoints verify the M9 resource-loader integration. They do not themselves implement a browser. Response checks validate the fixture server; native/device checks must establish resource execution, security and cancellation.
 
+## Layout (M10 task 9.1)
+
+- `host/fixtures/server.py`: canonical fixture host (moved from this directory).
+- `host/fixtures/test_server.py`: canonical host fixture tests (15 tests).
+- `protocol/run_report.py`, `protocol/aggregate.py`: canonical 9.2 report protocol.
+- `protocol/test_reports.py`: canonical protocol tests (14 tests).
+- `tls/`: fixture TLS assets (kept here; build scripts copy `tls/fixture-ca.pem`).
+- Root `server.py`, `test_server.py`, `run_report.py`, `aggregate.py`,
+  `test_reports.py` are thin forwarders so every previously documented
+  command and import path keeps working.
+
 ## Host verification
 
 From the repository root:
 
 ```powershell
+python -m unittest discover -s Tools/w10m/NavigationTests/host/fixtures -p test_server.py -v
+python -m unittest discover -s Tools/w10m/NavigationTests/protocol -p test_reports.py -v
+python Tools/w10m/NavigationTests/host/fixtures/server.py --host 0.0.0.0 --port 8000
+```
+
+Legacy equivalents through the root forwarders run the same suites:
+
+```powershell
 python -m unittest discover -s Tools/w10m/NavigationTests -p test_server.py -v
+python -m unittest discover -s Tools/w10m/NavigationTests -p test_reports.py -v
 python Tools/w10m/NavigationTests/server.py --host 0.0.0.0 --port 8000
 ```
 

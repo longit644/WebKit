@@ -229,7 +229,8 @@ Application hosts and shells are C#: the owner controls the application layer in
 
 ## 9. Replacement device tests and fixture extraction (G5)
 
-- [ ] 9.1 Move fixture host/content into host/fixtures with CLI forwarding where needed; verify existing host fixture tests and every documented launch/import path.
+- [x] 9.1 Move fixture host/content into host/fixtures with CLI forwarding where needed; verify existing host fixture tests and every documented launch/import path.
+  - Evidence: canonical code now under `host/fixtures/` (server, tests) and `protocol/` (reporting), with `__init__.py` markers and root-level forwarder shims preserving every legacy launch/import path (`from server import …`, both server ports, unittest discovery old + new). Default discovery runs 29/29 (15 fixture + 14 protocol, no collisions); `tls/` intentionally stays put (4 build scripts reference it). `device/` + `evidence/` remain for 9.4/9.8.
 - [x] 9.2 Add run/scenario/assertion reporting and aggregation protocol; verify malformed/missing/timed-out reports and a single failed assertion fail the run, without credential/cookie values in logs.
   - Evidence: `Tools/w10m/NavigationTests/run_report.py` (v1 JSON schema, builders, strict parser/validator, secret scan/redaction) + `aggregate.py` (single/multi-run aggregation; one failed run fails the aggregate; empty set fails) + `test_reports.py` 14/14 host tests (valid pass; malformed/missing/timeout/scenario-timeout/single-failed-assertion/missing-unexpected-scenario/run-id-mismatch/secret-leak/redaction/multi-run cases). Device emission of these reports by the 9.4 host belongs to 9.4/9.8.
 - [x] 9.3 Correct CSP nonexecution oracle, HTML main-response budget route and CSS/image visual assertions; verify intentional failure variants are detected rather than accepting static text/server output.
