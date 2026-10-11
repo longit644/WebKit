@@ -46,7 +46,7 @@
 #include "NotImplemented.h"
 #include "RefPtrCairo.h"
 
-#if PLATFORM(WIN) && !PLATFORM(UWP)
+#if PLATFORM(WIN) && !PLATFORM(W10M)
 #include <cairo-win32.h>
 #endif
 

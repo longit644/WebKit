@@ -4137,7 +4137,7 @@ bool RenderLayerCompositor::requiresCompositingForPosition(RenderLayerModelObjec
         return false;
 
     if (isSticky) {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
         // The standalone TextureMapper host updates scroll/layer positions on
         // the owner thread. Cache viewport sticky content independently so its
         // movement doesn't repaint it and the document on every scroll frame.

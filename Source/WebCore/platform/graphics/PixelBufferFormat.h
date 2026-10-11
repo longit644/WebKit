@@ -40,3 +40,4 @@ struct PixelBufferFormat {
 
 WEBCORE_EXPORT TextStream& operator<<(TextStream&, const PixelBufferFormat&);
 }
+

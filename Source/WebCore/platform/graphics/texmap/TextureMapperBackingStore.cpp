@@ -30,3 +30,4 @@ bool TextureMapperBackingStore::allTileEdgesExposed(const FloatRect& totalRect, 
 }
 
 } // namespace WebCore
+

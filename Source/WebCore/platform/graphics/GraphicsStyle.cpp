@@ -69,3 +69,4 @@ TextStream& operator<<(TextStream& ts, const GraphicsStyle& style)
 }
 
 } // namespace WebCore
+

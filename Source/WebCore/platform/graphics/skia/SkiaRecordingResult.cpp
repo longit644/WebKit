@@ -65,3 +65,4 @@ void SkiaRecordingResult::waitForFenceIfNeeded(const SkImage& image)
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

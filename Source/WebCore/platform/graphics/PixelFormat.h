@@ -99,3 +99,4 @@ constexpr bool pixelFormatIsOpaque(PixelFormat format)
 WEBCORE_EXPORT TextStream& operator<<(TextStream&, PixelFormat);
 
 }
+

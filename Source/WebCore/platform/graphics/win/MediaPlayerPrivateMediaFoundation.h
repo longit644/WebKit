@@ -475,3 +475,4 @@ private:
 } // namespace WebCore
 
 #endif // ENABLE(VIDEO) && USE(MEDIA_FOUNDATION)
+

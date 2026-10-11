@@ -48,3 +48,4 @@ template<> struct HashTraits<WebCore::FloatSize> : GenericHashTraits<WebCore::Fl
 } // namespace WTF
 
 #endif
+

@@ -44,3 +44,4 @@ RefPtr<Icon> Icon::createIconForFiles(const Vector<String>&)
 } // namespace WebCore
 
 #endif // !USE(GLIB) && !PLATFORM(IOS_FAMILY) && !PLATFORM(MAC) && !PLATFORM(WIN)
+

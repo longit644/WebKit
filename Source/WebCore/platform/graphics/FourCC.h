@@ -73,3 +73,4 @@ template<> struct LogArgument<WebCore::FourCC> {
 };
 
 } // namespace WTF
+

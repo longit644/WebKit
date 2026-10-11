@@ -40,3 +40,4 @@ FontRenderOptions& FontRenderOptions::singleton()
 
 #endif // USE(CAIRO) || USE(SKIA)
 
+

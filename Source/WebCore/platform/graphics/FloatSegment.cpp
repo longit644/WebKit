@@ -39,3 +39,4 @@ TextStream& operator<<(TextStream& ts, FloatSegment floatSegment)
 }
 
 } // namespace WebCore
+

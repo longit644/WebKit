@@ -37,7 +37,7 @@
 
 #if OS(WINDOWS)
 #include <windows.h>
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
 #include <bcrypt.h>
 #else
 #include <wincrypt.h> // windows.h must be included before wincrypt.h.
@@ -110,7 +110,7 @@ void RandomDevice::cryptographicallyRandomValues(std::span<uint8_t> buffer)
             amountRead += currentRead;
     }
 #elif OS(WINDOWS)
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: legacy CryptoAPI (wincrypt) is desktop-only; CNG system
     // preferred RNG is store-legal and needs no provider handle.
     if (!BCRYPT_SUCCESS(BCryptGenRandom(nullptr, buffer.data(), static_cast<ULONG>(buffer.size()), BCRYPT_USE_SYSTEM_PREFERRED_RNG)))

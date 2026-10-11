@@ -40,3 +40,4 @@ inline constexpr bool FontCascade::canExpandAroundIdeographsInComplexText()
 }
 
 }
+

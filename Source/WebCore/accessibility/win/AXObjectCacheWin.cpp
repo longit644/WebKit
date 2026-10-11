@@ -69,8 +69,8 @@ void AXObjectCache::handleScrolledToAnchor(const Node& anchorNode)
 
 void AXObjectCache::postPlatformNotification(AccessibilityObject& object, AXNotification notification)
 {
-#if PLATFORM(UWP)
-    // WebKitWebView: MSAA NotifyWinEvent (USER32) is desktop-only; UWP a11y
+#if PLATFORM(W10M)
+    // WebKitWebView: MSAA NotifyWinEvent (USER32) is desktop-only; W10M a11y
     // is UIA-based (future work). v0 drops the notification.
     UNUSED_PARAM(object);
     UNUSED_PARAM(notification);
@@ -182,3 +182,5 @@ void AXObjectCache::platformPerformDeferredCacheUpdate()
 }
 
 } // namespace WebCore
+
+

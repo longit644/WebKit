@@ -85,3 +85,4 @@ WEBCORE_EXPORT bool operator==(const DestinationColorSpace&, const DestinationCo
 
 WEBCORE_EXPORT TextStream& operator<<(TextStream&, const DestinationColorSpace&);
 }
+

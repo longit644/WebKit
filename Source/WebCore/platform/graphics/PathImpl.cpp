@@ -184,3 +184,4 @@ void PathImpl::addObserver(WeakRef<RenderingResourceObserver>&& observer) const
 }
 
 } // namespace WebCore
+

@@ -431,3 +431,4 @@ Glyph OpenTypeMathData::getMirroredGlyph(char32_t) const
 } // namespace WebCore
 
 #endif // ENABLE(MATHML)
+

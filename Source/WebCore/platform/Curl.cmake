@@ -59,11 +59,11 @@ list(APPEND WebCore_LIBRARIES
     OpenSSL::SSL
 )
 
-if (WK_UWP)
-    # WebKitWebView: no libpsl on UWP; naive stub next to the curl backend
+if (WK_W10M)
+    # WebKitWebView: no libpsl on W10M; naive stub next to the curl backend
     # (mirrors PublicSuffixStoreSoup/Cocoa placement).
     list(APPEND WebCore_SOURCES
-        platform/network/curl/PublicSuffixStoreUWP.cpp
+        platform/network/curl/PublicSuffixStoreW10M.cpp
     )
 else ()
     list(APPEND WebCore_SOURCES

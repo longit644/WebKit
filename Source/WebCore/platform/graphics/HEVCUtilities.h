@@ -69,3 +69,4 @@ WEBCORE_EXPORT std::optional<DoViParameters> parseDoViDecoderConfigurationRecord
 WEBCORE_EXPORT String createDoViCodecParametersString(const DoViParameters&);
 
 }
+

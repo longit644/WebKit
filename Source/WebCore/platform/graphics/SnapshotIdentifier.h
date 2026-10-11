@@ -33,3 +33,4 @@ struct SnapshotIdentifierType;
 using SnapshotIdentifier = AtomicObjectIdentifier<SnapshotIdentifierType>;
 
 } // namespace WebCore
+

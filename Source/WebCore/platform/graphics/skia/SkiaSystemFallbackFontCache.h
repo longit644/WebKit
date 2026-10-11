@@ -52,3 +52,4 @@ private:
 } // namespace WebCore
 
 #endif // USE(SKIA) && !OS(ANDROID) && !PLATFORM(WIN)
+

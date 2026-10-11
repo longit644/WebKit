@@ -45,3 +45,4 @@ private:
 using DNSResolveQueuePlatform = DNSResolveQueueCurl;
 
 }
+

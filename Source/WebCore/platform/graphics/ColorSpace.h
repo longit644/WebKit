@@ -154,3 +154,4 @@ template<typename T, typename Functor> constexpr decltype(auto) callWithColorTyp
 }
 
 } // namespace WebCore
+

@@ -38,3 +38,4 @@ enum class AlphaPremultiplication : uint8_t {
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, AlphaPremultiplication);
 
 }
+

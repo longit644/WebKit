@@ -142,3 +142,4 @@ Vector<uint8_t> vpcCFromVPCodecConfigurationRecord(const VPCodecConfigurationRec
 PlatformVideoColorSpace NODELETE colorSpaceFromVPCodecConfigurationRecord(const VPCodecConfigurationRecord&);
 
 }
+

@@ -33,3 +33,4 @@ enum class FontCascadeCustomFontNotReadyAction : bool { DoNotPaintIfFontNotReady
 enum class FontCascadeCodePath : uint8_t { Simple, Complex, SimpleWithGlyphOverflow };
 
 } // namespace WebCore
+

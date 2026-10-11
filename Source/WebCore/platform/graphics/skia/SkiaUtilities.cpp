@@ -290,3 +290,4 @@ sk_sp<SkImage> createPromiseImageIfNeeded(const sk_sp<SkImage>& image, const sk_
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

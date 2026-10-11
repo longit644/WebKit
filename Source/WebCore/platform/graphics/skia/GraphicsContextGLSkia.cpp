@@ -153,3 +153,4 @@ RefPtr<NativeImage> GraphicsContextGL::createNativeImageFromPixelBuffer(const Gr
 } // namespace WebCore
 
 #endif // ENABLE(WEBGL) && USE(SKIA)
+

@@ -59,3 +59,4 @@ void TextureMapperDamageVisualizer::paintDamage(TextureMapper& textureMapper, co
 } // namespace WebCore
 
 #endif // ENABLE(DAMAGE_TRACKING)
+

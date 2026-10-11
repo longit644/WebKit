@@ -36,12 +36,12 @@
 #include <wtf/HashMap.h>
 #include <wtf/RefCounted.h>
 #include <wtf/RefPtr.h>
-#if PLATFORM(UWP)
-#include "TextureMapperFrameStatsUWP.h"
+#if PLATFORM(W10M)
+#include "TextureMapperFrameStatsW10M.h"
 #include <wtf/MonotonicTime.h>
 #if USE(SKIA)
 #include "GraphicsContextSkia.h"
-#include "SkiaGPUContextUWP.h"
+#include "SkiaGPUContextW10M.h"
 #include <skia/gpu/ganesh/GrDirectContext.h>
 #include <skia/gpu/ganesh/SkSurfaceGanesh.h>
 #include <skia/gpu/ganesh/gl/GrGLBackendSurface.h>
@@ -234,7 +234,7 @@ BitmapTexture::BitmapTexture(EGLImage image, const IntSize& size, OptionSet<Flag
 
 void BitmapTexture::swapTexture(BitmapTexture& other)
 {
-#if PLATFORM(UWP) && USE(SKIA)
+#if PLATFORM(W10M) && USE(SKIA)
     releaseSkiaSurface();
     other.releaseSkiaSurface();
 #endif
@@ -259,7 +259,7 @@ void BitmapTexture::swapTexture(BitmapTexture& other)
 
 void BitmapTexture::reset(const IntSize& size, OptionSet<Flags> flags)
 {
-#if PLATFORM(UWP) && USE(SKIA)
+#if PLATFORM(W10M) && USE(SKIA)
     releaseSkiaSurface();
 #endif
 #if USE(GBM)
@@ -326,7 +326,7 @@ void BitmapTexture::reset(const IntSize& size, OptionSet<Flags> flags)
 
 void BitmapTexture::updateContents(const void* srcData, const IntRect& targetRect, const IntPoint& sourceOffset, int bytesPerLine, PixelFormat pixelFormat)
 {
-#if PLATFORM(UWP) && USE(SKIA)
+#if PLATFORM(W10M) && USE(SKIA)
     // External writes invalidate Skia's view of the borrowed texture.
     releaseSkiaSurface();
 #endif
@@ -429,10 +429,10 @@ void BitmapTexture::updateContents(NativeImage* frameImage, const IntRect& targe
 
 void BitmapTexture::updateContents(GraphicsLayer* sourceLayer, const IntRect& targetRect, const IntPoint& offset, float scale)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     auto rasterStart = MonotonicTime::now();
 #endif
-#if PLATFORM(UWP) && USE(SKIA)
+#if PLATFORM(W10M) && USE(SKIA)
     if (auto* gpuContext = currentSkiaGPUContextUWP(); gpuContext && !gpuContext->abandoned()
         && !m_flags.contains(Flags::UseBGRALayout) && m_pixelFormat == PixelFormat::RGBA8) {
         // Paint into the TextureMapper-owned texture. Top-left origin matches
@@ -499,7 +499,7 @@ void BitmapTexture::updateContents(GraphicsLayer* sourceLayer, const IntRect& ta
     if (!image)
         return;
 
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     auto uploadStart = MonotonicTime::now();
     auto& stats = textureMapperFrameStatsUWP();
     ++stats.rasterCalls;
@@ -507,12 +507,12 @@ void BitmapTexture::updateContents(GraphicsLayer* sourceLayer, const IntRect& ta
     stats.rasterSeconds += (uploadStart - rasterStart).seconds();
 #endif
     updateContents(image.get(), targetRect, IntPoint());
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     stats.uploadSeconds += (MonotonicTime::now() - uploadStart).seconds();
 #endif
 }
 
-#if PLATFORM(UWP) && USE(SKIA)
+#if PLATFORM(W10M) && USE(SKIA)
 void BitmapTexture::releaseSkiaSurface()
 {
     auto release = [this] {
@@ -602,7 +602,7 @@ void BitmapTexture::createFboIfNeeded()
 
 void BitmapTexture::bindAsSurface()
 {
-#if PLATFORM(UWP) && USE(SKIA)
+#if PLATFORM(W10M) && USE(SKIA)
     releaseSkiaSurface();
 #endif
     glBindTexture(m_renderTarget, 0);
@@ -619,7 +619,7 @@ void BitmapTexture::bindAsSurface()
 
 BitmapTexture::~BitmapTexture()
 {
-#if PLATFORM(UWP) && USE(SKIA)
+#if PLATFORM(W10M) && USE(SKIA)
     releaseSkiaSurface();
 #endif
     glDeleteTextures(1, &m_id);
@@ -636,7 +636,7 @@ BitmapTexture::~BitmapTexture()
 
 void BitmapTexture::copyFromExternalTexture(GLuint sourceTextureID, const IntRect& targetRect, const IntSize& sourceOffset)
 {
-#if PLATFORM(UWP) && USE(SKIA)
+#if PLATFORM(W10M) && USE(SKIA)
     releaseSkiaSurface();
 #endif
     RELEASE_ASSERT(sourceOffset.width() + targetRect.width() <= m_size.width());
@@ -719,3 +719,4 @@ sk_sp<SkSurface> BitmapTexture::createSkiaSurface(GrDirectContext* grContext, Gr
 } // namespace WebCore
 
 #endif // USE(TEXTURE_MAPPER)
+

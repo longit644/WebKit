@@ -129,3 +129,4 @@ private:
 WTF::TextStream& operator<<(WTF::TextStream&, const LayoutRoundedRect&);
 
 } // namespace WebCore
+

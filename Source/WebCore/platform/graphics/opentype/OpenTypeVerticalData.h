@@ -67,3 +67,4 @@ private:
 #endif // ENABLE(OPENTYPE_VERTICAL)
 
 #endif // OpenTypeVerticalData_h
+

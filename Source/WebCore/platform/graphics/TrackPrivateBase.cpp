@@ -146,3 +146,4 @@ WTFLogChannel& TrackPrivateBase::logChannel() const
 } // namespace WebCore
 
 #endif
+

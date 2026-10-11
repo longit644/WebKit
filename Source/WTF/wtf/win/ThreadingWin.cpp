@@ -125,7 +125,7 @@ typedef struct tagTHREADNAME_INFO {
 
 void Thread::initializeCurrentThreadInternal(const char* szThreadName)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: SEH __try/__except is unsupported on ARM32, and the
     // RaiseException naming trick needs the handler. Threads run unnamed.
     UNUSED_PARAM(szThreadName);
@@ -411,3 +411,5 @@ void Thread::yield()
 }
 
 } // namespace WTF
+
+

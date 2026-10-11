@@ -64,3 +64,4 @@ static constexpr OptionSet<LayerTreeAsTextOptions> AllLayerTreeAsTextOptions = {
 };
 
 } // namespace WebCore
+

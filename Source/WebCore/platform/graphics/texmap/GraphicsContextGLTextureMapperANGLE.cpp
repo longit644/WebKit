@@ -522,3 +522,4 @@ bool GraphicsContextGLTextureMapperANGLE::enableRequiredWebXRExtensions()
 } // namespace WebCore
 
 #endif // ENABLE(WEBGL) && USE(TEXTURE_MAPPER)
+

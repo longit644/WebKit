@@ -33,3 +33,4 @@ struct PlatformLayerIdentifierType;
 using PlatformLayerIdentifier = ProcessQualified<ObjectIdentifier<PlatformLayerIdentifierType>>;
 
 } // namespace WebCore
+

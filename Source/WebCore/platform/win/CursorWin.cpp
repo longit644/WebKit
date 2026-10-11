@@ -52,19 +52,19 @@ Ref<SharedCursor> SharedCursor::create(HCURSOR nativeCursor)
 
 SharedCursor::~SharedCursor()
 {
-#if !PLATFORM(UWP)
+#if !PLATFORM(W10M)
     DestroyIcon(m_nativeCursor);
 #else
-    // WebKitWebView: cursors never exist on UWP (touch-first; null handles).
+    // WebKitWebView: cursors never exist on W10M (touch-first; null handles).
     (void)m_nativeCursor;
 #endif
 }
 
 static Ref<SharedCursor> createSharedCursor(Image* img, const IntPoint& hotSpot)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: GDI cursor construction (CreateIconIndirect, USER32) is
-    // desktop-only; null cursor on UWP (v0).
+    // desktop-only; null cursor on W10M (v0).
     (void)img;
     (void)hotSpot;
     return SharedCursor::create(nullptr);
@@ -98,7 +98,7 @@ static Ref<SharedCursor> createSharedCursor(Image* img, const IntPoint& hotSpot)
 
 static Ref<SharedCursor> loadSharedCursor(HINSTANCE hInstance, LPCWSTR lpCursorName)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: LoadCursorW (USER32) is desktop-only; null cursor.
     (void)hInstance;
     (void)lpCursorName;
@@ -253,3 +253,5 @@ void Cursor::ensurePlatformCursor() const
 }
 
 } // namespace WebCore
+
+

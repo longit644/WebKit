@@ -222,3 +222,4 @@ void DisplayRefreshMonitor::displayDidRefresh(const DisplayUpdate& displayUpdate
 }
 
 }
+

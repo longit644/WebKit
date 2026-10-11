@@ -893,3 +893,4 @@ bool WidthIterator::advanceOneCharacter(float& width, GlyphBuffer& glyphBuffer)
 }
 
 } // namespace WebCore
+

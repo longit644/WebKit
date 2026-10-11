@@ -189,3 +189,4 @@ typename InterpolationMethodColorSpace::ColorType addColorComponents(Interpolati
 }
 
 }
+

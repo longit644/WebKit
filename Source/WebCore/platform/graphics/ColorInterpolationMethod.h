@@ -238,3 +238,4 @@ WTF::TextStream& operator<<(WTF::TextStream&, HueInterpolationMethod);
 WTF::TextStream& operator<<(WTF::TextStream&, const ColorInterpolationMethod&);
 
 }
+

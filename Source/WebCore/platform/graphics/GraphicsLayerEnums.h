@@ -67,3 +67,4 @@ enum class GraphicsLayerScalingFilter : uint8_t { Linear, Nearest, Trilinear };
 enum class GraphicsLayerCustomAppearance : bool { None, ScrollingShadow };
 
 }
+

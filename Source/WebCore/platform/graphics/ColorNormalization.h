@@ -43,3 +43,4 @@ template<typename ColorType> inline ColorType makeColorTypeByNormalizingComponen
 }
 
 }
+

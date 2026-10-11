@@ -70,3 +70,4 @@ inline void copyRows(unsigned sourceBytesPerRow, std::span<const uint8_t> source
 }
 
 }
+

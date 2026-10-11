@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Windows 10 Mobile MiniBrowser shell (M10 tasks 8.1 and 8.2): C#/XAML UWP application hosting the public
+  WebKit.WebKitWebView control from the compiled component metadata
+  (WebKit.winmd). No Source/WebKit/UIProcess/API/uwp/ source is compiled here;
+  the only contract is the referenced WinMD plus its matching WebKit.dll.
+  Targets the phone-era platform (MinVersion 15063) with the 19041 SDK and
+  compiles ARM Release through .NET Native.
+-->
+<Project ToolsVersion="15.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">x86</Platform>
+    <ProjectGuid>{C7D2E4A1-8B3F-4C5D-9E6A-1F2B3C4D5E6F}</ProjectGuid>
+    <OutputType>AppContainerExe</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>WebKitMiniBrowser</RootNamespace>
+    <AssemblyName>WebKitMiniBrowser</AssemblyName>
+    <DefaultLanguage>en-US</DefaultLanguage>
+    <TargetPlatformIdentifier>UAP</TargetPlatformIdentifier>
+    <TargetPlatformVersion Condition=" '$(TargetPlatformVersion)' == '' ">10.0.19041.0</TargetPlatformVersion>
+    <TargetPlatformMinVersion>10.0.15063.0</TargetPlatformMinVersion>
+    <MinimumVisualStudioVersion>14</MinimumVisualStudioVersion>
+    <FileAlignment>512</FileAlignment>
+    <WarningLevel>4</WarningLevel>
+    <ProjectTypeGuids>{A5A43C5B-DE2A-4C0C-9213-0A381AF9435A};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
+    <WindowsXamlHMIsEnabled>true</WindowsXamlHMIsEnabled>
+    <!-- Directory holding the fresh component outputs (WebKit.winmd/WebKit.dll),
+         passed as /p:WebKitMetadataDir=... with a trailing backslash. -->
+    <WebKitMetadataDir Condition=" '$(WebKitMetadataDir)' == '' ">$(OutDir)</WebKitMetadataDir>
+    <!-- Directory holding the matching native implementation for payload
+         staging, passed as /p:WebKitBinaryDir=... with a trailing backslash. -->
+    <WebKitBinaryDir Condition=" '$(WebKitBinaryDir)' == '' ">$(WebKitMetadataDir)</WebKitBinaryDir>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
+    <PlatformTarget>x86</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\x86\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE;NETFX_CORE;WINDOWS_UAP</DefineConstants>
+    <NoWarn>0436;4014;2735;2736</NoWarn>
+    <ErrorReport>prompt</ErrorReport>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
+    <PlatformTarget>x86</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\x86\Release\</OutputPath>
+    <DefineConstants>TRACE;NETFX_CORE;WINDOWS_UAP</DefineConstants>
+    <NoWarn>0436;4014;2735;2736</NoWarn>
+    <ErrorReport>prompt</ErrorReport>
+    <Prefer32Bit>false</Prefer32Bit>
+    <UseDotNetNativeToolchain>true</UseDotNetNativeToolchain>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|ARM' ">
+    <PlatformTarget>ARM</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\ARM\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE;NETFX_CORE;WINDOWS_UAP</DefineConstants>
+    <NoWarn>0436;4014;2735;2736</NoWarn>
+    <ErrorReport>prompt</ErrorReport>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|ARM' ">
+    <PlatformTarget>ARM</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\ARM\Release\</OutputPath>
+    <DefineConstants>TRACE;NETFX_CORE;WINDOWS_UAP</DefineConstants>
+    <NoWarn>0436;4014;2735;2736</NoWarn>
+    <ErrorReport>prompt</ErrorReport>
+    <Prefer32Bit>false</Prefer32Bit>
+    <UseDotNetNativeToolchain>true</UseDotNetNativeToolchain>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(LayoutDiagnostics)' == 'true' ">
+    <DefineConstants>$(DefineConstants);LAYOUT_DIAGNOSTICS</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="App.xaml.cs">
+      <DependentUpon>App.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MainPage.xaml.cs">
+      <DependentUpon>MainPage.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="ViewModels\BrowserViewModel.cs" />
+    <Compile Include="Services\BrowserPolicy.cs" />
+    <Compile Include="Services\BrowserService.cs" />
+    <Compile Include="Services\ToastNotificationService.cs" />
+    <Compile Include="Services\Interfaces\IBrowserService.cs" />
+    <Compile Include="Services\Interfaces\IToastNotificationService.cs" />
+    <Compile Include="DependencyInjection\MiniBrowserServiceLocator.cs" />
+    <Compile Include="Models\BrowserNavigationState.cs" />
+    <Compile Include="Views\Controls\AddressBarControl.xaml.cs">
+      <DependentUpon>AddressBarControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\Controls\BrowserAppBarControl.xaml.cs">
+      <DependentUpon>BrowserAppBarControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="VisibleBoundsHelper.cs" />
+    <Compile Include="LayoutDiagnostics.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <AppxManifest Include="Package.appxmanifest">
+      <SubType>Designer</SubType>
+    </AppxManifest>
+  </ItemGroup>
+  <ItemGroup>
+    <ApplicationDefinition Include="App.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </ApplicationDefinition>
+    <Page Include="MainPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\Controls\AddressBarControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\Controls\BrowserAppBarControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Public component contract: metadata reference only. No framework .cpp
+         is compiled into this shell. The reference points at a metadata-only
+         directory (WebKit.winmd without its DLL beside it) so assembly
+         resolution never mistakes the native implementation for managed
+         metadata; the Implementation metadata stages the matching native DLL
+         into the payload with manifest registration. -->
+    <Reference Include="WebKit">
+      <HintPath>$(WebKitMetadataDir)WebKit.winmd</HintPath>
+      <Implementation>$(WebKitBinaryDir)WebKit.dll</Implementation>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Properties\Default.rd.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Assets\tile50.png" />
+    <Content Include="Assets\tile150.png" />
+    <Content Include="Assets\tile44.png" />
+    <Content Include="Assets\blocked.html" />
+    <Content Include="Assets\demo.html" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETCore.UniversalWindowsPlatform" Version="6.0.15" />
+    <PackageReference Include="MvvmLightLibs" Version="5.4.1.1" />
+  </ItemGroup>
+  <Import Project="$(MSBuildExtensionsPath)\Microsoft\WindowsXaml\v17.0\Microsoft.Windows.UI.Xaml.CSharp.targets" />
+</Project>

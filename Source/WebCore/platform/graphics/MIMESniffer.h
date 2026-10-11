@@ -38,3 +38,4 @@ WEBCORE_EXPORT String getMIMETypeFromContent(std::span<const uint8_t>);
 } // namespace MIMESniffer
 
 } // namespace WebCore
+

@@ -224,3 +224,4 @@ TextStream& operator<<(TextStream& ts, const Color& color)
 }
 
 } // namespace WebCore
+

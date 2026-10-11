@@ -33,3 +33,4 @@ struct ImageDecoderIdentifierType;
 using ImageDecoderIdentifier = ObjectIdentifier<ImageDecoderIdentifierType>;
 
 } // namespace WebCore
+

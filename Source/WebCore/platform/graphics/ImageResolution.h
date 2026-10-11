@@ -54,3 +54,4 @@ struct ImageResolution {
 };
 
 } // namespace WebCore
+

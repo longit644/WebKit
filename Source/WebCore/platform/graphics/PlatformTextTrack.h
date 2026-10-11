@@ -145,3 +145,4 @@ protected:
 } // namespace WebCore
 
 #endif // ENABLE(VIDEO)
+

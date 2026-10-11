@@ -693,3 +693,4 @@ WTFLogChannel& TrackBuffer::logChannel() const
 } // namespace WebCore
 
 #endif // ENABLE(MEDIA_SOURCE)
+

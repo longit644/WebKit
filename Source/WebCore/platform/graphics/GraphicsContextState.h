@@ -202,3 +202,4 @@ TextStream& operator<<(TextStream&, GraphicsContextState::Change);
 TextStream& operator<<(TextStream&, const GraphicsContextState&);
 
 } // namespace WebCore
+

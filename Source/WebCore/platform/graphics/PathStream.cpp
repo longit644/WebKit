@@ -320,3 +320,4 @@ FloatRect PathStream::boundingRect() const
 }
 
 } // namespace WebCore
+

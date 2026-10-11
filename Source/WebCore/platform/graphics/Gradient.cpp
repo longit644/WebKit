@@ -159,3 +159,4 @@ TextStream& operator<<(TextStream& ts, const Gradient& gradient)
 }
 
 } // namespace WebCore
+

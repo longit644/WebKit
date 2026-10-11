@@ -198,3 +198,4 @@ namespace WTF {
 template<> struct DefaultHash<WebCore::IntPoint>;
 template<> struct HashTraits<WebCore::IntPoint>;
 }
+

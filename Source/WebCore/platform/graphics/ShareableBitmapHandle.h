@@ -26,3 +26,4 @@
 #pragma once
 
 #include <WebCore/ShareableBitmap.h>
+

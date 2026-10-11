@@ -104,3 +104,4 @@ void CurlSSLHandle::ThreadSupport::threadIdCallback(CRYPTO_THREADID* threadId)
 }
 
 #endif
+

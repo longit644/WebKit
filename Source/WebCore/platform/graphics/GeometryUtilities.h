@@ -147,3 +147,4 @@ static inline float max4(float a, float b, float c, float d)
 }
 
 }
+

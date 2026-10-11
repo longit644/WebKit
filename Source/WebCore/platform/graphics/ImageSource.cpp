@@ -46,3 +46,4 @@ bool ImageSource::hasSolidColor() const
 }
 
 } // namespace WebCore
+

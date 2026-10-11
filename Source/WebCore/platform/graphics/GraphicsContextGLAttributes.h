@@ -70,3 +70,4 @@ struct GraphicsContextGLAttributes {
 }
 
 #endif // ENABLE(WEBGL)
+

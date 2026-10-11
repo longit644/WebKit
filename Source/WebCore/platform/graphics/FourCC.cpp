@@ -44,3 +44,4 @@ std::optional<FourCC> FourCC::fromString(StringView string)
 }
 
 }
+

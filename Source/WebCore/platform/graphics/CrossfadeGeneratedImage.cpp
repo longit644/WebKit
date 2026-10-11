@@ -128,3 +128,4 @@ void CrossfadeGeneratedImage::dump(TextStream& ts) const
 }
 
 }
+

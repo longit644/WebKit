@@ -244,3 +244,4 @@ Vector<PackedRect> pack(std::span<const IntSize> sizes, const IntSize& atlasSize
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

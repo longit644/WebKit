@@ -414,3 +414,4 @@ void PlatformDisplay::clearSkiaGLContext()
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

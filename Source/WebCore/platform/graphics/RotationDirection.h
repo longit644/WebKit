@@ -37,3 +37,4 @@ enum class RotationDirection : bool {
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, RotationDirection);
 
 } // namespace WebCore
+

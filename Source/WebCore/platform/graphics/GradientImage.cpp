@@ -103,3 +103,4 @@ void GradientImage::dump(WTF::TextStream& ts) const
 }
 
 }
+

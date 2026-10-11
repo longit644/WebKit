@@ -90,3 +90,4 @@ bool ResourceError::platformCompare(const ResourceError&, const ResourceError&)
 } // namespace WebCore
 
 #endif
+

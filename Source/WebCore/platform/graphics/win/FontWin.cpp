@@ -34,3 +34,4 @@ bool FontCascade::canUseGlyphDisplayList(const Style::ComputedStyle&)
 }
 
 } // namespace WebCore
+

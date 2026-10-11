@@ -104,3 +104,4 @@ static bool isType(const WebCore::TrackPrivateBase& track) { return track.type()
 SPECIALIZE_TYPE_TRAITS_END()
 
 #endif
+

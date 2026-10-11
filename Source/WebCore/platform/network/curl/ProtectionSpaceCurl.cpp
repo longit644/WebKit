@@ -38,3 +38,4 @@ const CertificateInfo& ProtectionSpace::certificateInfo() const
 } // namespace WebCore
 
 #endif
+

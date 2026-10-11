@@ -108,3 +108,4 @@ TextStream& operator<<(TextStream& ts, GraphicsLayerAnimation::PlayState playSta
 }
 
 } // namespace WebCore
+

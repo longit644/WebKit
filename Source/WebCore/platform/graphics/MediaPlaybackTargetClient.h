@@ -51,3 +51,4 @@ public:
 #endif // ENABLE(WIRELESS_PLAYBACK_TARGET)
 
 #endif // MediaPlaybackTargetClient_h
+

@@ -364,3 +364,4 @@ String getMIMETypeFromContent(std::span<const uint8_t> sequence)
 } // namespace MIMESniffer
 
 } // namespace WebCore
+

@@ -58,3 +58,4 @@ const sk_sp<GrContextThreadSafeProxy>& GraphicsLayerContentsDisplayDelegate::thr
 #endif
 
 } // namespace WebCore
+

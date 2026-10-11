@@ -271,3 +271,4 @@ void CurlRequestScheduler::finalizeTransfer(CurlRequestSchedulerClient* client, 
 }
 
 #endif
+

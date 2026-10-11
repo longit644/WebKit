@@ -52,3 +52,4 @@ sk_sp<SkColorSpace> displayP3ColorSpaceSingleton()
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

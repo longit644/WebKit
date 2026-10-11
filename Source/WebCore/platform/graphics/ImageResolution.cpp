@@ -42,3 +42,4 @@ std::optional<IntSize> ImageResolution::densityCorrectedSize(const FloatSize& so
 }
 
 }
+

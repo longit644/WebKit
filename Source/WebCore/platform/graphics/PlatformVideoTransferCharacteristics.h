@@ -56,3 +56,4 @@ enum class PlatformVideoTransferCharacteristics : uint8_t {
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, PlatformVideoTransferCharacteristics);
 
 } // namespace WebCore
+

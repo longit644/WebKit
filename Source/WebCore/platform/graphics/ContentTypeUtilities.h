@@ -35,3 +35,4 @@ struct FourCC;
 WEBCORE_EXPORT bool contentTypeMeetsContainerAndCodecTypeRequirements(const ContentType&, const std::optional<Vector<String>>& allowedMediaContainerTypes, const std::optional<Vector<String>>& allowedMediaCodecTypes);
 
 }
+

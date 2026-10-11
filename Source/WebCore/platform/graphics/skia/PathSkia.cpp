@@ -388,3 +388,4 @@ FloatRect PathSkia::strokeBoundingRect(NOESCAPE const Function<void(GraphicsCont
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

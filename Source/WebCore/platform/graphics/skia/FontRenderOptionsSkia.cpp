@@ -132,3 +132,4 @@ void FontRenderOptions::disableHintingForTesting()
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

@@ -71,3 +71,4 @@ bool TextureMapperGPUBuffer::updateData(const void* data, size_t offset, size_t 
 }
 
 } // namespace WebCore
+

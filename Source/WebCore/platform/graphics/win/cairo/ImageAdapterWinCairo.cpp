@@ -29,7 +29,7 @@
 #if PLATFORM(WIN) && USE(CAIRO)
 
 #include "GraphicsContextCairo.h"
-#if !PLATFORM(UWP)
+#if !PLATFORM(W10M)
 #include <cairo-win32.h>
 #endif
 
@@ -37,9 +37,9 @@ namespace WebCore {
 
 RefPtr<NativeImage> ImageAdapter::nativeImageOfHBITMAP(HBITMAP bmp)
 {
-#if PLATFORM(UWP)
-    // WebKitWebView: UWP consumes NativeImage directly; a GDI handle cannot
-    // be converted into a UWP image. Do not fabricate an empty bitmap.
+#if PLATFORM(W10M)
+    // WebKitWebView: W10M consumes NativeImage directly; a GDI handle cannot
+    // be converted into a W10M image. Do not fabricate an empty bitmap.
     UNUSED_PARAM(bmp);
     return nullptr;
 #else
@@ -62,7 +62,7 @@ RefPtr<NativeImage> ImageAdapter::nativeImageOfHBITMAP(HBITMAP bmp)
 
 bool ImageAdapter::getHBITMAPOfSize(HBITMAP bmp, const IntSize* size)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     UNUSED_PARAM(bmp);
     UNUSED_PARAM(size);
     return false;
@@ -101,3 +101,5 @@ bool ImageAdapter::getHBITMAPOfSize(HBITMAP bmp, const IntSize* size)
 } // namespace WebCore
 
 #endif // PLATFORM(WIN) && USE(CAIRO)
+
+

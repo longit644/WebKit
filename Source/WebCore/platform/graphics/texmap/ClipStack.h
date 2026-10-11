@@ -98,3 +98,4 @@ private:
 } // namespace WebCore
 
 #endif // ClipStack_h
+

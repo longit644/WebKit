@@ -39,10 +39,10 @@ Icon::Icon(HICON icon)
 
 Icon::~Icon()
 {
-#if !PLATFORM(UWP)
+#if !PLATFORM(W10M)
     DestroyIcon(m_hIcon);
 #else
-    // WebKitWebView: icons never exist on UWP (createIconForFiles returns null).
+    // WebKitWebView: icons never exist on W10M (createIconForFiles returns null).
     UNUSED_PARAM(m_hIcon);
 #endif
 }
@@ -50,7 +50,7 @@ Icon::~Icon()
 // FIXME: Move the code to ChromeClient::iconForFiles().
 RefPtr<Icon> Icon::createIconForFiles(const Vector<String>& filenames)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: SHGetFileInfo/ExtractIconEx (shell32) are desktop-only.
     UNUSED_PARAM(filenames);
     return nullptr;
@@ -89,7 +89,7 @@ void Icon::paint(GraphicsContext& context, const FloatRect& r)
     if (context.paintingDisabled())
         return;
 
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: DrawIconEx (USER32) is desktop-only; icons never exist.
     UNUSED_PARAM(context);
     UNUSED_PARAM(r);
@@ -100,3 +100,5 @@ void Icon::paint(GraphicsContext& context, const FloatRect& r)
 }
 
 }
+
+

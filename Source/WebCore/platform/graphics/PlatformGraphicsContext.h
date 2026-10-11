@@ -54,3 +54,4 @@ using PlatformGraphicsContext = SkCanvas;
 #else
 using PlatformGraphicsContext = void;
 #endif
+

@@ -52,3 +52,4 @@ private:
 } // namespace WebCore
 
 #endif // ENABLE(DAMAGE_TRACKING)
+

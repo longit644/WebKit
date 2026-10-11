@@ -178,3 +178,4 @@ Color blendWithoutPremultiply(const Color& from, const Color& to, const Blending
 }
 
 } // namespace WebCore
+

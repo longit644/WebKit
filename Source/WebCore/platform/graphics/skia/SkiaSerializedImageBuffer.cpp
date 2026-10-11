@@ -97,3 +97,4 @@ size_t SkiaSerializedImageBuffer::memoryCost() const
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

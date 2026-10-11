@@ -55,9 +55,9 @@ inline unsigned short buttonsForEvent(WPARAM wparam)
 
 inline LONG getDoubleClickTime()
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: GetDoubleClickTime (USER32) is desktop-only; the
-    // fallback value doubles as the UWP constant.
+    // fallback value doubles as the W10M constant.
     return 500;
 #else
     // GetDoubleClickTime() returns 0 in the non-interactive window station on Windows 10 version 2004
@@ -69,3 +69,6 @@ inline LONG getDoubleClickTime()
 } // namespace WebCore
 
 #endif // GDIUtilties_h
+
+
+

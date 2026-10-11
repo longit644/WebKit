@@ -42,3 +42,4 @@ struct ImageBufferBackendParameters {
 };
 
 } // namespace WTF
+

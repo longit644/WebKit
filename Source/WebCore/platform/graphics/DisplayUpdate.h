@@ -50,3 +50,4 @@ struct DisplayUpdate {
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, const DisplayUpdate&);
 
 } // namespace WebCore
+

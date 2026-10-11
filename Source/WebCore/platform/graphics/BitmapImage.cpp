@@ -197,3 +197,4 @@ void BitmapImage::dump(TextStream& ts) const
 }
 
 } // namespace WebCore
+

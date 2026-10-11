@@ -94,3 +94,4 @@ bool MediaPlaybackTargetWirelessPlayback::operator==(const MediaPlaybackTarget& 
 } // namespace WebCore
 
 #endif // ENABLE(WIRELESS_PLAYBACK_MEDIA_PLAYER)
+

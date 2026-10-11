@@ -293,3 +293,5 @@ std::unique_ptr<SQLiteStatement> SearchPopupMenuDB::createPreparedStatement(ASCI
 }
 
 }
+
+

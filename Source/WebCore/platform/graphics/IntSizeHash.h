@@ -39,3 +39,4 @@ template<> struct HashTraits<WebCore::IntSize> : GenericHashTraits<WebCore::IntS
 };
 
 } // namespace WTF
+

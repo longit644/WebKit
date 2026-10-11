@@ -118,3 +118,4 @@ TextStream& operator<<(TextStream& ts, const CornerRadii& cornerRadii)
 }
 
 } // namespace WebCore
+

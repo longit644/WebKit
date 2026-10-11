@@ -69,3 +69,4 @@ bool tryGetTypoMetrics(CTFontRef font, short& ascent, short& descent, short& lin
 
 } // namespace OpenType
 } // namespace WebCore
+

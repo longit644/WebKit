@@ -956,3 +956,4 @@ void ShadowBlur::drawShadowLayer(const AffineTransform& transform, const IntRect
 }
 
 } // namespace WebCore
+

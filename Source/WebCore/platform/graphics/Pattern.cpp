@@ -72,3 +72,4 @@ void Pattern::setTileImage(SourceImage&& tileImage)
 }
 
 }
+

@@ -68,3 +68,4 @@ FloatRoundedRect::operator SkRRect() const
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

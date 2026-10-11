@@ -137,3 +137,4 @@ ALWAYS_INLINE float Font::widthForGlyph(Glyph glyph, SyntheticBoldInclusion Synt
 }
 
 } // namespace WebCore
+

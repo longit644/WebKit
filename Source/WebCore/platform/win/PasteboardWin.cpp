@@ -27,8 +27,8 @@
 #include "config.h"
 #include "Pasteboard.h"
 
-#if PLATFORM(UWP)
-#include "../uwp/ClipboardUWP.h"
+#if PLATFORM(W10M)
+#include "../w10m/ClipboardW10M.h"
 #endif
 
 #include "BitmapInfo.h"
@@ -96,7 +96,7 @@ static LRESULT CALLBACK PasteboardOwnerWndProc(HWND hWnd, UINT message, WPARAM w
     case WM_CHANGECBCHAIN:
         break;
     default:
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
         // WebKitWebView: DefWindowProc (USER32) is desktop-only.
         lresult = 0;
 #else
@@ -110,7 +110,7 @@ static LRESULT CALLBACK PasteboardOwnerWndProc(HWND hWnd, UINT message, WPARAM w
 std::unique_ptr<Pasteboard> Pasteboard::createForCopyAndPaste(std::unique_ptr<PasteboardContext>&& context)
 {
     auto pasteboard = makeUnique<Pasteboard>(WTF::move(context));
-#if !PLATFORM(UWP)
+#if !PLATFORM(W10M)
     COMPtr<IDataObject> clipboardData;
     if (!SUCCEEDED(OleGetClipboard(&clipboardData)))
         clipboardData = 0;
@@ -121,10 +121,10 @@ std::unique_ptr<Pasteboard> Pasteboard::createForCopyAndPaste(std::unique_ptr<Pa
     return pasteboard;
 }
 
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
 void Pasteboard::createForCopyAndPasteAsync(std::unique_ptr<PasteboardContext>&& context, CompletionHandler<void(HRESULT, std::unique_ptr<Pasteboard>)>&& completion)
 {
-    ClipboardUWP::readTextAsync([context = WTF::move(context), completion = WTF::move(completion)](HRESULT result, String text) mutable {
+    ClipboardW10M::readTextAsync([context = WTF::move(context), completion = WTF::move(completion)](HRESULT result, String text) mutable {
         if (FAILED(result)) {
             completion(result, nullptr);
             return;
@@ -157,7 +157,7 @@ std::unique_ptr<Pasteboard> Pasteboard::create(const DragData& dragData)
 
 void Pasteboard::finishCreatingPasteboard()
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: owner HWND + RegisterClipboardFormat (USER32) are
     // desktop-only; formats stay 0 (nothing matches, WinRT Clipboard bridge pending (v0 returns empty)).
 #else
@@ -213,12 +213,12 @@ Pasteboard::Pasteboard(std::unique_ptr<PasteboardContext>&& context, const DragD
 
 void Pasteboard::clear()
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     m_uwpText = emptyString();
     m_uwpHasText = false;
-    ClipboardUWP::clearAsync([](HRESULT result) {
+    ClipboardW10M::clearAsync([](HRESULT result) {
         if (FAILED(result))
-            LOG_ERROR("UWP clipboard clear failed: 0x%08lx", static_cast<unsigned long>(result));
+            LOG_ERROR("W10M clipboard clear failed: 0x%08lx", static_cast<unsigned long>(result));
     });
 #else
     if (::OpenClipboard(m_owner)) {
@@ -262,7 +262,7 @@ void Pasteboard::clear(const String& type)
 
 bool Pasteboard::hasData()
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     if (m_uwpHasText)
         return true;
 #endif
@@ -300,7 +300,7 @@ static void addMIMETypesForFormat(OrderedHashSet<String>& results, const FORMATE
 
 std::optional<PasteboardCustomData> Pasteboard::readPasteboardCustomData()
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: OpenClipboard (USER32) is desktop-only; v0 no data.
     return std::nullopt;
 #else
@@ -384,7 +384,7 @@ String Pasteboard::readOrigin()
 
 String Pasteboard::readString(const String& type)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     if (m_uwpHasText && clipboardTypeFromMIMEType(type) == ClipboardDataTypeText)
         return m_uwpText;
 #endif
@@ -433,7 +433,7 @@ Pasteboard::FileContentState Pasteboard::fileContentState()
 
 void Pasteboard::read(PasteboardFileReader& reader, std::optional<size_t>)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: HDROP/DragQueryFileW (shell32) are desktop-only.
     UNUSED_PARAM(reader);
 #else
@@ -571,7 +571,7 @@ void Pasteboard::writeRangeToDataObject(const SimpleRange& selectedRange, LocalF
 
 void Pasteboard::writeSelection(const std::optional<SimpleRange>& selectedRange, bool canSmartCopyOrDelete, LocalFrame& frame, ShouldSerializeSelectedTextForDataTransfer shouldSerializeSelectedTextForDataTransfer)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // Text copy uses DataPackage; HTML support remains a separate format task.
     if (!selectedRange)
         return;
@@ -637,13 +637,13 @@ void Pasteboard::writePlainTextToDataObject(const String& text, SmartReplaceOpti
 
 void Pasteboard::writePlainText(const String& text, SmartReplaceOption smartReplaceOption)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // SetContent replaces the package atomically; no separate clear is needed.
     m_uwpText = text;
     m_uwpHasText = true;
-    ClipboardUWP::writeTextAsync(text, [](HRESULT result) {
+    ClipboardW10M::writeTextAsync(text, [](HRESULT result) {
         if (FAILED(result))
-            LOG_ERROR("UWP clipboard write failed: 0x%08lx", static_cast<unsigned long>(result));
+            LOG_ERROR("W10M clipboard write failed: 0x%08lx", static_cast<unsigned long>(result));
     });
     UNUSED_PARAM(smartReplaceOption);
 #else
@@ -671,8 +671,8 @@ void Pasteboard::writePlainText(const String& text, SmartReplaceOption smartRepl
 #endif
 }
 
-#if !PLATFORM(UWP)
-// Desktop shell virtual-file serialization. UWP transfers use StorageItems.
+#if !PLATFORM(W10M)
+// Desktop shell virtual-file serialization. W10M transfers use StorageItems.
 static inline void pathRemoveBadFSCharacters(PWSTR psz, size_t length)
 {
     size_t writeTo = 0;
@@ -783,7 +783,7 @@ void Pasteboard::writeURLToDataObject(const URL& kurl, const String& titleStr)
         return;
     WebCore::writeURL(m_writableDataObject.get(), kurl, titleStr, true, true);
 
-#if !PLATFORM(UWP)
+#if !PLATFORM(W10M)
     String url = kurl.string();
     ASSERT(url.containsOnlyASCII()); // URL::string() is URL encoded.
 
@@ -835,7 +835,7 @@ void Pasteboard::writeURLToDataObject(const URL& kurl, const String& titleStr)
 void Pasteboard::write(const PasteboardURL& pasteboardURL)
 {
     ASSERT(!pasteboardURL.url.isEmpty());
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     writePlainText(pasteboardURL.url.string(), CannotSmartReplace);
 #else
 
@@ -885,7 +885,7 @@ void Pasteboard::writeTrustworthyWebURLsPboardType(const PasteboardURL&)
 
 void Pasteboard::writeImage(Element& element, const URL&, const String&)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // Image transfer needs a WinRT bitmap/stream bridge; never construct GDI
     // bitmaps here or clear the user's clipboard when unsupported.
     UNUSED_PARAM(element);
@@ -929,7 +929,7 @@ void Pasteboard::writeImage(Element& element, const URL&, const String&)
 
 bool Pasteboard::canSmartReplace()
 { 
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     return false;
 #else
     return ::IsClipboardFormatAvailable(WebSmartPasteFormat);
@@ -938,7 +938,7 @@ bool Pasteboard::canSmartReplace()
 
 void Pasteboard::read(PasteboardPlainText& text, PlainTextURLReadingPolicy, std::optional<size_t>)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     text.text = m_uwpText;
 #else
     if (::IsClipboardFormatAvailable(CF_UNICODETEXT) && ::OpenClipboard(m_owner)) {
@@ -967,7 +967,7 @@ void Pasteboard::read(PasteboardPlainText& text, PlainTextURLReadingPolicy, std:
 RefPtr<DocumentFragment> Pasteboard::documentFragment(LocalFrame& frame, const SimpleRange& context, bool allowPlainText, bool& chosePlainText)
 {
     chosePlainText = false;
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     UNUSED_PARAM(frame);
     if (allowPlainText && m_uwpHasText) {
         chosePlainText = true;
@@ -1030,7 +1030,7 @@ void Pasteboard::setExternalDataObject(IDataObject *dataObject)
     m_dataObject = dataObject;
 }
 
-#if !PLATFORM(UWP)
+#if !PLATFORM(W10M)
 static CachedImage* getCachedImage(Element& element)
 {
     // Attempt to pull CachedImage from element
@@ -1191,7 +1191,7 @@ static HGLOBAL createGlobalHDropContent(const URL& url, String& fileName, Fragme
 
 void Pasteboard::writeImageToDataObject(Element& element, const URL& url)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     UNUSED_PARAM(element);
     UNUSED_PARAM(url);
     notImplemented();
@@ -1263,7 +1263,7 @@ void Pasteboard::write(const PasteboardBuffer&)
 
 void Pasteboard::writeCustomData(const Vector<PasteboardCustomData>& data)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // Preserve the supported plain-text representation. Origin-scoped
     // custom buffers require separate DataPackage format support.
     if (data.size() != 1)
@@ -1320,3 +1320,8 @@ void Pasteboard::write(const Color&)
 }
 
 } // namespace WebCore
+
+
+
+
+

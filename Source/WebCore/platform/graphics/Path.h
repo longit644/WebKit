@@ -257,3 +257,4 @@ inline std::optional<FloatPoint> Path::initialMoveToPoint() const
 }
 
 } // namespace WebCore
+

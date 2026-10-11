@@ -126,3 +126,4 @@ inline void add(Hasher& hasher, const FontPaletteValues& fontPaletteValues)
 }
 
 } // namespace WebCore
+

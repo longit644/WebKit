@@ -223,3 +223,4 @@ IntRect ComputeOverlapRegionData::transformedBoundingBox(const TransformationMat
 } // namespace WebCore
 
 #endif // USE(COORDINATED_GRAPHICS) && USE(SKIA)
+

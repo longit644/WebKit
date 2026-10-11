@@ -291,7 +291,7 @@ private:
 #endif
 #endif
 
-#if PLATFORM(WIN) && USE(SKIA) && !PLATFORM(UWP)
+#if PLATFORM(WIN) && USE(SKIA) && !PLATFORM(W10M)
     struct CreateDWriteFactoryResult {
         COMPtr<IDWriteFactory> factory;
         COMPtr<IDWriteFontCollection> fontCollection;
@@ -321,3 +321,4 @@ inline bool FontCachePrewarmInformation::isEmpty() const
 }
 
 }
+

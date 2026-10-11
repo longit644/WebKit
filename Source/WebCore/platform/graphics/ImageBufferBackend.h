@@ -200,3 +200,4 @@ WEBCORE_EXPORT TextStream& operator<<(TextStream&, VolatilityState);
 WEBCORE_EXPORT TextStream& operator<<(TextStream&, const ImageBufferBackend&);
 
 } // namespace WebCore
+

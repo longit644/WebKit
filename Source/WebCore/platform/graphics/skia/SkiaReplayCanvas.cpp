@@ -325,3 +325,4 @@ void SkiaReplayCanvas::onDrawVerticesObject(const SkVertices* vertices, SkBlendM
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

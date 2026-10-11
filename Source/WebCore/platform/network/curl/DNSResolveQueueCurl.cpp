@@ -58,3 +58,4 @@ void DNSResolveQueueCurl::stopResolve(uint64_t /* identifier */)
 }
 
 #endif
+

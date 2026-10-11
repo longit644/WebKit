@@ -86,3 +86,5 @@ void WebCoreDrawDoubledTextAtPoint(GraphicsContext& context, const String& text,
 }
 
 } // namespace WebCore
+
+

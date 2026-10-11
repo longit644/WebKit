@@ -50,3 +50,4 @@ FontVariationDefaultsMap defaultFontVariationValues(const SkTypeface& typeface)
 }
 
 } // namespace WebCore
+

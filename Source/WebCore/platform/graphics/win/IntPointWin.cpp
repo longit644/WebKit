@@ -56,3 +56,4 @@ IntPoint::operator POINTS() const
 }
 
 }
+

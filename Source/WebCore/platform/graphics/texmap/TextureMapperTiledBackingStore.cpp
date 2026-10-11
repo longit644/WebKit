@@ -169,3 +169,4 @@ void TextureMapperTiledBackingStore::updateContents(TextureMapper& textureMapper
 }
 
 } // namespace WebCore
+

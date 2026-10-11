@@ -241,3 +241,5 @@ template<typename P> struct DefaultHash<COMPtr<P>> : PtrHash<COMPtr<P>> { };
 }
 
 #endif
+
+

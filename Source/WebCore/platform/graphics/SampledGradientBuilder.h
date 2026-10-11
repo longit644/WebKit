@@ -384,3 +384,4 @@ SampledGradientStops sampleGradientStops(ColorInterpolationMethod colorInterpola
 }
 
 }
+

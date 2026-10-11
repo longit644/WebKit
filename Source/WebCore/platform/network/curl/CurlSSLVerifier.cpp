@@ -82,3 +82,4 @@ int CurlSSLVerifier::verifyCallback(int preverified, X509_STORE_CTX* ctx)
 
 }
 #endif
+

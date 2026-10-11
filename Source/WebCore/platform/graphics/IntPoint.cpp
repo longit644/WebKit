@@ -57,3 +57,4 @@ TextStream& operator<<(TextStream& ts, const IntPoint& p)
 }
 
 }
+

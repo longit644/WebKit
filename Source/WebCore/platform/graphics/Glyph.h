@@ -34,3 +34,4 @@ namespace WebCore {
 typedef unsigned short Glyph;
 
 } // namespace WebCore
+

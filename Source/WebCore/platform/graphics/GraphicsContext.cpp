@@ -756,3 +756,4 @@ auto GraphicsContext::computeRectsAndStrokeColorForLinesForText(const FloatPoint
 }
 
 } // namespace WebCore
+

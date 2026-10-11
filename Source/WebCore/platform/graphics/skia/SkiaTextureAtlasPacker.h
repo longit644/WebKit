@@ -69,3 +69,4 @@ WEBCORE_EXPORT Vector<PackedRect> pack(std::span<const IntSize> sizes, const Int
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

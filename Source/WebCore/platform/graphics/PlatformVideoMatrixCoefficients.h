@@ -49,3 +49,4 @@ enum class PlatformVideoMatrixCoefficients : uint8_t {
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, PlatformVideoMatrixCoefficients);
 
 } // namespace WebCore
+

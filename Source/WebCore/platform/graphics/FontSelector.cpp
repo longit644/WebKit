@@ -37,3 +37,4 @@ TextStream& operator<<(TextStream& ts, const FontSelector& fontSelector)
 }
 
 } // namespace WebCore
+

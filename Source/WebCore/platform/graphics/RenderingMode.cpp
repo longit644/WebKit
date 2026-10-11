@@ -66,3 +66,4 @@ TextStream& operator<<(TextStream& ts, RenderingMethod method)
 }
 
 } // namespace WebCore
+

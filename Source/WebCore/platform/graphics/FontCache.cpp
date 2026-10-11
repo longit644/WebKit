@@ -505,3 +505,4 @@ void FontCache::platformReleaseNoncriticalMemory()
 #endif
 
 } // namespace WebCore
+

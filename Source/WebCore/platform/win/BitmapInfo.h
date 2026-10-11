@@ -62,3 +62,5 @@ struct BitmapInfo : public BITMAPINFO {
 } // namespace WebCore
 
 #endif // BitmapInfo_h
+
+

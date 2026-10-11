@@ -173,3 +173,4 @@ RefPtr<const Font> FontCascade::fontForCombiningCharacterSequence(StringView str
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

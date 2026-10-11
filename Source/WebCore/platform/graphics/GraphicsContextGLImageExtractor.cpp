@@ -40,3 +40,4 @@ GraphicsContextGLImageExtractor::GraphicsContextGLImageExtractor(Image& image, D
 }
 
 #endif
+

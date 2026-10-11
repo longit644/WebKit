@@ -49,3 +49,4 @@ void overrideVideoColorSpaceAsNeeded(PlatformVideoColorSpace&, const std::option
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, PlatformVideoColorSpace);
 
 }
+

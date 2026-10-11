@@ -72,3 +72,4 @@ SPECIALIZE_TYPE_TRAITS_BEGIN(WebCore::Float16ArrayPixelBuffer)
     static bool isType(const WebCore::PixelBuffer& pixelBuffer) { return pixelBuffer.type() == WebCore::PixelBuffer::Type::Float16Array; }
 SPECIALIZE_TYPE_TRAITS_END()
 #endif
+

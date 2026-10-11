@@ -106,3 +106,4 @@ void NativeImage::computeHeadroom() const
 #endif
 
 } // namespace WebCore
+

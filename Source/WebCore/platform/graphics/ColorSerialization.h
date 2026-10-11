@@ -43,3 +43,4 @@ WEBCORE_EXPORT String serializationForRenderTreeAsText(const Color&);
 ASCIILiteral serialization(ColorSpace);
 
 }
+

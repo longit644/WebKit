@@ -120,7 +120,7 @@ struct AXTreeData {
         for (const String& warning : warnings)
             SAFE_FPRINTF(stderr, "WARNING: %s\n", warning.utf8());
         SAFE_FPRINTF(stderr, "==AX Trees (PID %d)==\n%s\n%s\n",
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
             // WebKitWebView: getpid() is absent from the AppContainer CRT.
             static_cast<int>(GetCurrentProcessId()),
 #else

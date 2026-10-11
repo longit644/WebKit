@@ -103,3 +103,4 @@ WTF::TextStream& operator<<(WTF::TextStream&, GraphicsLayerAnimation::FillMode);
 WTF::TextStream& operator<<(WTF::TextStream&, GraphicsLayerAnimation::PlayState);
 
 } // namespace WebCore
+

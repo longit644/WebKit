@@ -38,3 +38,4 @@ enum class GraphicsContextGLSimulatedEventForTesting : uint8_t {
 } // namespace WebCore
 
 #endif
+

@@ -441,3 +441,4 @@ size_t PlatformTimeRanges::findLastRangeIndexBefore(const MediaTime& start, cons
 }
 
 }
+

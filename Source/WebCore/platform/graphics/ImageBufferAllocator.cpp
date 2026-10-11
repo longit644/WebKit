@@ -52,3 +52,4 @@ RefPtr<PixelBuffer> ImageBufferAllocator::createPixelBuffer(const PixelBufferFor
 }
 
 } // namespace WebCore
+

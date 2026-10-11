@@ -128,3 +128,4 @@ void PixelBuffer::set(size_t index, double value)
 }
 
 } // namespace WebCore
+

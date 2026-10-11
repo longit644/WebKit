@@ -124,3 +124,4 @@ std::optional<DecodingDestination> ImageFrame::compatibleDecodingDestinationWith
 }
 
 } // namespace WebCore
+

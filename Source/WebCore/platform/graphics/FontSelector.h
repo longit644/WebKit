@@ -80,3 +80,4 @@ public:
 WTF::TextStream& operator<<(WTF::TextStream&, const FontSelector&);
 
 }
+

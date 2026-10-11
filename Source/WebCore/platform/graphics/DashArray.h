@@ -47,3 +47,4 @@ using DashArrayElement = float;
 using DashArray = FixedVector<DashArrayElement>;
 
 } // namespace WebCore
+

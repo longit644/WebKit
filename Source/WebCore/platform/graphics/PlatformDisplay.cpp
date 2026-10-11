@@ -186,3 +186,4 @@ const Vector<GLDisplay::BufferFormat>& PlatformDisplay::bufferFormatsForVideo()
 #endif // USE(GBM) && USE(GSTREAMER)
 
 } // namespace WebCore
+

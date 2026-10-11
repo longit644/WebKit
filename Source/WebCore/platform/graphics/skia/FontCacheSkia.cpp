@@ -44,7 +44,7 @@ WTF_IGNORE_WARNINGS_IN_THIRD_PARTY_CODE_BEGIN
 
 #if OS(ANDROID)
 #include <skia/ports/SkFontMgr_android.h>
-#elif PLATFORM(WIN) && !PLATFORM(UWP)
+#elif PLATFORM(WIN) && !PLATFORM(W10M)
 #include <dwrite.h>
 #include <skia/ports/SkTypeface_win.h>
 #else
@@ -63,7 +63,7 @@ SkFontMgr& FontCache::fontManager() const
     if (!m_fontManager) {
 #if OS(ANDROID)
         m_fontManager = SkFontMgr_New_Android(nullptr, SkFontScanner_Make_FreeType());
-#elif OS(WINDOWS) && !PLATFORM(UWP)
+#elif OS(WINDOWS) && !PLATFORM(W10M)
         auto result = createDWriteFactory();
         m_fontManager = SkFontMgr_New_DirectWrite(result.factory.get(), result.fontCollection.get());
 #else
@@ -179,7 +179,7 @@ bool FontCache::isSystemFontForbiddenForEditing(const String&)
 
 Ref<Font> FontCache::lastResortFallbackFont(const FontDescription& fontDescription)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     const auto defaultFontName = "DejaVu Sans"_s;
 #elif PLATFORM(WIN)
     const auto defaultFontName = "Times New Roman"_s;
@@ -459,3 +459,4 @@ void FontCache::platformPurgeInactiveFontData()
 }
 
 } // namespace WebCore
+

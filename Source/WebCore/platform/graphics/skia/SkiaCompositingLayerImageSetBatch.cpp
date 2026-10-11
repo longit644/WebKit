@@ -203,3 +203,4 @@ SkiaCompositingLayerImageSetBatch::ScopedFlush::~ScopedFlush()
 } // namespace WebCore
 
 #endif // USE(COORDINATED_GRAPHICS) && USE(SKIA)
+

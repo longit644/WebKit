@@ -72,3 +72,4 @@ WEBCORE_EXPORT std::optional<DestinationColorSpace> contentsFormatExtendedColorS
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, ContentsFormat);
 
 } // namespace WebCore
+

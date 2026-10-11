@@ -113,3 +113,4 @@ private:
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, const CornerRadii&);
 
 } // namespace WebCore
+

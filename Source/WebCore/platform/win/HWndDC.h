@@ -42,8 +42,8 @@ public:
 
     explicit HWndDC(HWND hwnd)
         : m_hwnd(hwnd)
-#if PLATFORM(UWP)
-        // WebKitWebView: GetDC (USER32) is desktop-only; null DC on UWP.
+#if PLATFORM(W10M)
+        // WebKitWebView: GetDC (USER32) is desktop-only; null DC on W10M.
         , m_hdc(0)
 #else
         , m_hdc(::GetDC(hwnd))
@@ -53,13 +53,13 @@ public:
 
     HWndDC(HWND hwnd, HRGN hrgnClip, DWORD flags)
         : m_hwnd(hwnd)
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
         , m_hdc(0)
 #else
         , m_hdc(::GetDCEx(hwnd, hrgnClip, flags))
 #endif
     {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
         (void)hrgnClip;
         (void)flags;
 #endif
@@ -74,7 +74,7 @@ public:
     {
         clear();
         m_hwnd = hwnd;
-#if !PLATFORM(UWP)
+#if !PLATFORM(W10M)
         m_hdc = ::GetDC(hwnd);
 #endif
         return m_hdc;
@@ -84,7 +84,7 @@ public:
     {
         if (!m_hdc)
             return;
-#if !PLATFORM(UWP)
+#if !PLATFORM(W10M)
         ::ReleaseDC(m_hwnd, m_hdc);
 #endif
         m_hwnd = 0;
@@ -104,3 +104,5 @@ private:
 } // namespace WebCore
 
 #endif // HWndDC_h
+
+

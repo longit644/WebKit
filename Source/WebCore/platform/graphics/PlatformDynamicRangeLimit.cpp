@@ -64,3 +64,4 @@ TextStream& operator<<(TextStream& ts, PlatformDynamicRangeLimit dynamicRangeLim
 }
 
 } // namespace WebCore
+

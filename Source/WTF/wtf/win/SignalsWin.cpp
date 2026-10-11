@@ -152,7 +152,7 @@ void SignalHandlers::finalize()
 
     for (unsigned i = 0; i < numberOfSignals; ++i) {
         if (handlers.numberOfHandlers[i]) {
-#if !PLATFORM(UWP)
+#if !PLATFORM(W10M)
             // WebKitWebView: AddVectoredExceptionHandler is desktop-only; crash
             // handlers stay registered but inert (v0: crashes crash).
             AddVectoredExceptionHandler(1, vectoredHandler);
@@ -165,3 +165,5 @@ void SignalHandlers::finalize()
 } // namespace WTF
 
 #endif // OS(WINDOWS)
+
+

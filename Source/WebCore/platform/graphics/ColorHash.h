@@ -40,3 +40,4 @@ template<> struct HashTraits<WebCore::Color> : GenericHashTraits<WebCore::Color>
 };
 
 } // namespace WTF
+

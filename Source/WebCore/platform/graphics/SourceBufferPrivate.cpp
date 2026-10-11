@@ -1971,3 +1971,4 @@ bool SourceBufferPrivate::isOnCreationThread() const
 } // namespace WebCore
 
 #endif
+

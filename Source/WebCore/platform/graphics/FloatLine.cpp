@@ -80,3 +80,4 @@ const std::optional<FloatPoint> FloatLine::intersectionWith(const FloatLine& oth
 }
 
 }
+

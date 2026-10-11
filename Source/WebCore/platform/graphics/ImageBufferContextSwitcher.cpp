@@ -102,3 +102,4 @@ void ImageBufferContextSwitcher::endDrawSourceImage(GraphicsContext& destination
 }
 
 } // namespace WebCore
+

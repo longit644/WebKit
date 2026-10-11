@@ -55,3 +55,4 @@ struct ComputeOverlapRegionData {
 } // namespace WebCore
 
 #endif // USE(COORDINATED_GRAPHICS) && USE(SKIA)
+

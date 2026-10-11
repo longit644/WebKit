@@ -33,3 +33,4 @@ struct LayerHostingContextIdentifierType;
 using LayerHostingContextIdentifier = ObjectIdentifier<LayerHostingContextIdentifierType>;
 
 }
+

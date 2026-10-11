@@ -92,3 +92,4 @@ enum class GCGLExtension : uint8_t {
 };
 
 }
+

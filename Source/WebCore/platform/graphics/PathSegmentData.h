@@ -421,3 +421,4 @@ struct PathCloseSubpath {
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, const PathCloseSubpath&);
 
 } // namespace WebCore
+

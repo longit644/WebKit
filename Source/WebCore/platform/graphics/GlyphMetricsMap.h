@@ -140,3 +140,4 @@ template<class T> typename GlyphMetricsMap<T>::GlyphMetricsPage& GlyphMetricsMap
 } // namespace WebCore
 
 #endif
+

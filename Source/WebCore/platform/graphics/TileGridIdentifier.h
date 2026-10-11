@@ -33,3 +33,4 @@ enum class TileGridIdentifierType { };
 using TileGridIdentifier = ObjectIdentifier<TileGridIdentifierType>;
 
 } // namespace WebCore
+

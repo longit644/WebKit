@@ -183,3 +183,4 @@ TextStream& operator<<(TextStream& ts, const IntRect& r)
 }
 
 } // namespace WebCore
+

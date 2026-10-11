@@ -76,3 +76,4 @@ inline TextStream& operator<<(TextStream& ts, const FontPalette& fontPalette)
 }
 
 }
+

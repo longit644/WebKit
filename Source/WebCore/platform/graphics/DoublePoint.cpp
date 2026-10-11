@@ -78,3 +78,4 @@ WTF::TextStream& operator<<(WTF::TextStream& ts, const DoublePoint& point)
 
 } // namespace WebCore
 
+

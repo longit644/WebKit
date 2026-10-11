@@ -89,3 +89,4 @@ enum class GCGLErrorCode : uint8_t {
     InvalidEnum = 1 << 5
 };
 using GCGLErrorCodeSet = OptionSet<GCGLErrorCode>;
+

@@ -96,3 +96,4 @@ Vector<uint8_t> platformEncodeData(const NativeImage&, const String& mimeType, s
 
 } // namespace WebCore
 
+

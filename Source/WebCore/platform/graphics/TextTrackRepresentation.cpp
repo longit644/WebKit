@@ -57,3 +57,4 @@ std::unique_ptr<TextTrackRepresentation> TextTrackRepresentation::create(TextTra
 }
 
 #endif
+

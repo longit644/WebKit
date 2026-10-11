@@ -242,3 +242,4 @@ void SkiaHarfBuzzFont::glyphExtents(hb_codepoint_t glyph, hb_glyph_extents_t* ex
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

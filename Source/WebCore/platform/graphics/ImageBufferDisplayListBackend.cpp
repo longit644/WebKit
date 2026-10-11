@@ -87,3 +87,4 @@ String ImageBufferDisplayListBackend::debugDescription() const
 }
 
 } // namespace WebCore
+

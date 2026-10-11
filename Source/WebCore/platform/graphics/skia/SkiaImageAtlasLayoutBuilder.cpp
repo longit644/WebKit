@@ -278,3 +278,4 @@ Ref<SkiaImageAtlasLayout> SkiaImageAtlasLayoutBuilder::createAtlasLayout(const V
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

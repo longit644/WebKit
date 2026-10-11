@@ -67,3 +67,4 @@ private:
 }
 
 SPECIALIZE_TYPE_TRAITS_IMAGE(CrossfadeGeneratedImage)
+

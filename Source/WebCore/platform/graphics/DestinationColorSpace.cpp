@@ -267,3 +267,4 @@ TextStream& operator<<(TextStream& ts, const DestinationColorSpace& colorSpace)
 }
 
 }
+

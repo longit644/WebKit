@@ -180,3 +180,4 @@ std::optional<Vector<EGLint>> DMABufBuffer::buildEGLImageAttributes(const Attrib
 } // namespace WebCore
 
 #endif // USE(GBM)
+

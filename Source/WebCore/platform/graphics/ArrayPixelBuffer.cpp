@@ -34,3 +34,4 @@ ArrayPixelBuffer::ArrayPixelBuffer(const PixelBufferFormat& format, const IntSiz
 { }
 
 } // namespace WebCore
+

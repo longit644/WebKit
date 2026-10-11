@@ -37,3 +37,4 @@ struct ImageBufferFormat {
 };
 
 } // namespace WebCore
+

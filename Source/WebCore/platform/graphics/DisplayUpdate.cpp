@@ -49,3 +49,4 @@ TextStream& operator<<(TextStream& ts, const DisplayUpdate& update)
 }
 
 } // namespace WebCore
+

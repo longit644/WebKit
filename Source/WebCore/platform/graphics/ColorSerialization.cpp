@@ -690,3 +690,4 @@ String serializationForRenderTreeAsText(const XYZA<float, WhitePoint::D65>& colo
 }
 
 }
+

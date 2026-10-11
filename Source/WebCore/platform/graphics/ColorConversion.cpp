@@ -389,3 +389,4 @@ ColorComponents<float, 4> convertAndResolveColorComponents(ColorSpace inputColor
 }
 
 } // namespace WebCore
+

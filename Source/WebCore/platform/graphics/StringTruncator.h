@@ -52,3 +52,4 @@ public:
 } // namespace WebCore
 
 #endif // !defined(StringTruncator_h)
+

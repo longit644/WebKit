@@ -81,3 +81,4 @@ bool ImageBufferSkiaSurfaceBackend::canMapBackingStore() const
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

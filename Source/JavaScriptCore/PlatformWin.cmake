@@ -1,4 +1,4 @@
-if (NOT WK_UWP)
+if (NOT WK_W10M)
     # WebKitWebView: no BSTR in the AppContainer API partition.
     list(APPEND JavaScriptCore_SOURCES
         API/JSStringRefBSTR.cpp

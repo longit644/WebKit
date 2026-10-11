@@ -427,3 +427,4 @@ RefPtr<GraphicsLayerContentsDisplayDelegate> ImageBufferSkiaAcceleratedBackend::
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

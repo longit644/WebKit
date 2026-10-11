@@ -289,3 +289,4 @@ protected:
 WEBCORE_EXPORT TextStream& operator<<(TextStream&, const ImageBuffer&);
 
 } // namespace WebCore
+

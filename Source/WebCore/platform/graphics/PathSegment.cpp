@@ -120,3 +120,4 @@ TextStream& operator<<(TextStream& ts, const PathSegment& segment)
 }
 
 } // namespace WebCore
+

@@ -30,3 +30,4 @@ namespace WebCore {
 typedef int32_t IntDegrees;
 
 }
+

@@ -1963,3 +1963,4 @@ TextStream& operator<<(TextStream& ts, const FontCascade& fontCascade)
 }
 
 } // namespace WebCore
+

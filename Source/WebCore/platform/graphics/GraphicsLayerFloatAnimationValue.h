@@ -57,3 +57,4 @@ private:
 SPECIALIZE_TYPE_TRAITS_BEGIN(WebCore::GraphicsLayerFloatAnimationValue)
     static bool isType(const WebCore::GraphicsLayerAnimationValue& value) { return value.isGraphicsLayerFloatAnimationValue(); }
 SPECIALIZE_TYPE_TRAITS_END()
+

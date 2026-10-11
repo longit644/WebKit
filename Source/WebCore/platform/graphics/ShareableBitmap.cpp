@@ -190,3 +190,4 @@ std::span<uint8_t> ShareableBitmap::mutableSpan() LIFETIME_BOUND
 }
 
 } // namespace WebCore
+

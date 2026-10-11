@@ -47,3 +47,4 @@ FloatRect::operator SkRect() const
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

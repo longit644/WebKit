@@ -112,3 +112,4 @@ void CachedSubimage::draw(GraphicsContext& context, const FloatRect& destination
 }
 
 } // namespace WebCore
+

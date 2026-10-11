@@ -74,3 +74,4 @@ void NamedImageGeneratedImage::dump(TextStream& ts) const
 }
 
 }
+

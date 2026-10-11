@@ -39,7 +39,7 @@ const HWND HWND_MESSAGE = 0;
 
 namespace WTF {
 
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
 // WebKitWebView: SHGetValueW (shlwapi) and Get/SetWindowLongPtr (USER32 HWNDs)
 // are desktop-only; v0 stubs (registry reads fail, no HWND backing).
 inline HRESULT getRegistryValue(HKEY, LPCWSTR, LPCWSTR, LPDWORD, LPVOID, LPDWORD)

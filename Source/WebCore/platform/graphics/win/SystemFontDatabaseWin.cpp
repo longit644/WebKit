@@ -37,7 +37,7 @@ static const float defaultControlFontPixelSize = 13;
 
 auto SystemFontDatabase::platformSystemFontShorthandInfo(FontShorthand fontShorthand) -> SystemFontShorthandInfo
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: SystemParametersInfo/GetStockObject (USER32/GDI) are
     // desktop-only; return generic families with UI-plausible sizes (v0).
     UNUSED_PARAM(fontShorthand);
@@ -97,3 +97,4 @@ void SystemFontDatabase::platformInvalidate()
 }
 
 } // namespace WebCore
+

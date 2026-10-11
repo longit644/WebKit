@@ -67,3 +67,4 @@ String IntSize::toJSONString() const
 }
 
 }
+

@@ -134,3 +134,4 @@ void AuthenticationChallenge::removeLeadingAndTrailingQuotes(String& value)
 } // namespace WebCore
 
 #endif
+

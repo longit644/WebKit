@@ -38,3 +38,4 @@ bool tryGetTypoMetrics(CTFontRef, short& ascent, short& descent, short& lineGap)
 } // namespace OpenType
 } // namespace WebCore
 #endif // OpenTypeCG_h
+

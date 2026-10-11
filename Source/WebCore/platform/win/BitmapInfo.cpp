@@ -62,3 +62,5 @@ BitmapInfo BitmapInfo::createBottomUp(const IntSize& size, BitCount bitCount)
 }
 
 } // namespace WebCore
+
+

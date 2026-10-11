@@ -1,0 +1,34 @@
+M10 task 2.7 native/CX command verification
+
+Native path inputs: Tools/w10m/arm32-w10m-env.ps1 discovers VS/MSVC/SDK or accepts
+explicit overrides. Repo support/forced-include paths derive from the checkout.
+Space-free aliases are resolved using GetShortPathName, never literal aliases.
+No developer-home path is embedded in the native env or CMake toolchain source.
+
+Clean native commands (from repository root):
+. .\Tools\w10m\arm32-w10m-env.ps1 -SdkVersion 10.0.19041.0
+cmake -S Tools/w10m/build/native-toolchain-smoke -B <fresh-output> -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=<resolved-repo-toolchain>
+cmake --build <fresh-output> --target WKUWPNativeToolchainSmoke --parallel 8
+
+Selected compiler: VS clang-cl 19.1.5, x64 host, armv7-unknown-windows-msvc
+MSVC headers/runtime: 14.44.35207
+SDK headers/import libs/RC: 10.0.19041.0
+Configure: success, compiler ABI archive and C feature detection complete.
+Build: success, C object and native DLL linked.
+Image inspection: COFF-ARM, thumb, IMAGE_FILE_MACHINE_ARMNT,
+IMAGE_DLL_CHARACTERISTICS_APPCONTAINER, import KERNEL32.dll GetCurrentThreadId.
+clang-cl warns that the historical -B flag is ignored in CL mode; actual CMake
+linker/RC selection and successful import link are inspected rather than inferred.
+
+Dual-compiler check after native env/toolchain changes:
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File Tools\w10m\build\check-wkw10m-abi-layout.ps1 -OutDir <fresh-output>
+PASS: native clang ARM and MSVC ARM agree on all frozen ABI sizes/offsets/values.
+
+Negative configuration checks:
+SDK override 10.0.26100.0: rejects missing ARM32 um/arm/OneCoreUAP.lib before flags exported.
+Debug CMake configuration: rejects unsupported configuration explicitly.
+
+CX build/package/device proof: compiled-xaml-lumia-v6.txt and durable source README.
+Scope: native compiler/SDK/link recipe, ABI boundary and compiled CX/XAML package.
+No native smoke execution on phone or full WebCore/dependency rebuild is claimed.
+Existing Skia cache and prior packages are preserved, not migrated in this task.

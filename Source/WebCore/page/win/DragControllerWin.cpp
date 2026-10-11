@@ -55,7 +55,7 @@ std::optional<DragOperation> DragController::dragOperation(const DragData& dragD
 
 bool DragController::isCopyKeyDown(const DragData&)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: GetAsyncKeyState (USER32) is desktop-only; v0 never copies.
     return false;
 #else

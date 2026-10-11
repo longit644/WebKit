@@ -623,3 +623,4 @@ TextStream& operator<<(TextStream& ts, const ImageBuffer& imageBuffer)
 }
 
 } // namespace WebCore
+

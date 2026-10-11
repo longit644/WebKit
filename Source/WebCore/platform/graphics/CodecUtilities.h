@@ -32,3 +32,4 @@ namespace WebCore {
 WEBCORE_EXPORT String humanReadableStringFromCodecString(const String&);
 
 }
+

@@ -266,3 +266,4 @@ bool Font::enableAntialiasing(FontSmoothingMode smoothingMode) const
 }
 
 } // namespace WebCore
+

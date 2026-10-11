@@ -143,3 +143,4 @@ constexpr uint32_t PixelBuffer::bytesPerPixel(PixelFormat pixelFormat)
 }
 
 } // namespace WebCore
+

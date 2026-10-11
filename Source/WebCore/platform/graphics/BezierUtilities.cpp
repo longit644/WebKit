@@ -258,3 +258,4 @@ Vector<BezierSegment> trimBezierToRect(const BezierSegment& curve, const FloatRe
 }
 
 } // namespace WebCore
+

@@ -60,3 +60,4 @@ sk_sp<SkShader> Pattern::createPlatformPattern(const SkSamplingOptions& sampling
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

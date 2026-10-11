@@ -121,3 +121,4 @@ void ClipStack::applyIfNeeded()
 }
 
 } // namespace WebCore
+

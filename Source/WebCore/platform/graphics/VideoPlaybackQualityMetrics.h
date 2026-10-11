@@ -52,3 +52,4 @@ struct VideoPlaybackQualityMetrics {
 } // namespace WebCore
 
 #endif // ENABLE(VIDEO)
+

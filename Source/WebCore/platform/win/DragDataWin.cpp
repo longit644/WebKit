@@ -108,9 +108,9 @@ bool DragData::containsFiles() const
 
 unsigned DragData::numberOfFiles() const
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: HDROP/DragQueryFileW (shell32) are desktop-only; file
-    // drag is XAML-mediated on UWP (v0: none).
+    // drag is XAML-mediated on W10M (v0: none).
     return 0;
 #else
     if (!m_platformDragData)
@@ -138,7 +138,7 @@ Vector<String> DragData::asFilenames() const
 {
     Vector<String> result;
 
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: see numberOfFiles.
     return result;
 #else
@@ -217,3 +217,5 @@ bool DragData::shouldMatchStyleOnDrop() const
 }
 
 }
+
+

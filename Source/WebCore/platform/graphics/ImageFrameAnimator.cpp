@@ -203,3 +203,4 @@ void ImageFrameAnimator::dump(TextStream& ts) const
 }
 
 } // namespace WebCore
+

@@ -765,3 +765,4 @@ constexpr SRGBA<uint8_t> asSRGBA(PackedColor::ARGB color)
 }
 
 } // namespace WebCore
+

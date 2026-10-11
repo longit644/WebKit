@@ -66,3 +66,4 @@ private:
 SPECIALIZE_TYPE_TRAITS_BEGIN(WebCore::GraphicsLayerFilterAnimationValue)
     static bool isType(const WebCore::GraphicsLayerAnimationValue& value) { return value.isGraphicsLayerFilterAnimationValue(); }
 SPECIALIZE_TYPE_TRAITS_END()
+

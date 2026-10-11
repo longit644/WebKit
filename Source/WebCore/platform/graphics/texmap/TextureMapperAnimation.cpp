@@ -467,3 +467,4 @@ bool TextureMapperAnimations::hasRunningTransformAnimations() const
 } // namespace WebCore
 
 #endif // USE(TEXTURE_MAPPER)
+

@@ -126,3 +126,4 @@ inline void PathImpl::addSegment(PathSegment segment)
 }
 
 } // namespace WebCore
+

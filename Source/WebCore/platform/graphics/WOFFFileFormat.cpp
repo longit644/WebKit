@@ -316,3 +316,4 @@ bool convertWOFFToSfntIfNecessary(RefPtr<SharedBuffer>&)
 #endif // HAVE(WOFF_SUPPORT)
 
 } // namespace WebCore
+

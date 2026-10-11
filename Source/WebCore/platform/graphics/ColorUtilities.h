@@ -264,3 +264,4 @@ constexpr uint16_t fastDivideBy255(uint16_t value)
 }
 
 } // namespace WebCore
+

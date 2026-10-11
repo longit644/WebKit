@@ -70,3 +70,4 @@ RefPtr<NativeImage> ImageAdapter::nativeImageOfHBITMAP(HBITMAP)
 } // namespace WebCore
 
 #endif // PLATFORM(WIN)
+

@@ -76,3 +76,4 @@ WTF::TextStream& operator<<(TextStream& ts, const SourceBrush& brush)
 }
 
 } // namespace WebCore
+

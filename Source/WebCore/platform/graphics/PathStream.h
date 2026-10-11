@@ -108,3 +108,4 @@ private:
 SPECIALIZE_TYPE_TRAITS_BEGIN(WebCore::PathStream)
     static bool isType(const WebCore::PathImpl& pathImpl) { return pathImpl.isPathStream(); }
 SPECIALIZE_TYPE_TRAITS_END()
+

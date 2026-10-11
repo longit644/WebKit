@@ -188,3 +188,4 @@ template<typename T, TransferFunctionMode mode> T SRGBTransferFunction<T, mode>:
 }
 
 }
+

@@ -109,3 +109,4 @@ Color interpolateColors(ColorInterpolationMethod colorInterpolationMethod, Color
 }
 
 }
+

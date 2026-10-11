@@ -50,3 +50,4 @@ GraphicsContextSwitcher::GraphicsContextSwitcher(RefPtr<Filter>&& filter)
 }
 
 } // namespace WebCore
+

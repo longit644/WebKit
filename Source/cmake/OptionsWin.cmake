@@ -50,14 +50,14 @@ find_package(OpenSSL REQUIRED)
 find_package(PNG 1.6.34 REQUIRED)
 find_package(SQLite3 3.23.1 REQUIRED)
 find_package(ZLIB 1.2.11 REQUIRED)
-if (NOT WK_UWP)
-    # WebKitWebView: no libpsl on UWP (stubbed PublicSuffixStore, no PSL use).
+if (NOT WK_W10M)
+    # WebKitWebView: no libpsl on W10M (stubbed PublicSuffixStore, no PSL use).
     find_package(LibPSL 0.20.2 REQUIRED)
 endif ()
 find_package(WebP REQUIRED COMPONENTS demux)
 
-if (WK_UWP)
-    # WebKitWebView: UWP font stack is FreeType (never GDI).
+if (WK_W10M)
+    # WebKitWebView: W10M font stack is FreeType (never GDI).
     find_package(Freetype 2.9.0 REQUIRED)
     find_package(Fontconfig 2.13.0 REQUIRED)
 endif ()
@@ -125,7 +125,7 @@ SET_AND_EXPOSE_TO_BUILD(ENABLE_WEBDRIVER_MOUSE_INTERACTIONS ON)
 
 WEBKIT_OPTION_END()
 
-if (WK_UWP)
+if (WK_W10M)
     # Skia owns its font representation; FreeType remains its dependency, not
     # the separate WebCore Cairo/FreeType font implementation.
     if (USE_SKIA)
@@ -145,10 +145,10 @@ SET_AND_EXPOSE_TO_BUILD(USE_HARFBUZZ ON)
 SET_AND_EXPOSE_TO_BUILD(USE_OPENSSL ON)
 SET_AND_EXPOSE_TO_BUILD(USE_TEXTURE_MAPPER ON)
 SET_AND_EXPOSE_TO_BUILD(USE_THEME_ADWAITA ON)
-if (WK_UWP)
+if (WK_W10M)
     # WebKitWebView: the desktop MediaFoundation backend uses D3D9/GDI.
     # Excluding its sources alone is insufficient: MediaPlayer registers it
-    # through this feature guard. UWP media needs its own backend later.
+    # through this feature guard. W10M media needs its own backend later.
     SET_AND_EXPOSE_TO_BUILD(USE_MEDIA_FOUNDATION OFF)
 else ()
     SET_AND_EXPOSE_TO_BUILD(USE_MEDIA_FOUNDATION ${ENABLE_VIDEO})

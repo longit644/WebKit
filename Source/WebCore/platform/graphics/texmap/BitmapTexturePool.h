@@ -97,3 +97,4 @@ private:
 } // namespace WebCore
 
 #endif // USE(TEXTURE_MAPPER)
+

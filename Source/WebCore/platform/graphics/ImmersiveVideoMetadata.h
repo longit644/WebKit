@@ -153,3 +153,4 @@ struct LogArgument<WebCore::ImmersiveVideoMetadata> {
 };
 
 }
+

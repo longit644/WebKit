@@ -33,3 +33,4 @@ struct MediaPlayerClientIdentifierType;
 using MediaPlayerClientIdentifier = ObjectIdentifier<MediaPlayerClientIdentifierType>;
 
 } // namespace WebCore
+

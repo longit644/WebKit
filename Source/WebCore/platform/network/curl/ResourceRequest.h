@@ -85,3 +85,4 @@ template<> struct MarkableTraits<WebCore::ResourceRequest> {
 };
 
 } // namespace WTF
+

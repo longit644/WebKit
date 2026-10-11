@@ -178,3 +178,4 @@ static inline float scaleEmToUnits(float x, unsigned unitsPerEm)
 } // namespace WebCore
 
 #endif // FontMetrics_h
+

@@ -35,7 +35,7 @@
 
 namespace WebCore {
 
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
 // WebKitWebView: windowsx.h message crackers need USER32; spell out the two
 // used ones (LOWORD/HIWORD are always visible).
 #ifndef GET_X_LPARAM
@@ -55,7 +55,7 @@ namespace WebCore {
 static IntPoint positionForEvent(HWND hWnd, LPARAM lParam)
 {
     POINT point = {GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: ScreenToClient (USER32) is desktop-only.
     UNUSED_PARAM(hWnd);
 #else
@@ -77,7 +77,7 @@ static IntPoint globalPositionForEvent(HWND hWnd, LPARAM lParam)
 
 static int horizontalScrollChars()
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: SystemParametersInfo (USER32) is desktop-only; default.
     return 1;
 #else
@@ -90,7 +90,7 @@ static int horizontalScrollChars()
 
 static unsigned verticalScrollLines()
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: see horizontalScrollChars.
     return 3;
 #else
@@ -102,7 +102,7 @@ static unsigned verticalScrollLines()
 }
 
 PlatformWheelEvent::PlatformWheelEvent(HWND hWnd, WPARAM wParam, LPARAM lParam, bool isMouseHWheel)
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: GetKeyState (USER32) is desktop-only; Alt unknown here.
     : PlatformEvent(PlatformEvent::Type::Wheel, wParam & MK_SHIFT, wParam & MK_CONTROL, false, false, MonotonicTime::now())
 #else
@@ -143,3 +143,5 @@ PlatformWheelEvent::PlatformWheelEvent(HWND hWnd, WPARAM wParam, LPARAM lParam, 
 }
 
 }
+
+

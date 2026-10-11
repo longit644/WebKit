@@ -171,3 +171,5 @@ bool operator !=(BSTR a, const BString& b)
 }
 
 }
+
+

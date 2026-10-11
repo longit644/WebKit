@@ -35,7 +35,7 @@
 #include <wtf/Platform.h>
 #include <wtf/TZoneMallocInlines.h>
 
-#if PLATFORM(WIN) && !PLATFORM(UWP)
+#if PLATFORM(WIN) && !PLATFORM(W10M)
 #include <wtf/text/WTFString.h>
 #elif USE(CORE_TEXT)
 #include <CoreFoundation/CFBase.h>
@@ -74,7 +74,7 @@ public:
     WEBCORE_EXPORT static RefPtr<FontCustomPlatformData> create(SharedBuffer&, const String&);
     WEBCORE_EXPORT static RefPtr<FontCustomPlatformData> createMemorySafe(SharedBuffer&, const String&);
 
-#if PLATFORM(WIN) && USE(CAIRO) && !PLATFORM(UWP)
+#if PLATFORM(WIN) && USE(CAIRO) && !PLATFORM(W10M)
     FontCustomPlatformData(const String& name, FontPlatformData::CreationData&&);
 #elif USE(CORE_TEXT)
     FontCustomPlatformData(CTFontDescriptorRef fontDescriptor, FontPlatformData::CreationData&& creationData)
@@ -104,7 +104,7 @@ public:
     static bool supportsFormat(const String&);
     static bool NODELETE supportsTechnology(const FontTechnology&);
 
-#if PLATFORM(WIN) && USE(CAIRO) && !PLATFORM(UWP)
+#if PLATFORM(WIN) && USE(CAIRO) && !PLATFORM(W10M)
     String name;
 #elif USE(CORE_TEXT)
     RetainPtr<CTFontDescriptorRef> fontDescriptor;
@@ -148,3 +148,4 @@ inline bool computeSyntheticItalic(bool hasSlopeVariationAxis, const FontDescrip
 }
 
 } // namespace WebCore
+

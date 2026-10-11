@@ -68,3 +68,4 @@ WEBCORE_EXPORT FramesPerSecond preferredFramesPerSecondFromInterval(Seconds);
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, const OptionSet<ThrottlingReason>&);
 
 } // namespace WebCore
+

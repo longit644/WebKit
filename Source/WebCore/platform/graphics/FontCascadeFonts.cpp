@@ -638,3 +638,4 @@ TextStream& operator<<(TextStream& ts, const FontCascadeFonts& fontCascadeFonts)
 }
 
 } // namespace WebCore
+

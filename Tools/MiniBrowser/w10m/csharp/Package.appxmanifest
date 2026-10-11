@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" IgnorableNamespaces="uap mp">
+  <Identity Name="WebKitProbe.MiniBrowser" Publisher="CN=WebKitWebView" Version="1.0.0.1" ProcessorArchitecture="arm" />
+  <mp:PhoneIdentity PhoneProductId="D4E5F6A7-B8C9-4D0E-A1B2-C3D4E5F6A7B8" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
+  <Properties>
+    <DisplayName>MiniBrowser</DisplayName>
+    <PublisherDisplayName>WebKitWebView</PublisherDisplayName>
+    <Logo>Assets\tile50.png</Logo>
+  </Properties>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.15063.0" MaxVersionTested="10.0.19041.0" />
+    <PackageDependency Name="Microsoft.VCLibs.140.00" MinVersion="14.0.0.0" Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US" />
+  </Dependencies>
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+  <Applications>
+    <Application Id="App" Executable="WebKitMiniBrowser.exe" EntryPoint="WebKitMiniBrowser.App">
+      <uap:VisualElements DisplayName="MiniBrowser" Description="Windows 10 Mobile WebKit MiniBrowser" BackgroundColor="#EDF3FA" Square150x150Logo="Assets\tile150.png" Square44x44Logo="Assets\tile44.png" />
+    </Application>
+  </Applications>
+  <Extensions>
+    <Extension Category="windows.activatableClass.inProcessServer">
+      <InProcessServer>
+        <Path>WebKit.dll</Path>
+        <ActivatableClass ActivatableClassId="WebKit.WebKitWebView" ThreadingModel="both" />
+        <ActivatableClass ActivatableClassId="WebKit.WebKitWebViewOptions" ThreadingModel="both" />
+      </InProcessServer>
+    </Extension>
+  </Extensions>
+  <Capabilities>
+    <Capability Name="internetClient" />
+  </Capabilities>
+</Package>

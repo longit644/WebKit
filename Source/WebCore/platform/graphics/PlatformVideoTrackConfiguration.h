@@ -49,3 +49,4 @@ struct PlatformVideoTrackConfiguration : PlatformTrackConfiguration {
 }
 
 #endif
+

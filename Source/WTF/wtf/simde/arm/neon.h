@@ -105337,7 +105337,7 @@ simde_mm_pause (void) {
     #endif
   #elif defined(SIMDE_ARCH_ARM_NEON)
     #if defined(_MSC_VER)
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
       // WebKitWebView: SIMDE_ARM64_BARRIER_SY only exists in the ARM64 branch;
       // 32-bit ARM defines SIMDE_ARM_BARRIER_SY (same value, 0xF).
       __isb(SIMDE_ARM_BARRIER_SY);
@@ -152300,3 +152300,4 @@ HEDLEY_DIAGNOSTIC_POP
 
 #endif /* SIMDE_ARM_NEON_H */
 /* :: End simde/arm/neon.h :: */
+

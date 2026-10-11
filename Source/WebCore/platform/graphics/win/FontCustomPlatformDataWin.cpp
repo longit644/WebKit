@@ -114,3 +114,4 @@ FontCustomPlatformSerializedData FontCustomPlatformData::serializedData() const
 } // namespace WebCore
 
 #endif // PLATFORM(WIN)
+

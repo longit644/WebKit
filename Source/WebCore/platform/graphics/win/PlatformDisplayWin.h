@@ -50,3 +50,4 @@ SPECIALIZE_TYPE_TRAITS_PLATFORM_DISPLAY(PlatformDisplayWin, Windows)
 #endif // PLATFORM(WIN)
 
 #endif // PlatformDisplayWin
+

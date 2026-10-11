@@ -142,7 +142,7 @@ private:
     GLenum textureFormat() const;
     void createTexture();
     void allocateTexture();
-#if PLATFORM(UWP) && USE(SKIA)
+#if PLATFORM(W10M) && USE(SKIA)
     void releaseSkiaSurface();
 #endif
 #if USE(GBM)
@@ -162,7 +162,7 @@ private:
     ClipStack m_clipStack;
     RefPtr<const FilterOperation> m_filterOperation;
     PixelFormat m_pixelFormat { PixelFormat::RGBA8 };
-#if PLATFORM(UWP) && USE(SKIA)
+#if PLATFORM(W10M) && USE(SKIA)
     sk_sp<SkSurface> m_skiaSurface;
     sk_sp<GrDirectContext> m_skiaPaintContext;
     GLContext* m_skiaNativeContext { nullptr };
@@ -174,3 +174,4 @@ private:
 };
 
 } // namespace WebCore
+

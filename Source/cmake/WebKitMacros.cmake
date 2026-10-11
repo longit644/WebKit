@@ -156,16 +156,16 @@ function(WEBKIT_ADD_PREFIX_HEADER _target _header)
     string(JOIN "," _pch_genex_langs ${_PCH_PREFIX_LANGUAGES})
     target_precompile_headers(${_target} PRIVATE
         "$<$<COMPILE_LANGUAGE:${_pch_genex_langs}>:${CMAKE_CURRENT_SOURCE_DIR}/${_header}>")
-    if (WK_UWP)
+    if (WK_W10M)
         # clang-cl force-includes the compatibility header through a short path.
         # Track its canonical path explicitly so changing it rebuilds the PCH
         # producer, rather than leaving consumers with a stale .pch side file.
-        get_target_property(_uwp_pch_bin_dir ${_target} BINARY_DIR)
-        foreach (_uwp_pch_lang ${_PCH_PREFIX_LANGUAGES})
-            _WEBKIT_PCH_PATHS_FOR_LANGUAGE(${_uwp_pch_lang} _uwp_src_ext _uwp_stub_ext _uwp_pch_stem)
+        get_target_property(_w10m_pch_bin_dir ${_target} BINARY_DIR)
+        foreach (_w10m_pch_lang ${_PCH_PREFIX_LANGUAGES})
+            _WEBKIT_PCH_PATHS_FOR_LANGUAGE(${_w10m_pch_lang} _w10m_src_ext _w10m_stub_ext _w10m_pch_stem)
             # CMake's Windows producer is cmake_pch.cxx (or .c), not .hxx.cxx.
-            set_property(SOURCE "${_uwp_pch_bin_dir}/CMakeFiles/${_target}.dir/cmake_pch.${_uwp_stub_ext}"
-                APPEND PROPERTY OBJECT_DEPENDS "${CMAKE_SOURCE_DIR}/Tools/uwp/toolchain/uwp-desktop-apis.h")
+            set_property(SOURCE "${_w10m_pch_bin_dir}/CMakeFiles/${_target}.dir/cmake_pch.${_w10m_stub_ext}"
+                APPEND PROPERTY OBJECT_DEPENDS "${CMAKE_SOURCE_DIR}/Tools/w10m/toolchain/w10m-desktop-apis.h")
         endforeach ()
     endif ()
     _WEBKIT_PCH_STUB_NO_TIMESTAMP(${_target} ${_PCH_PREFIX_LANGUAGES})
@@ -665,11 +665,11 @@ macro(WEBKIT_FRAMEWORK _target)
     _WEBKIT_TARGET(${_target})
     _WEBKIT_TARGET_ANALYZE(${_target})
 
-    if (WK_UWP)
+    if (WK_W10M)
         # The ARM runtime archive is passed in linker flags, so CMake cannot
         # infer this dependency. Relink when its ABI adapters are rebuilt.
         set_property(TARGET ${_target} APPEND PROPERTY LINK_DEPENDS
-            "${CMAKE_SOURCE_DIR}/Tools/uwp/lib/arm-crtstart.lib")
+            "${CMAKE_SOURCE_DIR}/Tools/w10m/lib/arm-crtstart.lib")
     endif ()
 
     # Apply PGO compile flags only to library targets (not executables) to avoid duplicate symbol errors

@@ -12,47 +12,47 @@ elseif (USE_SKIA)
     include(platform/Skia.cmake)
 endif ()
 
-if (WK_UWP)
-    # WebKitWebView: FreeType font stack (never GDI on UWP).
+if (WK_W10M)
+    # WebKitWebView: FreeType font stack (never GDI on W10M).
     if (USE_CAIRO)
         include(platform/FreeType.cmake)
     else ()
         list(APPEND WebCore_LIBRARIES Fontconfig::Fontconfig Freetype::Freetype)
     endif ()
-    list(APPEND WebCore_SOURCES platform/uwp/ClipboardUWP.cpp)
-    list(APPEND WebCore_PRIVATE_FRAMEWORK_HEADERS platform/uwp/ClipboardUWP.h)
-    list(APPEND WebCore_PRIVATE_INCLUDE_DIRECTORIES "${WEBCORE_DIR}/platform/uwp")
-    list(APPEND WebCore_SOURCES platform/uwp/BackForwardClientUWP.cpp)
-    list(APPEND WebCore_SOURCES platform/uwp/CertificateExceptionStoreUWP.cpp)
-    list(APPEND WebCore_SOURCES platform/uwp/ChromeClientUWP.cpp)
-    list(APPEND WebCore_SOURCES platform/uwp/DragImageUWP.cpp)
-    list(APPEND WebCore_SOURCES platform/uwp/EngineUWP.cpp)
-    list(APPEND WebCore_SOURCES platform/uwp/FirstPageUWP.cpp)
-    list(APPEND WebCore_SOURCES platform/uwp/FrameLoaderClientUWP.cpp)
-    list(APPEND WebCore_SOURCES platform/uwp/PageUWP.cpp)
-    # WKUWP V1 discovery export, capability mask and build identity (task 3.2).
-    list(APPEND WebCore_SOURCES platform/uwp/WKUWPEngineAPI.cpp)
+    list(APPEND WebCore_SOURCES platform/w10m/ClipboardW10M.cpp)
+    list(APPEND WebCore_PRIVATE_FRAMEWORK_HEADERS platform/w10m/ClipboardW10M.h)
+    list(APPEND WebCore_PRIVATE_INCLUDE_DIRECTORIES "${WEBCORE_DIR}/platform/w10m")
+    list(APPEND WebCore_SOURCES platform/w10m/BackForwardClientW10M.cpp)
+    list(APPEND WebCore_SOURCES platform/w10m/CertificateExceptionStoreW10M.cpp)
+    list(APPEND WebCore_SOURCES platform/w10m/ChromeClientW10M.cpp)
+    list(APPEND WebCore_SOURCES platform/w10m/DragImageW10M.cpp)
+    list(APPEND WebCore_SOURCES platform/w10m/EngineW10M.cpp)
+    list(APPEND WebCore_SOURCES platform/w10m/FirstPageW10M.cpp)
+    list(APPEND WebCore_SOURCES platform/w10m/FrameLoaderClientW10M.cpp)
+    list(APPEND WebCore_SOURCES platform/w10m/PageW10M.cpp)
+    # WKW10M V1 discovery export, capability mask and build identity (task 3.2).
+    list(APPEND WebCore_SOURCES platform/w10m/WKW10MEngineAPI.cpp)
     # Configured engine service forwards; standalone negotiation tests have no WebCore dependency.
-    set_source_files_properties(platform/uwp/WKUWPEngineAPI.cpp PROPERTIES COMPILE_DEFINITIONS WKUWP_OWNER_SERVICE_FORWARD=1)
+    set_source_files_properties(platform/w10m/WKW10MEngineAPI.cpp PROPERTIES COMPILE_DEFINITIONS WKW10M_OWNER_SERVICE_FORWARD=1)
     # The frozen shared ABI headers are included by their own names, matching the
     # dual-compiler layout check, so only their directory is added here.
-    list(APPEND WebCore_PRIVATE_INCLUDE_DIRECTORIES "${WEBKIT_DIR}/Shared/uwp")
-    list(APPEND WebCore_SOURCES platform/uwp/LoaderStrategyUWP.cpp)
-    list(APPEND WebCore_SOURCES platform/uwp/NavigationControllerUWP.cpp)
-    list(APPEND WebCore_SOURCES platform/uwp/ResourceLoadUWP.cpp)
-    list(APPEND WebCore_SOURCES platform/uwp/ResourcePolicyUWP.cpp)
-    list(APPEND WebCore_SOURCES platform/uwp/StorageSessionProviderUWP.cpp)
-    list(APPEND WebCore_SOURCES platform/uwp/TextureMapperCompositorUWP.cpp)
-    list(APPEND WebCore_SOURCES platform/uwp/TlsPolicyUWP.cpp)
-    list(APPEND WebCore_SOURCES platform/uwp/TransientPageUWP.cpp)
-    # ARM32 clang-cl's include dependency output omits quoted UWP headers
-    # (proven by stale EngineUWP/ChromeClient/Transient objects crashing at
-    # startup). Every UWP translation unit therefore rebuilds when any UWP
+    list(APPEND WebCore_PRIVATE_INCLUDE_DIRECTORIES "${WEBKIT_DIR}/Shared/w10m")
+    list(APPEND WebCore_SOURCES platform/w10m/LoaderStrategyW10M.cpp)
+    list(APPEND WebCore_SOURCES platform/w10m/NavigationControllerW10M.cpp)
+    list(APPEND WebCore_SOURCES platform/w10m/ResourceLoadW10M.cpp)
+    list(APPEND WebCore_SOURCES platform/w10m/ResourcePolicyW10M.cpp)
+    list(APPEND WebCore_SOURCES platform/w10m/StorageSessionProviderW10M.cpp)
+    list(APPEND WebCore_SOURCES platform/w10m/TextureMapperCompositorW10M.cpp)
+    list(APPEND WebCore_SOURCES platform/w10m/TlsPolicyW10M.cpp)
+    list(APPEND WebCore_SOURCES platform/w10m/TransientPageW10M.cpp)
+    # ARM32 clang-cl's include dependency output omits quoted W10M headers
+    # (proven by stale EngineW10M/ChromeClient/Transient objects crashing at
+    # startup). Every W10M translation unit therefore rebuilds when any W10M
     # header changes; the set is small and the cost is one relink.
-    file(GLOB UWP_REBUILD_SOURCES "${WEBCORE_DIR}/platform/uwp/*.cpp")
-    file(GLOB UWP_REBUILD_HEADERS "${WEBCORE_DIR}/platform/uwp/*.h")
-    set_source_files_properties(${UWP_REBUILD_SOURCES} PROPERTIES OBJECT_DEPENDS "${UWP_REBUILD_HEADERS}")
-    list(APPEND WebCore_PRIVATE_FRAMEWORK_HEADERS platform/uwp/DragImageUWP.h)
+    file(GLOB W10M_REBUILD_SOURCES "${WEBCORE_DIR}/platform/w10m/*.cpp")
+    file(GLOB W10M_REBUILD_HEADERS "${WEBCORE_DIR}/platform/w10m/*.h")
+    set_source_files_properties(${W10M_REBUILD_SOURCES} PROPERTIES OBJECT_DEPENDS "${W10M_REBUILD_HEADERS}")
+    list(APPEND WebCore_PRIVATE_FRAMEWORK_HEADERS platform/w10m/DragImageW10M.h)
 endif ()
 
 if (USE_DAWN)
@@ -283,7 +283,7 @@ if (USE_SKIA)
     list(APPEND WebCore_PRIVATE_LIBRARIES ${SHARPYUV_LIBS})
 endif ()
 
-if (WK_UWP)
+if (WK_W10M)
     # WebKitWebView: no media in v0 (D3D9 MediaFoundation is desktop-only).
     # (Placed last: the files are appended in blocks above.)
     list(REMOVE_ITEM WebCore_SOURCES

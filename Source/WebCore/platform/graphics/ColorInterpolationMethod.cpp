@@ -156,3 +156,4 @@ TextStream& operator<<(TextStream& ts, const ColorInterpolationMethod& method)
 }
 
 } // namespace WebCore
+

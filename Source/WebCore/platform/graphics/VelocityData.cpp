@@ -63,3 +63,4 @@ TextStream& operator<<(TextStream& ts, const VelocityData& velocityData)
 }
 
 } // namespace WebCore
+

@@ -127,3 +127,4 @@ TextStream& operator<<(TextStream&, const FloatPolygonEdge&);
 #endif
 
 } // namespace WebCore
+

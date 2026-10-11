@@ -255,3 +255,4 @@ std::pair<FloatPointGraph, Vector<FloatPointGraph::Polygon>> FloatPointGraph::po
 }
 
 } // namespace WebCore
+

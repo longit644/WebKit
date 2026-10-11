@@ -234,7 +234,7 @@
 #define USE_GLIB_EVENT_LOOP 1
 #elif OS(WINDOWS)
 /* Use Windows message pump abstraction. */
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
 /* WebKitWebView: no HWND message pump in AppContainer; generic loop instead. */
 #define USE_GENERIC_EVENT_LOOP 1
 #else

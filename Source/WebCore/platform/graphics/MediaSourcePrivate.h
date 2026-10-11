@@ -255,3 +255,4 @@ struct LogArgument<WebCore::MediaSourcePrivate::EndOfStreamStatus> {
 } // namespace WTF
 
 #endif
+

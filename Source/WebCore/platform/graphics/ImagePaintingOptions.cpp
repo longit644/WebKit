@@ -93,3 +93,4 @@ TextStream& operator<<(TextStream& ts, ImageOrientation::Orientation orientation
 }
 
 }
+

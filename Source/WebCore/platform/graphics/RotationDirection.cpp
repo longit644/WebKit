@@ -44,3 +44,4 @@ TextStream& operator<<(TextStream& ts, RotationDirection direction)
 }
 
 } // namespace WebCore
+

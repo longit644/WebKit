@@ -28,7 +28,7 @@
 #include <wtf/Lock.h>
 #include <wtf/Noncopyable.h>
 
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
 // WebKitWebView: dbghelp.h needs the desktop partition; v0 captures stack
 // addresses only, no symbol resolution (inline false-stub, no .cpp body).
 namespace WTF {
@@ -54,4 +54,6 @@ WTF_EXPORT_PRIVATE bool SymFromAddress(HANDLE hProc, DWORD64 address, DWORD64* d
 
 } // namespace WTF
 
-#endif // PLATFORM(UWP)
+#endif // PLATFORM(W10M)
+
+

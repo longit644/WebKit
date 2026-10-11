@@ -96,3 +96,4 @@ void MediaPlaybackTargetPicker::invalidatePlaybackTargets()
 } // namespace WebCore
 
 #endif // ENABLE(WIRELESS_PLAYBACK_TARGET)
+

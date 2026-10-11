@@ -70,3 +70,4 @@ template<> struct HashTraits<WebCore::TextRun> : GenericHashTraits<WebCore::Text
 };
 
 } // namespace WTF
+

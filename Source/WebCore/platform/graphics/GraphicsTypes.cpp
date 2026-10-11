@@ -266,3 +266,4 @@ TextStream& operator<<(TextStream& ts, TextDrawingMode textDrawingMode)
 }
 
 } // namespace WebCore
+

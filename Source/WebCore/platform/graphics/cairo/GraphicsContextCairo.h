@@ -42,7 +42,7 @@ public:
     explicit GraphicsContextCairo(cairo_surface_t*);
 
 #if PLATFORM(WIN)
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     GraphicsContextCairo(HDC, bool hasAlpha = false) = delete;
 #else
     GraphicsContextCairo(HDC, bool hasAlpha = false); // FIXME: To be removed.

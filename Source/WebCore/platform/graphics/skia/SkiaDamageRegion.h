@@ -214,3 +214,4 @@ inline void drawImageRectRestricted(SkCanvas& canvas, const SkiaDamageRegion* da
 } // namespace WebCore
 
 #endif // USE(COORDINATED_GRAPHICS) && USE(SKIA)
+

@@ -177,3 +177,4 @@ private:
 TextStream& operator<<(TextStream&, ImageOrientation::Orientation);
 
 } // namespace WebCore
+

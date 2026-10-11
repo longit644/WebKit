@@ -496,3 +496,4 @@ std::optional<Color> Image::singlePixelSolidColor() const
 }
 
 } // namespace WebCore
+

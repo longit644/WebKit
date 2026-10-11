@@ -33,13 +33,13 @@
 #include "GraphicsContextCairo.h"
 #include "Path.h"
 #include "RefPtrCairo.h"
-#if !PLATFORM(UWP)
+#if !PLATFORM(W10M)
 #include <cairo-win32.h>
 #endif
 
 namespace WebCore {
 
-#if !PLATFORM(UWP)
+#if !PLATFORM(W10M)
 static RefPtr<cairo_t> createCairoContextWithHDC(HDC hdc)
 {
     // Put the HDC In advanced mode so it will honor affine transforms.
@@ -79,7 +79,7 @@ GraphicsContextCairo::GraphicsContextCairo(GraphicsContextCairo* platformContext
 {
 }
 
-#if !PLATFORM(UWP)
+#if !PLATFORM(W10M)
 static void setRGBABitmapAlpha(unsigned char* bytes, size_t length, unsigned char level)
 {
     for (size_t i = 0; i < length; i += 4)
@@ -140,7 +140,7 @@ void GraphicsContext::releaseWindowsContext(HDC hdc, const IntRect& dstRect, boo
 #else
 void GraphicsContext::releaseWindowsContext(HDC hdc, const IntRect& dstRect, bool supportAlphaBlend)
 {
-    // WebKitWebView: getWindowsContext returns nullptr on UWP. Rendering
+    // WebKitWebView: getWindowsContext returns nullptr on W10M. Rendering
     // uses the ordinary Cairo context, never a Windows device context.
     RELEASE_ASSERT(!hdc);
     UNUSED_PARAM(dstRect);
@@ -151,3 +151,4 @@ void GraphicsContext::releaseWindowsContext(HDC hdc, const IntRect& dstRect, boo
 } // namespace WebCore
 
 #endif // PLATFORM(WIN) && USE(CAIRO)
+

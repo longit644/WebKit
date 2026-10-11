@@ -47,3 +47,4 @@ TextStream& operator<<(TextStream& ts, const LayoutPoint& p)
 }
 
 } // namespace WebCore
+

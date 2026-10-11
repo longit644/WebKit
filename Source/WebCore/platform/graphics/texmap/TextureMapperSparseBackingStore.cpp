@@ -88,3 +88,4 @@ void TextureMapperSparseBackingStore::removeTile(const TileIndex& index)
 } // namespace WebCore
 
 #endif // USE(GRAPHICS_LAYER_WC)
+

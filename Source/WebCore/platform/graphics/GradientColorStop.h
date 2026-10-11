@@ -47,3 +47,4 @@ inline void add(Hasher& hasher, const GradientColorStop& stop)
 TextStream& operator<<(TextStream&, const GradientColorStop&);
 
 } // namespace WebCore
+

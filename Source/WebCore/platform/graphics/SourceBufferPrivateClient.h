@@ -115,3 +115,4 @@ struct LogArgument<WebCore::SourceBufferEvictionData> {
 } // namespace WTF
 
 #endif // ENABLE(MEDIA_SOURCE)
+

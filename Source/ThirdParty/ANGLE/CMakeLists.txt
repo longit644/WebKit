@@ -11,7 +11,7 @@ elseif (WIN32)
     set(is_win TRUE)
     set(angle_enable_d3d9 TRUE)
     set(angle_enable_d3d11 TRUE)
-    if (WK_UWP)
+    if (WK_W10M)
         # WebKitWebView: UWP/Store build; use the WinRT native-window sources.
         set(angle_is_winuwp TRUE)
     else ()

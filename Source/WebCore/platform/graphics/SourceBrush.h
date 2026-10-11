@@ -93,3 +93,4 @@ inline bool operator==(const SourceBrush& a, const SourceBrush& b)
 WTF::TextStream& operator<<(WTF::TextStream&, const SourceBrush&);
 
 } // namespace WebCore
+

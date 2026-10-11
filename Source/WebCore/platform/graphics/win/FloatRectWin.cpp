@@ -37,3 +37,4 @@ FloatRect::FloatRect(const RECT& r)
 }
 
 }
+

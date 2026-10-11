@@ -999,3 +999,4 @@ CURLcode CurlHandle::receive(uint8_t* buffer, size_t bufferSize, size_t& bytesRe
 }
 
 #endif
+

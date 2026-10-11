@@ -228,3 +228,4 @@ template<> struct LogArgument<WebCore::IntSize> {
 };
 
 }
+

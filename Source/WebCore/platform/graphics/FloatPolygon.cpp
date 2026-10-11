@@ -172,3 +172,4 @@ TextStream& operator<<(TextStream& stream, const FloatPolygonEdge& edge)
 #endif
 
 } // namespace WebCore
+

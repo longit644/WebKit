@@ -38,3 +38,4 @@ enum class ShouldInterpolate : bool {
 };
 
 } // namespace WebCore
+

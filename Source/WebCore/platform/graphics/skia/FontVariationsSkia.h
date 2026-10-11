@@ -49,3 +49,4 @@ using FontVariationDefaultsMap = HashMap<FontTag, FontVariationDefaults, FourCha
 FontVariationDefaultsMap defaultFontVariationValues(const SkTypeface&);
 
 } // namespace WebCore
+

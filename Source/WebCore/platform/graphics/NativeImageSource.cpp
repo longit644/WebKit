@@ -45,3 +45,4 @@ void NativeImageSource::dump(TextStream& ts) const
 }
 
 } // namespace WebCore
+

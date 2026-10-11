@@ -65,3 +65,4 @@ ResourceRequestBase::RequestData ResourceRequest::getRequestDataToSerialize() co
 }
 
 #endif
+

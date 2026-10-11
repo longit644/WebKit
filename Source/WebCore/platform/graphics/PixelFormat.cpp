@@ -62,3 +62,4 @@ TextStream& operator<<(TextStream& ts, PixelFormat pixelFormat)
 }
 
 }
+

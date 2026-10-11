@@ -269,7 +269,7 @@ RefPtr<FontMemoryResource> renameAndActivateFont(const SharedBuffer& fontData, c
     if (!renameFont(fontData, fontName, rewrittenFontData))
         return { };
 
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: AddFontMemResourceEx is GDI (desktop-only); FreeType
     // memory faces need no OS registration, so report success with a null
     // resource (callers only need the renamed bytes, already in hand).
@@ -290,3 +290,4 @@ RefPtr<FontMemoryResource> renameAndActivateFont(const SharedBuffer& fontData, c
 }
 
 }
+

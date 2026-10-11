@@ -42,3 +42,4 @@ void GeneratedImage::computeIntrinsicDimensions(float& intrinsicWidth, float& in
 }
 
 }
+

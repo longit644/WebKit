@@ -60,3 +60,4 @@ public:
 } // namespace WebCore
 
 #endif // USE(COORDINATED_GRAPHICS)
+

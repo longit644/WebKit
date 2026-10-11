@@ -2376,3 +2376,4 @@ String convertImmersiveVideoMetadataToString(const ImmersiveVideoMetadata& metad
 } // namespace WebCore
 
 #endif // ENABLE(VIDEO)
+

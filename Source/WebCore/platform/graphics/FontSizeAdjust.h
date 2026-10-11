@@ -110,3 +110,4 @@ inline TextStream& operator<<(TextStream& ts, const FontSizeAdjust& fontSizeAdju
 }
 
 }
+

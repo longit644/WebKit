@@ -40,3 +40,4 @@ String tlsCipherName(const SSL*);
 WEBCORE_EXPORT String canonicalizeIPv6Address(std::span<uint8_t, 16> data);
 
 } // namespace OpenSSL
+

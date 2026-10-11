@@ -44,3 +44,4 @@ TextStream& operator<<(TextStream& ts, AlphaPremultiplication premultiplication)
 }
 
 }
+

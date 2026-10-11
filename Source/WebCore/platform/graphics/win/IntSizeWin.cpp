@@ -44,3 +44,4 @@ IntSize::operator SIZE() const
 }
 
 }
+

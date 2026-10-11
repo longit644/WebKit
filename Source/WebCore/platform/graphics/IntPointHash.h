@@ -44,3 +44,4 @@ template<> struct DefaultHash<WebCore::IntPoint> : IntPointHash { };
 }
 
 #endif
+

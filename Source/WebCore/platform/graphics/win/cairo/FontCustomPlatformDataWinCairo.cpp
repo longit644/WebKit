@@ -69,3 +69,4 @@ FontPlatformData FontCustomPlatformData::fontPlatformData(const FontDescription&
 } // namespace WebCore
 
 #endif // PLATFORM(WIN) && USE(CAIRO)
+

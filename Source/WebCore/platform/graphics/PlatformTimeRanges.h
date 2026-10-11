@@ -169,3 +169,4 @@ template<> struct LogArgument<WebCore::PlatformTimeRanges> {
 };
 
 } // namespace WTF
+

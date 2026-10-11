@@ -76,3 +76,4 @@ SRGBA<uint8_t> unpremultiplied(SRGBA<uint8_t> color)
 }
 
 } // namespace WebCore
+

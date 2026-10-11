@@ -416,3 +416,4 @@ bool SkiaPaintingEngine::canUseDDL() const
 } // namespace WebCore
 
 #endif // USE(COORDINATED_GRAPHICS) && USE(SKIA)
+

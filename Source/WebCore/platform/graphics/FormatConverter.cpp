@@ -1809,3 +1809,4 @@ ALWAYS_INLINE void FormatConverter::convert()
 } // namespace WebCore
 
 #endif // ENABLE(WEBGL)
+

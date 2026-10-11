@@ -36,7 +36,7 @@
 
 namespace WebCore {
 
-#if !PLATFORM(UWP)
+#if !PLATFORM(W10M)
 static void fillWithClearColor(HBITMAP bitmap)
 {
     BITMAP bmpInfo;
@@ -48,8 +48,8 @@ static void fillWithClearColor(HBITMAP bitmap)
 
 HDC GraphicsContext::getWindowsContext(const IntRect& dstRect, bool supportAlphaBlend)
 {
-#if PLATFORM(UWP)
-    // WebKitWebView: GDI DIB sections/DCs don't exist on UWP; Cairo image
+#if PLATFORM(W10M)
+    // WebKitWebView: GDI DIB sections/DCs don't exist on W10M; Cairo image
     // surfaces are the only backing store. Callers must handle nullptr.
     UNUSED_PARAM(dstRect);
     UNUSED_PARAM(supportAlphaBlend);
@@ -97,3 +97,5 @@ void GraphicsContext::releaseWindowsContext(HDC, const IntRect&, bool)
 #endif
 
 } // namespace WebCore
+
+

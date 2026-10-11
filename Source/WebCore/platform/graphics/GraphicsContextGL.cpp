@@ -655,3 +655,4 @@ RefPtr<Image> GraphicsContextGL::videoFrameToImage(VideoFrame& frame)
 } // namespace WebCore
 
 #endif // ENABLE(WEBGL)
+

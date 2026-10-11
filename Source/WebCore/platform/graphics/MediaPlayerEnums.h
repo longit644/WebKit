@@ -228,3 +228,4 @@ struct LogArgument<WebCore::MediaPlayerEnums::ViewportVisibility> {
 };
 
 }; // namespace WTF
+

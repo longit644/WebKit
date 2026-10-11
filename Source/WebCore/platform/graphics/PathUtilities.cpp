@@ -120,3 +120,4 @@ Path PathUtilities::pathWithShrinkWrappedRects(const Vector<FloatRect>& rects, c
 }
 
 } // namespace WebCore
+

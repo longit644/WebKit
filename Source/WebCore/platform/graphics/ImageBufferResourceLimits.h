@@ -39,3 +39,4 @@ struct ImageBufferResourceLimits {
 };
 
 } // namespace WebCore
+

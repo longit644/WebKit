@@ -56,3 +56,4 @@ Color::operator SkColor4f() const
 
 #endif // USE(SKIA)
 
+

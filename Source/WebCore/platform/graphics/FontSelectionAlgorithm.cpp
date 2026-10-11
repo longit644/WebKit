@@ -201,3 +201,4 @@ size_t FontSelectionAlgorithm::indexOfBestCapabilities()
 }
 
 }
+

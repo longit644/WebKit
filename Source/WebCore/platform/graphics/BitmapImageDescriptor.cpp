@@ -320,3 +320,4 @@ void BitmapImageDescriptor::dump(TextStream& ts) const
 }
 
 } // namespace WebCore
+

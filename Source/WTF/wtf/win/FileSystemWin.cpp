@@ -103,7 +103,7 @@ CString fileSystemRepresentation(const String& path)
 static String storageDirectory(DWORD pathIdentifier)
 {
     Vector<char16_t> buffer(MAX_PATH);
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: SHGetFolderPath/CSIDL need shell32 (desktop-only); use the
     // app temp dir as the v0 backing store (documented: the OS may evict it;
     // WinRT ApplicationData is the proper fix).
@@ -259,3 +259,5 @@ std::optional<uint32_t> volumeFileBlockSize(const String& path)
 
 } // namespace FileSystemImpl
 } // namespace WTF
+
+

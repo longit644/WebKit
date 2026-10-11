@@ -37,3 +37,4 @@ TextStream& operator<<(TextStream& ts, const GradientColorStops& stops)
 }
 
 } // namespace WebCore
+

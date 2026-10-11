@@ -125,3 +125,4 @@ template class TypedArrayPixelBuffer<PixelBuffer::Type::Float16Array, JSC::Float
 #endif
 
 } // namespace WebCore
+

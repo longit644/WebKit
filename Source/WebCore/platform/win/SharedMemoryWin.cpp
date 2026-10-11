@@ -38,7 +38,7 @@ RefPtr<SharedMemory> SharedMemory::allocate(size_t size)
         return nullptr;
 
     void* baseAddress =
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
         // WebKitWebView: MapViewOfFileEx (explicit base) is desktop-only;
         // nullptr base is exactly MapViewOfFile.
         ::MapViewOfFile(handle.get(), FILE_MAP_ALL_ACCESS, 0, 0, size);
@@ -107,3 +107,5 @@ auto SharedMemory::createHandle(Protection protection) -> std::optional<Handle>
 }
 
 } // namespace WebCore
+
+

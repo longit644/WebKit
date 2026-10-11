@@ -79,3 +79,4 @@ TextStream& operator<<(TextStream& ts, ContentsFormat contentsFormat)
 }
 
 } // namespace WebCore
+

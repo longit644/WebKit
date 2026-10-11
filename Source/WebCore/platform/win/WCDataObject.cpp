@@ -275,9 +275,9 @@ STDMETHODIMP WCDataObject::SetData(FORMATETC* pformatetc, STGMEDIUM* pmedium, BO
 
 void WCDataObject::CopyMedium(STGMEDIUM* pMedDest, STGMEDIUM* pMedSrc, FORMATETC* pFmtSrc)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: OleDuplicateData (ole32) is desktop-only; duplicate the
-    // HGLOBAL case by hand (only memory blobs exist on UWP), null the rest.
+    // HGLOBAL case by hand (only memory blobs exist on W10M), null the rest.
     UNUSED_PARAM(pFmtSrc);
     switch(pMedSrc->tymed)
     {
@@ -394,3 +394,5 @@ void WCDataObject::clearData(CLIPFORMAT format)
 }
 
 }
+
+

@@ -329,3 +329,4 @@ TextStream& operator<<(TextStream& ts, const FloatQuad& quad)
 }
 
 } // namespace WebCore
+

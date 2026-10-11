@@ -38,7 +38,7 @@
 
 namespace WebCore {
 
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
 // WebKitWebView: USER32 monitor APIs (MonitorFromWindow, EnumDisplaySettings)
 // are desktop-only. v0 reports a fixed 950 XL logical rect; the M4 XAML layer
 // wires the real size later.
@@ -46,7 +46,7 @@ static const FloatRect defaultUwpScreenRect(0, 0, 480, 853);
 #endif
 
 // Returns info for the default monitor if widget is NULL
-#if !PLATFORM(UWP)
+#if !PLATFORM(W10M)
 static MONITORINFOEX monitorInfoForWidget(Widget* widget)
 {
     HWND window = widget ? widget->root()->hostWindow()->platformPageClient() : 0;
@@ -72,7 +72,7 @@ static DEVMODE deviceInfoForWidget(Widget* widget)
 
 int screenDepth(Widget* widget)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     UNUSED_PARAM(widget);
     return 24;
 #else
@@ -94,7 +94,7 @@ int screenDepthPerComponent(Widget* widget)
 
 bool screenIsMonochrome(Widget* widget)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     UNUSED_PARAM(widget);
     return false;
 #else
@@ -110,7 +110,7 @@ bool screenHasInvertedColors()
 
 FloatRect screenRect(Widget* widget)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     UNUSED_PARAM(widget);
     return defaultUwpScreenRect;
 #else
@@ -121,7 +121,7 @@ FloatRect screenRect(Widget* widget)
 
 FloatRect screenAvailableRect(Widget* widget)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     UNUSED_PARAM(widget);
     return defaultUwpScreenRect;
 #else
@@ -141,3 +141,5 @@ bool screenSupportsExtendedColor(Widget*)
 }
 
 } // namespace WebCore
+
+

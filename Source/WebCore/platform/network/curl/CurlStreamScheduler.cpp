@@ -192,3 +192,4 @@ void CurlStreamScheduler::workerThread()
 }
 
 #endif
+

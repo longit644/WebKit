@@ -104,3 +104,4 @@ TextStream& operator<<(TextStream& ts, ColorSpace colorSpace)
 }
 
 }
+

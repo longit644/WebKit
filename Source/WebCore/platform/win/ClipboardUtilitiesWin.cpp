@@ -44,7 +44,7 @@
 
 namespace WebCore {
 
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
 // WebKitWebView: COM memory media remain useful for in-process transfers;
 // their ownership does not require the desktop OLE clipboard transport.
 static void ReleaseStgMedium(STGMEDIUM* medium)
@@ -53,7 +53,7 @@ static void ReleaseStgMedium(STGMEDIUM* medium)
 }
 #endif
 
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
 // WebKitWebView: shell clipboard format names (shlobj.h is desktop-only);
 // real values, only passed to the stubbed registerClipboardFormat above.
 #define CFSTR_FILEDESCRIPTOR L"FileGroupDescriptorW"
@@ -77,7 +77,7 @@ static bool getDataMapItem(const DragDataMap* dataObject, FORMATETC* format, Str
 
 static bool getWebLocData(IDataObject* dataObject, String& url, String* title) 
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: HDROP/shell .url parsing is desktop-only (v0: no-op).
     UNUSED_PARAM(dataObject);
     UNUSED_PARAM(url);
@@ -124,7 +124,7 @@ exit:
 
 static bool getWebLocData(const DragDataMap* dataObject, String& url, String* title) 
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: see above.
     UNUSED_PARAM(dataObject);
     UNUSED_PARAM(url);
@@ -169,7 +169,7 @@ static String extractURL(const String& url, String* title)
 
 static CLIPFORMAT registerClipboardFormat(LPCWSTR format)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: retain distinct format keys for in-process IDataObject
     // transfers. These IDs are local, not system clipboard registrations;
     // the WinRT DataPackage bridge uses format names instead.
@@ -248,7 +248,7 @@ HGLOBAL createGlobalData(std::span<const uint8_t> data)
 
 static String getFullCFHTML(IDataObject* data)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: ReleaseStgMedium (ole32) is desktop-only; v0 no data.
     UNUSED_PARAM(data);
     return String();
@@ -429,7 +429,7 @@ FORMATETC* fileContentFormatZero()
 
 void getFileDescriptorData(IDataObject* dataObject, int& size, String& pathname)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: shell virtual-file descriptors are replaced by XAML
     // StorageItems transfers. Do not interpret them as desktop descriptors.
     UNUSED_PARAM(dataObject);
@@ -464,7 +464,7 @@ void getFileContentData(IDataObject* dataObject, int size, void* dataBlob)
 
 void setFileDescriptorData(IDataObject* dataObject, int size, const String& passedPathname)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     UNUSED_PARAM(dataObject);
     UNUSED_PARAM(size);
     UNUSED_PARAM(passedPathname);
@@ -775,7 +775,7 @@ void getUTF8Data(IDataObject* data, FORMATETC* format, Vector<String>& dataStrin
 
 void getHDropData(IDataObject* data, FORMATETC* format, Vector<String>& dataStrings)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: file drops arrive as StorageItems through XAML.
     UNUSED_PARAM(data);
     UNUSED_PARAM(format);
@@ -836,7 +836,7 @@ void setUTF8Data(IDataObject* data, FORMATETC* format, const Vector<String>& dat
 
 void setHDropData(IDataObject* data, FORMATETC* format, const Vector<String>& dataStrings)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: XAML file transfers use StorageItems, not DROPFILES.
     UNUSED_PARAM(data);
     UNUSED_PARAM(format);
@@ -897,3 +897,6 @@ void setClipboardData(IDataObject* dataObject, UINT format, const Vector<String>
 }
 
 } // namespace WebCore
+
+
+

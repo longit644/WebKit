@@ -70,3 +70,4 @@ double relativeLuminance(const Color&);
 double contrastRatio(const Color&, const Color&);
 
 }
+

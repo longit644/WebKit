@@ -91,3 +91,4 @@ inline PathSegment::PathSegment(Data&& data)
 {
 }
 } // namespace WebCore
+

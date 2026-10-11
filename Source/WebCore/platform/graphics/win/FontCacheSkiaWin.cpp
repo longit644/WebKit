@@ -109,3 +109,4 @@ FontCache::CreateDWriteFactoryResult FontCache::createDWriteFactory()
 }
 
 } // namespace WebCore
+

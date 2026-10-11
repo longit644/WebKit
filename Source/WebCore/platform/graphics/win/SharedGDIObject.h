@@ -61,3 +61,4 @@ private:
 } // namespace WebCore
 
 #endif // SharedGDIObject_h
+

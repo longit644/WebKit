@@ -144,3 +144,4 @@ inline void add(Hasher& hasher, const FontCreationContext& fontCreationContext)
 }
 
 }
+

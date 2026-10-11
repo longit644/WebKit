@@ -144,3 +144,4 @@ private:
 WEBCORE_EXPORT TextStream& operator<<(TextStream&, ImagePaintingOptions);
 
 } // namespace WebCore
+

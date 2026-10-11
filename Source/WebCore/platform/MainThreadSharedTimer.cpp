@@ -46,7 +46,7 @@ MainThreadSharedTimer& MainThreadSharedTimer::singleton()
     return instance;
 }
 
-#if (USE(CF) || OS(WINDOWS)) && !PLATFORM(UWP)
+#if (USE(CF) || OS(WINDOWS)) && !PLATFORM(W10M)
 MainThreadSharedTimer::MainThreadSharedTimer() = default;
 #else
 MainThreadSharedTimer::MainThreadSharedTimer()

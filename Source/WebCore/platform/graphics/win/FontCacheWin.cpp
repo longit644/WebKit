@@ -648,3 +648,4 @@ void FontCache::platformInvalidate()
 }
 
 } // namespace WebCore
+

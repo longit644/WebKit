@@ -60,3 +60,4 @@ inline std::span<uint8_t> mutableSpan(SkPixmap& pixmap)
 using WebCore::span;
 
 #endif // USE(SKIA)
+

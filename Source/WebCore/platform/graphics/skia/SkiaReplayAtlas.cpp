@@ -69,3 +69,4 @@ std::optional<SkRect> SkiaReplayAtlas::rectForImage(const SkImage& image) const
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

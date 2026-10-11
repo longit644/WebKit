@@ -94,3 +94,4 @@ private:
 bool protocolIsInSocksFamily(const URL&);
 
 } // namespace WebCore
+

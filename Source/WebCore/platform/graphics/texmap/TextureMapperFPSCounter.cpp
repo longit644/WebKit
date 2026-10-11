@@ -64,3 +64,4 @@ void TextureMapperFPSCounter::updateFPSAndDisplay(TextureMapper& textureMapper, 
 }
 
 } // namespace WebCore
+

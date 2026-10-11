@@ -178,3 +178,4 @@ WTF::TextStream& operator<<(WTF::TextStream&, const FontFamily&);
 WTF::TextStream& operator<<(WTF::TextStream&, const FontCascadeDescription&);
 
 }
+

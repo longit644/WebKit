@@ -267,3 +267,4 @@ WEBCORE_EXPORT id makeNSArrayElement(const IntRect&);
 #endif
 
 } // namespace WebCore
+

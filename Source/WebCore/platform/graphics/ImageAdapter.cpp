@@ -73,3 +73,4 @@ Vector<Ref<NativeImage>> ImageAdapter::allNativeImages()
 }
 
 } // namespace WebCore
+

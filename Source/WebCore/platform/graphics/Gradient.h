@@ -151,3 +151,4 @@ private:
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, const Gradient&);
 
 } // namespace WebCore
+

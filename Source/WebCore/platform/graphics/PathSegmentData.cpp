@@ -856,3 +856,4 @@ WTF::TextStream& operator<<(WTF::TextStream& ts, const PathCloseSubpath&)
 }
 
 } // namespace WebCore
+

@@ -60,8 +60,8 @@ static bool isWOW64()
 
     if (!initialized) {
         initialized = true;
-#if PLATFORM(UWP)
-        // The UWP compatibility surface exposes the wide loader spelling.
+#if PLATFORM(W10M)
+        // The W10M compatibility surface exposes the wide loader spelling.
         HMODULE kernel32Module = GetModuleHandleW(L"kernel32.dll");
 #else
         HMODULE kernel32Module = GetModuleHandleA("kernel32.dll");
@@ -111,3 +111,6 @@ String windowsVersionForUAString()
 }
 
 } // namespace WebCore
+
+
+

@@ -33,3 +33,4 @@ struct RenderingResourceIdentifierType;
 using RenderingResourceIdentifier = AtomicObjectIdentifier<RenderingResourceIdentifierType>;
 
 } // namespace WebCore
+

@@ -189,3 +189,4 @@ WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, const Region::Shape
 } // namespace WebCore
 
 #endif // Region_h
+

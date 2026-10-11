@@ -63,3 +63,4 @@ void DisplayRefreshMonitorClient::fireDisplayRefreshIfNeeded(const DisplayUpdate
 }
 
 }
+

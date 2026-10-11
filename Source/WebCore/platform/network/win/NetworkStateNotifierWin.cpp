@@ -69,7 +69,7 @@ void CALLBACK NetworkStateNotifier::addressChangeCallback(void*, BOOLEAN)
 
 void NetworkStateNotifier::registerForAddressChange()
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: NotifyAddrChange (iphlpapi) is desktop-only; online
     // state is sampled once at startup (updateStateWithoutNotifying).
 #else
@@ -82,12 +82,14 @@ void NetworkStateNotifier::startObserving()
 {
     memset(&m_overlapped, 0, sizeof(m_overlapped));
     m_overlapped.hEvent = ::CreateEvent(0, false, false, 0);
-#if !PLATFORM(UWP)
+#if !PLATFORM(W10M)
     // WebKitWebView: RegisterWaitForSingleObject (threadpool legacy) is
-    // desktop-only; no change notifications on UWP (v0).
+    // desktop-only; no change notifications on W10M (v0).
     ::RegisterWaitForSingleObject(&m_waitHandle, m_overlapped.hEvent, addressChangeCallback, nullptr, INFINITE, 0);
 #endif
     registerForAddressChange();
 }
 
 } // namespace WebCore
+
+

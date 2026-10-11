@@ -46,3 +46,4 @@ enum class TextureMapperFlags : uint16_t {
 } // namespace WebCore
 
 #endif // USE(TEXTURE_MAPPER)
+

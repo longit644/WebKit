@@ -97,3 +97,4 @@ String encodeDataURL(RefPtr<ImageBuffer>&& buffer, const String& mimeType, std::
 }
 
 }
+

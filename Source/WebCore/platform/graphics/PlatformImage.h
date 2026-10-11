@@ -49,3 +49,4 @@ using PlatformImagePtr = sk_sp<SkImage>;
 #endif
 
 }
+

@@ -237,3 +237,4 @@ TextStream& operator<<(TextStream& ts, const LayoutRect& r)
 }
 
 } // namespace WebCore
+

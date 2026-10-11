@@ -72,3 +72,4 @@ static bool isType(const WebCore::MediaPlaybackTarget& target)
 SPECIALIZE_TYPE_TRAITS_END()
 
 #endif // ENABLE(WIRELESS_PLAYBACK_MEDIA_PLAYER)
+

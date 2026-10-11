@@ -37,3 +37,4 @@ class SharedBuffer;
 bool NODELETE convertWOFFToSfntIfNecessary(RefPtr<SharedBuffer>&);
 
 } // namespace WebCore
+

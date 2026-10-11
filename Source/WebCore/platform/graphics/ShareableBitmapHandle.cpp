@@ -49,3 +49,4 @@ void ShareableBitmapHandle::setOwnershipOfMemory(const ProcessIdentity& identity
 
 
 } // namespace WebCore
+

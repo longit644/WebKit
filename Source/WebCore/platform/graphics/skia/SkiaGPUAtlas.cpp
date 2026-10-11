@@ -176,3 +176,4 @@ sk_sp<SkImage> SkiaGPUAtlas::atlasImageForCurrentThread() const
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

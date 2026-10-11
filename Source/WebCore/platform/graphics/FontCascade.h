@@ -352,3 +352,4 @@ inline char32_t mirrorCharacterIfNeeded(char32_t); // Defined in FontCascadeInli
 WTF::TextStream& operator<<(WTF::TextStream&, const FontCascade&);
 
 } // namespace WebCore
+

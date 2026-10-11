@@ -651,3 +651,4 @@ inline void Color::setOutOfLineComponents(Ref<OutOfLineComponents>&& color, Colo
 namespace WTF {
 template<> struct HashTraits<WebCore::Color>;
 }
+

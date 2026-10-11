@@ -341,3 +341,4 @@ bool SkiaBackingStore::Tile::isPadded() const
 } // namespace WebCore
 
 #endif // USE(COORDINATED_GRAPHICS) && USE(SKIA)
+

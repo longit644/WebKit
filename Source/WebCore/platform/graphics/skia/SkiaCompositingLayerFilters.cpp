@@ -103,3 +103,4 @@ sk_sp<SkImageFilter> create(const FilterOperations& filterOperations, SkTileMode
 } // namespace WebCore
 
 #endif // USE(COORDINATED_GRAPHICS) && USE(SKIA)
+

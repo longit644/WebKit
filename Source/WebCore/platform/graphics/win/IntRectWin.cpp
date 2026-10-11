@@ -44,3 +44,4 @@ IntRect::operator RECT() const
 }
 
 }
+

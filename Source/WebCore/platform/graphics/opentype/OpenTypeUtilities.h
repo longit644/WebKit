@@ -61,3 +61,4 @@ RefPtr<FontMemoryResource> renameAndActivateFont(const SharedBuffer&, const Stri
 } // namespace WebCore
 
 #endif // OpenTypeUtilities_h
+

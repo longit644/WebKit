@@ -51,3 +51,4 @@ template<> struct HashTraits<WebCore::IntRect> : GenericHashTraits<WebCore::IntR
 };
 
 }
+

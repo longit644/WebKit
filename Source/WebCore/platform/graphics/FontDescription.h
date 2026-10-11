@@ -210,3 +210,4 @@ private:
 FontStyleAxis variationStyleAxis(const FontDescription&, const FontSelectionSpecifiedCapabilities& faceCapabilities);
 
 } // namespace WebCore
+

@@ -45,3 +45,4 @@ struct PathElement {
 using PathElementApplier = Function<void(const PathElement&)>;
 
 } // namespace WebCore
+

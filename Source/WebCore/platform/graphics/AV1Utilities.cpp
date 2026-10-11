@@ -1371,3 +1371,4 @@ RefPtr<VideoInfo> createVideoInfoFromAV1Stream(std::span<const uint8_t> data, st
 }
 
 }
+

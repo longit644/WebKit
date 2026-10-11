@@ -217,3 +217,4 @@ inline float y(const GlyphBufferOrigin& origin)
 #endif // #if USE(CG)
 
 }
+

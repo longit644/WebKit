@@ -65,10 +65,10 @@ WindowMessageBroadcaster::WindowMessageBroadcaster(HWND hwnd)
     : m_subclassedWindow(hwnd)
     , m_originalWndProc(0)
 {
-#if !PLATFORM(UWP)
+#if !PLATFORM(W10M)
     ASSERT_ARG(hwnd, IsWindow(hwnd));
 #else
-    // WebKitWebView: IsWindow (USER32) is desktop-only; no HWNDs on UWP.
+    // WebKitWebView: IsWindow (USER32) is desktop-only; no HWNDs on W10M.
     UNUSED_PARAM(hwnd);
 #endif
 }
@@ -79,14 +79,14 @@ void WindowMessageBroadcaster::addListener(WindowMessageListener* listener)
 {
     if (m_listeners.isEmpty()) {
         ASSERT(!m_originalWndProc);
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
         // WebKitWebView: SetWindowLongPtr (USER32) is desktop-only.
 #else
 #pragma warning(disable: 4244 4312)
         m_originalWndProc = reinterpret_cast<WNDPROC>(SetWindowLongPtr(m_subclassedWindow, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(SubclassedWndProc)));
 #endif
     }
-#if !PLATFORM(UWP)
+#if !PLATFORM(W10M)
     ASSERT(m_originalWndProc);
 #endif
 
@@ -110,7 +110,7 @@ void WindowMessageBroadcaster::destroy()
 
 void WindowMessageBroadcaster::unsubclassWindow()
 {
-#if !PLATFORM(UWP)
+#if !PLATFORM(W10M)
     SetWindowLongPtr(m_subclassedWindow, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(m_originalWndProc));
 #endif
     m_originalWndProc = 0;
@@ -133,7 +133,7 @@ LRESULT CALLBACK WindowMessageBroadcaster::SubclassedWndProc(HWND hwnd, UINT mes
     if (message == WM_DESTROY)
         broadcaster->destroy();
 
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: CallWindowProc (USER32) is desktop-only.
     UNUSED_PARAM(hwnd);
     UNUSED_PARAM(wParam);
@@ -145,3 +145,5 @@ LRESULT CALLBACK WindowMessageBroadcaster::SubclassedWndProc(HWND hwnd, UINT mes
 }
 
 } // namespace WebCore
+
+

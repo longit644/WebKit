@@ -188,3 +188,4 @@ WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, TextDrawingMode);
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, WindRule);
 
 } // namespace WebCore
+

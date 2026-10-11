@@ -37,3 +37,4 @@ FloatPoint::FloatPoint(const POINT& p)
 }
 
 }
+

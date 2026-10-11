@@ -264,3 +264,4 @@ void ComplexTextController::collectComplexTextRunsForCharacters(std::span<const 
 }
 
 }
+

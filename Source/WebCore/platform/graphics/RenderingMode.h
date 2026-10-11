@@ -56,3 +56,4 @@ WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, RenderingMode);
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, RenderingMethod);
 
 } // namespace WebCore
+

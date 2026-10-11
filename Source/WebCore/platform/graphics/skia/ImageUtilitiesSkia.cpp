@@ -149,3 +149,4 @@ Vector<uint8_t> platformEncodeData(const NativeImage& nativeImage, const String&
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

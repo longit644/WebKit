@@ -34,8 +34,8 @@
 #include <wtf/HashSet.h>
 #include <wtf/Noncopyable.h>
 
-#if PLATFORM(UWP)
-// WebKitWebView: WNDPROC (USER32) is desktop-only; opaque on UWP (never called).
+#if PLATFORM(W10M)
+// WebKitWebView: WNDPROC (USER32) is desktop-only; opaque on W10M (never called).
 typedef void* WNDPROC;
 #endif
 
@@ -74,3 +74,5 @@ namespace WebCore {
 } // namespace WebCore
 
 #endif // WindowMessageBroadcaster_h
+
+

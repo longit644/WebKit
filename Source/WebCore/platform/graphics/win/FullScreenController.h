@@ -59,3 +59,4 @@ protected:
 } // namespace WebCore
 
 #endif // ENABLE(FULLSCREEN_API)
+

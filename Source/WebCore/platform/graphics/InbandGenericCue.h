@@ -177,3 +177,4 @@ struct LogArgument<WebCore::InbandGenericCue> {
 } // namespace WTF
 
 #endif
+

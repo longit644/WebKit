@@ -40,3 +40,4 @@ struct BezierSegment {
 WEBCORE_EXPORT Vector<BezierSegment> trimBezierToRect(const BezierSegment& curve, const FloatRect&);
 
 } // namespace WebCore
+

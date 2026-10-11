@@ -43,3 +43,4 @@ Color blend(const Color& from, const Color& to, const BlendingContext&);
 Color blendWithoutPremultiply(const Color& from, const Color& to, const BlendingContext&);
 
 }
+

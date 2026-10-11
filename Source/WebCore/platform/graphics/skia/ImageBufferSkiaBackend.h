@@ -45,3 +45,4 @@ protected:
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

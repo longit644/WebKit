@@ -315,3 +315,4 @@ TextStream& operator<<(TextStream& ts, const LayoutRoundedRect& roundedRect)
 }
 
 } // namespace WebCore
+

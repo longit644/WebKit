@@ -42,3 +42,4 @@ String ImageBufferSkiaBackend::debugDescription() const
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

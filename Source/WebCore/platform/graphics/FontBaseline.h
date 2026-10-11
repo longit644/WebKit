@@ -35,3 +35,4 @@ enum class BaselineSynthesisEdge : uint8_t { ContentBox, BorderBox, MarginBox };
 } // namespace WebCore
 
 #endif // FontBaseline_h
+

@@ -129,3 +129,4 @@ uint64_t NativeImage::uniqueID() const
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

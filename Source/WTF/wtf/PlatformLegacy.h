@@ -76,6 +76,14 @@
 #define WTF_PLATFORM_WIN 1
 #endif
 
+#if defined(WK_W10M)
+#define WTF_PLATFORM_W10M 1
+#endif
+
+#if defined(WK_W10M)
+#define WTF_PLATFORM_W10M 1
+#endif
+
 /* PLATFORM(COCOA) */
 #if PLATFORM(MAC) || PLATFORM(IOS_FAMILY)
 #define WTF_PLATFORM_COCOA 1
@@ -95,3 +103,4 @@
 #if defined(TARGET_OS_VISION) && TARGET_OS_VISION
 #define WTF_PLATFORM_VISION 1
 #endif
+

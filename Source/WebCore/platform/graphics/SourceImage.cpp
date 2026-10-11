@@ -144,3 +144,4 @@ IntSize SourceImage::size() const
 }
 
 } // namespace WebCore
+

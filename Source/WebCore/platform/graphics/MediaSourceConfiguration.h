@@ -39,3 +39,4 @@ struct MediaSourceConfiguration {
 } // namespace WebCore
 
 #endif
+

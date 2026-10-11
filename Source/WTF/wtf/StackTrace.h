@@ -127,8 +127,8 @@ public:
         if (!symbols)
             return;
 #elif OS(WINDOWS)
-#if PLATFORM(UWP)
-        // WebKitWebView: no DbgHelp symbol resolution on UWP; addresses only.
+#if PLATFORM(W10M)
+        // WebKitWebView: no DbgHelp symbol resolution on W10M; addresses only.
 #else
         HANDLE hProc = GetCurrentProcess();
         uint8_t symbolData[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)] = { 0 };
@@ -147,7 +147,7 @@ public:
             if (!name || !strcmp(name, "<redacted>"))
                 name = symbols[i];
 #elif OS(WINDOWS)
-#if !PLATFORM(UWP)
+#if !PLATFORM(W10M)
             if (!name && DbgHelper::SymFromAddress(hProc, reinterpret_cast<DWORD64>(m_stack[i]), nullptr, symbolInfo))
                 name = symbolInfo->Name;
 #endif
@@ -205,3 +205,4 @@ using WTF::StackTraceSymbolResolver;
 using WTF::StackTracePrinter;
 
 WTF_ALLOW_UNSAFE_BUFFER_USAGE_END
+

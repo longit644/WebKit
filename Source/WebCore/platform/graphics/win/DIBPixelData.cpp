@@ -40,9 +40,9 @@ DIBPixelData::DIBPixelData(HBITMAP bitmap)
 
 void DIBPixelData::initialize(HBITMAP bitmap)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: GDI bitmap introspection (GetObject) is desktop-only;
-    // nothing creates HBITMAPs on UWP, so leave members zeroed.
+    // nothing creates HBITMAPs on W10M, so leave members zeroed.
     UNUSED_PARAM(bitmap);
 #else
     BITMAP bmpInfo = {0, 0, 0, 0, 0, 0, nullptr};
@@ -103,9 +103,9 @@ void DIBPixelData::writeToFile(LPCWSTR filePath)
 
 void DIBPixelData::setRGBABitmapAlpha(HDC hdc, const IntRect& dstRect, unsigned char level)
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: GDI DC access (GetCurrentObject/GetWorldTransform) is
-    // desktop-only; alpha stamping unreachable on UWP.
+    // desktop-only; alpha stamping unreachable on W10M.
     UNUSED_PARAM(hdc);
     UNUSED_PARAM(dstRect);
     UNUSED_PARAM(level);
@@ -149,3 +149,5 @@ void DIBPixelData::setRGBABitmapAlpha(HDC hdc, const IntRect& dstRect, unsigned 
 }
 
 } // namespace WebCore
+
+

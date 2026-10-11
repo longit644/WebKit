@@ -72,3 +72,4 @@ std::unique_ptr<FontPlatformData> FontCache::createFontPlatformData(const FontDe
 } // namespace WebCore
 
 #endif // PLATFORM(WIN) && USE(CAIRO)
+

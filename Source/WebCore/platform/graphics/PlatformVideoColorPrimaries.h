@@ -50,3 +50,4 @@ enum class PlatformVideoColorPrimaries : uint8_t {
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, PlatformVideoColorPrimaries);
 
 } // namespace WebCore
+

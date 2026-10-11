@@ -141,3 +141,4 @@ DisplayRefreshMonitor* DisplayRefreshMonitorManager::monitorForDisplayID(Platfor
 }
 
 }
+

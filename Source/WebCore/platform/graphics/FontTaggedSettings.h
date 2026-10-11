@@ -160,3 +160,4 @@ TextStream& operator<<(TextStream&, const FontTaggedSettings<int>&);
 TextStream& operator<<(TextStream&, const FontTaggedSettings<float>&);
 
 } // namespace WebCore
+

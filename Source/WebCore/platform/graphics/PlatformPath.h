@@ -55,3 +55,4 @@ using PlatformPathImpl = PathSkia;
 #endif
 
 } // namespace WebCore
+

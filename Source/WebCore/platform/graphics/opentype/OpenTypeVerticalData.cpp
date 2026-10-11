@@ -574,3 +574,4 @@ void OpenTypeVerticalData::substituteWithVerticalGlyphs(const Font* font, GlyphP
 WTF_ALLOW_UNSAFE_BUFFER_USAGE_END
 
 #endif // ENABLE(OPENTYPE_VERTICAL)
+

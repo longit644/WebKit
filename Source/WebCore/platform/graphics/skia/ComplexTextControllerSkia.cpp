@@ -243,3 +243,4 @@ void ComplexTextController::collectComplexTextRunsForCharacters(std::span<const 
 }
 
 } // namespace WebCore
+

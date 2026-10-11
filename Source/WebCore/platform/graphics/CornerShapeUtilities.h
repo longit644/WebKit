@@ -49,3 +49,4 @@ void borderContourPath(Path&, const RectCorners<CornerInput>&, const FloatRect* 
 double oppositeCornerScaleFactor(const RectCorners<CornerInput>&);
 
 } // namespace WebCore
+

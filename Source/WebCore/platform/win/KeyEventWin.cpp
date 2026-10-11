@@ -51,9 +51,9 @@ OptionSet<PlatformEvent::Modifier> PlatformKeyboardEvent::currentStateOfModifier
 {
     OptionSet<PlatformEvent::Modifier> modifiers;
 
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: GetKeyState (USER32) is desktop-only; modifiers arrive
-    // via the XAML input layer in the UWP port (v0: none).
+    // via the XAML input layer in the W10M port (v0: none).
 #else
     if (GetKeyState(VK_SHIFT) & HIGH_BIT_MASK_SHORT)
         modifiers.add(PlatformEvent::Modifier::ShiftKey);
@@ -70,3 +70,6 @@ OptionSet<PlatformEvent::Modifier> PlatformKeyboardEvent::currentStateOfModifier
 }
 
 }
+
+
+

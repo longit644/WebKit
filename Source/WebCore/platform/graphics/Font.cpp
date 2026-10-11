@@ -722,3 +722,4 @@ WTF::TextStream& operator<<(WTF::TextStream& ts, const GlyphBuffer& glyphBuffer)
 #endif
 
 } // namespace WebCore
+

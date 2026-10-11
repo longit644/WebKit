@@ -81,3 +81,4 @@ inline Vector<FloatSegment> differenceWithDilation(FloatSegment a, Vector<FloatS
 WEBCORE_EXPORT TextStream& operator<<(TextStream&, FloatSegment);
 
 } // namespace WebCore
+

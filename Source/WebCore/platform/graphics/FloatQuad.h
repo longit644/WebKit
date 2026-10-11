@@ -180,3 +180,4 @@ Vector<FloatRect> boundingBoxes(const Vector<FloatQuad>&);
 WEBCORE_EXPORT FloatRect unitedBoundingBoxes(const Vector<FloatQuad>&);
 
 } // namespace WebCore
+

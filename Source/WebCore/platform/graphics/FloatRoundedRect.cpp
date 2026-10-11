@@ -238,3 +238,4 @@ TextStream& operator<<(TextStream& ts, const FloatRoundedRect& roundedRect)
 }
 
 } // namespace WebCore
+

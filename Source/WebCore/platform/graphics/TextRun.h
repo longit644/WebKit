@@ -204,3 +204,4 @@ inline TextRun TextRun::isolatedCopy() const
 TextStream& operator<<(TextStream&, const TextRun&);
 
 } // namespace WebCore
+

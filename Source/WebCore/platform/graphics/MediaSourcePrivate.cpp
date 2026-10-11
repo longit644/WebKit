@@ -707,3 +707,4 @@ bool MediaSourcePrivate::isWithinStartGapAllowance(const MediaTime& time) const
 } // namespace WebCore
 
 #endif
+

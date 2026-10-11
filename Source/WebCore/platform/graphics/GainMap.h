@@ -44,3 +44,4 @@ struct GainMap {
 };
 
 } // namespace WebCore
+

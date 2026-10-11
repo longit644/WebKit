@@ -47,3 +47,4 @@ using ImageBufferPlatformBitmapBackend = ImageBufferSkiaUnacceleratedBackend;
 #endif
 
 } // namespace WebCore
+

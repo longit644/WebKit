@@ -44,3 +44,4 @@ Ref<SkiaImageAtlasLayout> SkiaImageAtlasLayout::create(const IntSize& atlasSize,
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

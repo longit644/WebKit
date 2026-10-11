@@ -1835,7 +1835,7 @@ void RenderLayerBacking::updateGeometry(const RenderLayer* compositedAncestor)
 
     positionOverflowControlsLayers();
 
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // Fixed/sticky contents on the forced-compositing main frame move by
     // positioning, not by repainting, on scroll. Document scroll changes
     // their document-relative subpixel offset at fractional DPI and must not
@@ -4015,7 +4015,7 @@ bool RenderLayerBacking::paintsIntoWindow() const
         return false;
 
     if (m_owningLayer.isRenderViewLayer()) {
-#if PLATFORM(IOS_FAMILY) || PLATFORM(UWP) || USE(COORDINATED_GRAPHICS)
+#if PLATFORM(IOS_FAMILY) || PLATFORM(W10M) || USE(COORDINATED_GRAPHICS)
         if (compositor().inForcedCompositingMode())
             return false;
 #endif

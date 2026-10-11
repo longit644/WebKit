@@ -59,3 +59,4 @@ private:
 } // namespace WebCore
 
 #endif // USE(GRAPHICS_LAYER_WC)
+

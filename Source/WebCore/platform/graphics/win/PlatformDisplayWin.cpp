@@ -57,3 +57,4 @@ PlatformDisplayWin::PlatformDisplayWin(Ref<GLDisplay>&& glDisplay)
 }
 
 } // namespace WebCore
+

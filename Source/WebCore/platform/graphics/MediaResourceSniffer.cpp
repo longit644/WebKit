@@ -114,3 +114,4 @@ void MediaResourceSniffer::loadFinished(PlatformMediaResource&, const NetworkLoa
 } // namespace WebCore
 
 #endif // ENABLE(VIDEO)
+

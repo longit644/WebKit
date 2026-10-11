@@ -40,3 +40,5 @@ void WebCoreDrawDoubledTextAtPoint(GraphicsContext&, const String&, const IntPoi
 } // namespace WebCore
 
 #endif // WebCoreTextRenderer_h
+
+

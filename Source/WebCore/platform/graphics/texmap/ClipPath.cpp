@@ -56,3 +56,4 @@ const void* ClipPath::bufferDataOffsetAsPtr() const
 }
 
 } // namespace WebCore
+

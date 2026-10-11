@@ -68,3 +68,4 @@ void ColorImageGeneratedImage::dump(TextStream& ts) const
 }
 
 } // namespace WebCore
+

@@ -42,3 +42,4 @@ inline bool operator==(const SourceBrushLogicalGradient& a, const SourceBrushLog
 }
 
 } // namespace WebCore
+

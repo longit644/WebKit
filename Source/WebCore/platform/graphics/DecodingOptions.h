@@ -96,3 +96,4 @@ private:
 TextStream& operator<<(TextStream&, DecodingMode);
 
 } // namespace WebCore
+

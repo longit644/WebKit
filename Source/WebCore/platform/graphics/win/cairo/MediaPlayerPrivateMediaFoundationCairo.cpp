@@ -83,3 +83,4 @@ void MediaPlayerPrivateMediaFoundation::Direct3DPresenter::paintCurrentFrame(Gra
 } // namespace WebCore
 
 #endif // ENABLE(VIDEO) && USE(MEDIA_FOUNDATION) && USE(CAIRO)
+

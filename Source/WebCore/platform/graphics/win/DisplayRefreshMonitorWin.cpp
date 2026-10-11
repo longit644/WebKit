@@ -62,3 +62,4 @@ void DisplayRefreshMonitorWin::stopNotificationMechanism()
 }
 
 } // namespace WebCore
+

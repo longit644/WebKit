@@ -51,3 +51,4 @@ void SkiaHarfBuzzFontCache::clear()
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

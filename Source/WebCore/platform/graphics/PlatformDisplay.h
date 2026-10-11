@@ -163,3 +163,4 @@ private:
 SPECIALIZE_TYPE_TRAITS_BEGIN(WebCore::ToClassName) \
     static bool isType(const WebCore::PlatformDisplay& display) { return display.type() == WebCore::PlatformDisplay::Type::DisplayType; } \
 SPECIALIZE_TYPE_TRAITS_END()
+

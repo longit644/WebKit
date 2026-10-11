@@ -37,7 +37,7 @@ namespace WebCore {
 struct StgMediumDeleter {
     void operator()(STGMEDIUM* medium)
     {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
         // WebKitWebView: release memory and COM storage without the desktop
         // ReleaseStgMedium API. The release owner, when present, owns the data.
         if (medium->pUnkForRelease)
@@ -104,3 +104,5 @@ private:
 }
 
 #endif //!WCDataObject_h
+
+

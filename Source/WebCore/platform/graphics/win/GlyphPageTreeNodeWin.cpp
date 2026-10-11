@@ -95,3 +95,4 @@ bool GlyphPage::fill(std::span<const char16_t> buffer)
 }
 
 }
+

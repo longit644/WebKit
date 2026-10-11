@@ -990,3 +990,4 @@ template<> struct LogArgument<WebCore::SeekTarget> {
 } // namespace WTF
 
 #endif // ENABLE(VIDEO)
+

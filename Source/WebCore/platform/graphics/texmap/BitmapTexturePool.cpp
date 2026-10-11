@@ -218,3 +218,4 @@ void BitmapTexturePool::exitLimitExceededModeIfNeeded()
 } // namespace WebCore
 
 #endif // USE(TEXTURE_MAPPER)
+

@@ -245,7 +245,7 @@ WindowsKeyNames::WindowsKeyNames()
 auto WindowsKeyNames::currentKeyModifiers() -> KeyModifierSet
 {
     KeyModifierSet modifiers;
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: GetKeyState (USER32) is desktop-only; modifiers arrive
     // via the XAML input layer (v0: none).
 #else
@@ -312,8 +312,8 @@ bool WindowsKeyNames::shouldExposeLeftControlPlusRightAltAsAltGraph()
     // m_hasAltGraph is true only for layouts that actually define AltGraph; on
     // other layouts the right-Alt key behaves as a plain Alt and must not be
     // folded into AltGraph.
-#if PLATFORM(UWP)
-    // WebKitWebView: GetKeyState (USER32) is desktop-only; no AltGraph on UWP.
+#if PLATFORM(W10M)
+    // WebKitWebView: GetKeyState (USER32) is desktop-only; no AltGraph on W10M.
     UNUSED_PARAM(m_hasAltGraph);
     return false;
 #else
@@ -332,8 +332,8 @@ bool WindowsKeyNames::shouldExposeAltGraphForKeyEvent(UINT message, WPARAM virtu
 
     // The remaining cases cover AltGr simulated purely via the Control+Alt
     // combination, which both Blink and Gecko expose as AltGraph.
-#if PLATFORM(UWP)
-    // WebKitWebView: GetKeyState (USER32) is desktop-only; no AltGraph on UWP.
+#if PLATFORM(W10M)
+    // WebKitWebView: GetKeyState (USER32) is desktop-only; no AltGraph on W10M.
     return false;
 #else
     if (GetKeyState(VK_CONTROL) >= 0 || GetKeyState(VK_MENU) >= 0)
@@ -549,7 +549,7 @@ String WindowsKeyNames::domCodeFromLParam(LPARAM lParam)
 
 void WindowsKeyNames::updateLayout()
 {
-#if PLATFORM(UWP)
+#if PLATFORM(W10M)
     // WebKitWebView: layout enumeration (GetKeyboardLayout/ToUnicodeEx,
     // USER32) is desktop-only; the map stays empty (keys report
     // "Unidentified", XAML TextBox owns real text input).
@@ -608,3 +608,5 @@ void WindowsKeyNames::updateLayout()
 }
 
 } // namespace WebCore
+
+

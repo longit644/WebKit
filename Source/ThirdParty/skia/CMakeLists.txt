@@ -1,7 +1,7 @@
 set_property(DIRECTORY . PROPERTY FOLDER "skia")
 
 # Skia dependencies not used directly in WebKit.
-if (WK_UWP OR (NOT WIN32 AND NOT PLAYSTATION))
+if (WK_W10M OR (NOT WIN32 AND NOT PLAYSTATION))
     find_package(Freetype 2.9.0 REQUIRED)
     find_package(Fontconfig 2.13.0 REQUIRED)
 endif ()
@@ -812,7 +812,7 @@ add_library(Skia STATIC
     modules/skcms/src/skcms_TransformSkx.cc
 )
 
-if (WIN32 AND NOT WK_UWP)
+if (WIN32 AND NOT WK_W10M)
     target_sources(Skia PRIVATE
         src/ports/SkFontHost_win.cpp
         src/ports/SkFontMgr_win_dw.cpp
@@ -1091,13 +1091,13 @@ target_compile_definitions(Skia PUBLIC
     SK_ASSUME_WEBGL=0
 )
 
-if (WIN32 AND NOT WK_UWP)
+if (WIN32 AND NOT WK_W10M)
     target_compile_definitions(Skia PRIVATE SK_TYPEFACE_FACTORY_DIRECTWRITE)
 else ()
     target_compile_definitions(Skia PRIVATE SK_TYPEFACE_FACTORY_FREETYPE)
 endif ()
 
-if (WK_UWP)
+if (WK_W10M)
     # Match the older Windows Mobile inbox MSVCP140 mutex initialization ABI.
     target_compile_definitions(Skia PUBLIC _DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR)
     # The packaged FreeType matches the build headers; do not probe newer

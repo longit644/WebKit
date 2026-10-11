@@ -262,3 +262,4 @@ inline const Font& FontCascadeFonts::primaryFont(const FontCascadeDescription& d
 WTF::TextStream& operator<<(WTF::TextStream&, const FontCascadeFonts&);
 
 } // namespace WebCore
+

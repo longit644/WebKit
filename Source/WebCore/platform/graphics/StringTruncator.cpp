@@ -335,3 +335,4 @@ String StringTruncator::rightClipToWord(const String& string, float maxWidth, co
 }
 
 } // namespace WebCore
+

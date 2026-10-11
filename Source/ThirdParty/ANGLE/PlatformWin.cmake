@@ -7,7 +7,7 @@ list(APPEND ANGLE_DEFINITIONS
     NOMINMAX
 )
 
-if (WK_UWP)
+if (WK_W10M)
     # Keep source-level UWP guards consistent with angle_is_winuwp source selection.
     list(APPEND ANGLE_DEFINITIONS ANGLE_IS_WINUWP)
     # Mobile's inbox msvcp140 predates the constexpr mutex representation in

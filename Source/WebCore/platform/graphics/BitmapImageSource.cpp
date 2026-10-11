@@ -790,3 +790,4 @@ std::optional<SpatialImageEyeProperties> BitmapImageSource::spatialEyeProperties
 #endif
 
 } // namespace WebCore
+

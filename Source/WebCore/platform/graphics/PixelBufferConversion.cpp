@@ -570,3 +570,4 @@ void copyRowsInternal(unsigned sourceBytesPerRow, std::span<const uint8_t> sourc
 }
 
 }
+

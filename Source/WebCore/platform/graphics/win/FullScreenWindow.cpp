@@ -141,3 +141,4 @@ LRESULT FullScreenWindow::wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM
 } // namespace WebCore
 
 #endif // ENABLE(FULLSCREEN_API)
+

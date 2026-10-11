@@ -71,3 +71,4 @@ String PublicSuffixStore::platformTopPrivatelyControlledDomain(StringView domain
 }
 
 } // namespace WebCore
+

@@ -713,3 +713,4 @@ PlatformVideoColorSpace colorSpaceFromVPCodecConfigurationRecord(const VPCodecCo
 }
 
 } // namespace WebCore
+

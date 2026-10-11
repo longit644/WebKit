@@ -47,3 +47,4 @@ sk_sp<SkImageFilter> create(const FilterOperations&, SkTileMode blurTileMode = S
 } // namespace WebCore
 
 #endif // USE(COORDINATED_GRAPHICS) && USE(SKIA)
+

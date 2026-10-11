@@ -180,3 +180,4 @@ private:
 SPECIALIZE_TYPE_TRAITS_GRAPHICSLAYER(WebCore::GraphicsLayerTextureMapper, isGraphicsLayerTextureMapper())
 
 #endif // !USE(COORDINATED_GRAPHICS)
+

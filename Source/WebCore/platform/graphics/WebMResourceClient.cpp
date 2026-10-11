@@ -102,3 +102,4 @@ void WebMResourceClient::loadFinished(PlatformMediaResource&, const NetworkLoadM
 } // namespace WebCore
 
 #endif // ENABLE(COCOA_WEBM_PLAYER)
+

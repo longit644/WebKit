@@ -92,7 +92,7 @@ typedef BOOL (__stdcall* PGetVersionExW)(LPOSVERSIONINFOW lpVersionInformation);
 
 static bool win_enable_large_os_pages(size_t* large_page_size)
 {
-#if defined(WTF_PLATFORM_UWP)
+#if defined(WTF_PLATFORM_W10M)
   // AppContainer cannot grant SeLockMemoryPrivilege. Use ordinary pages.
   MI_UNUSED(large_page_size);
   return false;

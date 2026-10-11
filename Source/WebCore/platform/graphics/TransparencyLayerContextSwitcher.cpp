@@ -86,3 +86,4 @@ void TransparencyLayerContextSwitcher::endDrawSourceImage(GraphicsContext& desti
 }
 
 } // namespace WebCore
+

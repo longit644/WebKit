@@ -460,3 +460,4 @@ double oppositeCornerScaleFactor(const RectCorners<CornerInput>&)
 }
 
 } // namespace WebCore
+

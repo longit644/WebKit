@@ -189,3 +189,4 @@ std::optional<std::tuple<Ref<NativeImage>, DecodingDestination>> ImageDecoder::c
 }
 
 } // namespace WebCore
+

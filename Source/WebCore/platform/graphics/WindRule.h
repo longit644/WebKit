@@ -32,3 +32,4 @@ namespace WebCore {
 enum class WindRule : bool { NonZero, EvenOdd };
 
 }
+

@@ -80,3 +80,4 @@ void MediaSourceTypeSupportedCache::setCacheUpdateCallback(CacheUpdateCallback&&
 } // namespace WebCore
 
 #endif // ENABLE(MEDIA_SOURCE)
+

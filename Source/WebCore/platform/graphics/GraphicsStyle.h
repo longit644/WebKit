@@ -83,3 +83,4 @@ WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, const GraphicsColor
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, const GraphicsStyle&);
 
 } // namespace WebCore
+

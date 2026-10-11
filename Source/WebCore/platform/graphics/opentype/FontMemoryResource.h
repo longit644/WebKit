@@ -43,11 +43,11 @@ public:
 
     ~FontMemoryResource()
     {
-#if !PLATFORM(UWP)
+#if !PLATFORM(W10M)
         RemoveFontMemResourceEx(m_fontResourceHandle);
 #else
         // WebKitWebView: Add/RemoveFontMemResourceEx are GDI (desktop-only);
-        // FreeType memory faces need no OS registration on UWP.
+        // FreeType memory faces need no OS registration on W10M.
 #endif
     }
     
@@ -64,3 +64,4 @@ private:
 } // namespace WebCore
 
 #endif // OS(WINDOWS)
+

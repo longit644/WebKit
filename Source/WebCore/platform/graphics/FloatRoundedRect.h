@@ -145,3 +145,4 @@ WEBCORE_EXPORT Region approximateAsRegion(const FloatRoundedRect&, unsigned step
 } // namespace WebCore
 
 #endif // FloatRoundedRect_h
+

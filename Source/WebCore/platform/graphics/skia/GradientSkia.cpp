@@ -215,3 +215,4 @@ void Gradient::fill(GraphicsContext& context, const FloatRect& rect)
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

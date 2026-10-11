@@ -87,3 +87,5 @@ void setFileContentData(IDataObject*, int size, void* dataBlob);
 } // namespace WebCore
 
 #endif // ClipboardUtilitiesWin_h
+
+

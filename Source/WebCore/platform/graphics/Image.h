@@ -220,3 +220,4 @@ WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, const Image&);
 SPECIALIZE_TYPE_TRAITS_BEGIN(WebCore::ToClassName) \
     static bool isType(const WebCore::Image& image) { return image.is##ToClassName(); } \
 SPECIALIZE_TYPE_TRAITS_END()
+

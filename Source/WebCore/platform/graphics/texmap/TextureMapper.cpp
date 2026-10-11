@@ -1593,3 +1593,4 @@ Ref<TextureMapperGPUBuffer> TextureMapper::acquireBufferFromPool(size_t size, Te
 } // namespace WebCore
 
 #endif // USE(TEXTURE_MAPPER)
+

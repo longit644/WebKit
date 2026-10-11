@@ -47,3 +47,4 @@ double contrastRatio(const Color& colorA, const Color& colorB)
 }
 
 }
+

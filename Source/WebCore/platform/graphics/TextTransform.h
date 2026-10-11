@@ -36,3 +36,4 @@ namespace WebCore {
 String transformToFullWidth(const String& text);
 
 } // namespace WebCore
+

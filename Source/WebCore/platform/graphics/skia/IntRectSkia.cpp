@@ -47,3 +47,4 @@ IntRect::operator SkIRect() const
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

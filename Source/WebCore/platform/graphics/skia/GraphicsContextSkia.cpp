@@ -1314,3 +1314,4 @@ RenderingMode GraphicsContextSkia::renderingMode() const
 } // namespace WebCore
 
 #endif // USE(SKIA)
+

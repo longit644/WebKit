@@ -641,3 +641,4 @@ static inline WTF::TextStream& operator<<(WTF::TextStream& ts, const Damage& dam
 } // namespace WebCore
 
 #endif // USE(COORDINATED_GRAPHICS)
+

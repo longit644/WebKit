@@ -60,3 +60,4 @@ private:
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, const Model&);
 
 } // namespace WebCore
+

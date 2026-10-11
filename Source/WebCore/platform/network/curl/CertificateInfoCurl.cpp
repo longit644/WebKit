@@ -68,3 +68,4 @@ std::optional<CertificateSummary> CertificateInfo::summary() const
 }
 
 #endif
+

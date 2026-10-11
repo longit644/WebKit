@@ -64,3 +64,4 @@ SPECIALIZE_TYPE_TRAITS_END()
 SPECIALIZE_TYPE_TRAITS_BEGIN(JSC::Float16Array)
     static bool isType(const JSC::ArrayBufferView& arrayBufferView) { return arrayBufferView.getType() == JSC::TypeFloat16; }
 SPECIALIZE_TYPE_TRAITS_END()
+

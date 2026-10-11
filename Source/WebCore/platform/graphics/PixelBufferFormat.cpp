@@ -36,3 +36,4 @@ TextStream& operator<<(TextStream& ts, const PixelBufferFormat& pixelBuffer)
 }
 
 }
+
