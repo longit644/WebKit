@@ -93,6 +93,7 @@
             </Grid.Clip>
             <Button Margin="0,0,0,48" MinWidth="0" MinHeight="0" Padding="0"
                     BorderThickness="0" Background="Transparent" IsTabStop="False"
+                    AllowFocusOnInteraction="False" UseSystemFocusVisuals="False"
                     HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                     Command="{Binding CloseMenuCommand}" AutomationProperties.Name="Dismiss actions">
                 <Button.Template>

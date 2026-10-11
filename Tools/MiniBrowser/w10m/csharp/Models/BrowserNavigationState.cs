@@ -22,18 +22,18 @@ namespace WebKitMiniBrowser.Models
         }
 
         /// <summary>Gets the current committed source URI.</summary>
-        public Uri Source { get; private set; }
+        public Uri Source { get; }
 
         /// <summary>Gets the current document title.</summary>
-        public string DocumentTitle { get; private set; }
+        public string DocumentTitle { get; }
 
         /// <summary>Gets whether a previous history entry exists.</summary>
-        public bool CanGoBack { get; private set; }
+        public bool CanGoBack { get; }
 
         /// <summary>Gets whether a forward history entry exists.</summary>
-        public bool CanGoForward { get; private set; }
+        public bool CanGoForward { get; }
 
         /// <summary>Gets whether the main document is loading.</summary>
-        public bool IsLoading { get; private set; }
+        public bool IsLoading { get; }
     }
 }

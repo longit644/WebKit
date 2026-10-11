@@ -28,15 +28,20 @@ namespace WebKitMiniBrowser.DependencyInjection
         public static void ConfigureBrowserPage(WebKitWebView browser, string blockedTemplatePath,
             string overridePath, string demoTemplatePath)
         {
+            if (browser == null)
+                throw new ArgumentNullException(nameof(browser));
+
             if (SimpleIoc.Default.IsRegistered<BrowserViewModel>())
             {
-                SimpleIoc.Default.GetInstance<BrowserViewModel>().Dispose();
+                if (SimpleIoc.Default.ContainsCreated<BrowserViewModel>())
+                    SimpleIoc.Default.GetInstance<BrowserViewModel>().Dispose();
                 SimpleIoc.Default.Unregister<BrowserViewModel>();
             }
 
             if (SimpleIoc.Default.IsRegistered<IBrowserService>())
             {
-                SimpleIoc.Default.GetInstance<IBrowserService>().Dispose();
+                if (SimpleIoc.Default.ContainsCreated<IBrowserService>())
+                    SimpleIoc.Default.GetInstance<IBrowserService>().Dispose();
                 SimpleIoc.Default.Unregister<IBrowserService>();
             }
 

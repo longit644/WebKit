@@ -38,6 +38,7 @@ namespace WebKitMiniBrowser.Services
         {
             get
             {
+                ThrowIfDisposed();
                 return new BrowserNavigationState(
                     _browser.Source,
                     _browser.DocumentTitle,
@@ -57,28 +58,28 @@ namespace WebKitMiniBrowser.Services
         public event Action<bool> WarningConsentReady;
 
         /// <inheritdoc />
-        public void Navigate(Uri uri) { _policy.Navigate(uri); }
+        public void Navigate(Uri uri) { ThrowIfDisposed(); _policy.Navigate(uri); }
 
         /// <inheritdoc />
-        public void GoBack() { _policy.GoBack(); }
+        public void GoBack() { ThrowIfDisposed(); _policy.GoBack(); }
 
         /// <inheritdoc />
-        public void GoForward() { _policy.GoForward(); }
+        public void GoForward() { ThrowIfDisposed(); _policy.GoForward(); }
 
         /// <inheritdoc />
-        public void Reload() { _policy.Reload(); }
+        public void Reload() { ThrowIfDisposed(); _policy.Reload(); }
 
         /// <inheritdoc />
-        public void Stop() { _policy.Stop(); }
+        public void Stop() { ThrowIfDisposed(); _policy.Stop(); }
 
         /// <inheritdoc />
-        public void LoadDemo() { _policy.NavigateToDemo(); }
+        public void LoadDemo() { ThrowIfDisposed(); _policy.NavigateToDemo(); }
 
         /// <inheritdoc />
-        public void ClearSource() { _policy.ClearSource(); }
+        public void ClearSource() { ThrowIfDisposed(); _policy.ClearSource(); }
 
         /// <inheritdoc />
-        public void ProceedWithWarning() { _policy.ProceedWithCurrentWarning(); }
+        public void ProceedWithWarning() { ThrowIfDisposed(); _policy.ProceedWithCurrentWarning(); }
 
         /// <summary>Publishes a copied state after a generic browser property change.</summary>
         /// <param name="sender">The public browser control.</param>
@@ -124,6 +125,8 @@ namespace WebKitMiniBrowser.Services
         /// <param name="message">The status selected by browser policy.</param>
         private void OnStatusChanged(string message)
         {
+            if (_disposed)
+                return;
             StatusChanged?.Invoke(message);
         }
 
@@ -131,13 +134,24 @@ namespace WebKitMiniBrowser.Services
         /// <param name="ready">Whether explicit consent is available.</param>
         private void OnWarningConsentReady(bool ready)
         {
+            if (_disposed)
+                return;
             WarningConsentReady?.Invoke(ready);
         }
 
         /// <summary>Creates and publishes a new immutable browser-state snapshot.</summary>
         private void PublishState()
         {
+            if (_disposed)
+                return;
             StateChanged?.Invoke(this, CurrentState);
+        }
+
+        /// <summary>Rejects service calls after control and policy subscriptions are revoked.</summary>
+        private void ThrowIfDisposed()
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(BrowserService));
         }
 
         /// <summary>Revokes control and policy subscriptions owned by this service.</summary>

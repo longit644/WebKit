@@ -410,11 +410,15 @@ namespace WebKitMiniBrowser
                 }
                 else
                 {
-                    MenuOverlay.Visibility = Visibility.Collapsed;
+                    // Steer focus out of the collapsing sheet before hiding it so
+                    // focus recovery cannot land in the address box and flash the
+                    // touch keyboard.
                     if (!ViewModel.IsAddressEditing)
                     {
                         MoreButton.Focus(FocusState.Programmatic);
                     }
+
+                    MenuOverlay.Visibility = Visibility.Collapsed;
                 }
 #if LAYOUT_DIAGNOSTICS
                 QueueLayoutReport();

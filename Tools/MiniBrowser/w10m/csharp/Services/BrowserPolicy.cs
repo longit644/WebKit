@@ -52,8 +52,18 @@ namespace WebKitMiniBrowser
         internal static string LoadDemo(string packagedPath)
         {
             string demo = TryReadFile(packagedPath);
-            return demo ?? "<!doctype html><html><head><meta charset=\"utf-8\"><title>about:demo</title></head>" +
+            if (!string.IsNullOrWhiteSpace(demo) && IsSafeDemo(demo))
+                return demo;
+            return "<!doctype html><html><head><meta charset=\"utf-8\"><title>about:demo</title></head>" +
                 "<body><h1>WebKit MiniBrowser</h1><p>Local application demo.</p></body></html>";
+        }
+
+        /// <summary>Rejects demo markup that could escape its opaque local origin.</summary>
+        /// <param name="demo">The candidate demo markup.</param>
+        /// <returns>True when the markup has no remote resource base element.</returns>
+        internal static bool IsSafeDemo(string demo)
+        {
+            return demo != null && demo.IndexOf("<base", StringComparison.OrdinalIgnoreCase) < 0;
         }
 
         /// <summary>Reads one candidate template and rejects missing or malformed content.</summary>
@@ -82,6 +92,7 @@ namespace WebKitMiniBrowser
             }
             catch (IOException) { return null; }
             catch (UnauthorizedAccessException) { return null; }
+            catch (NotSupportedException) { return null; }
             catch (ArgumentException) { return null; }
         }
 
@@ -190,6 +201,7 @@ namespace WebKitMiniBrowser.Services
     /// <summary>Applies app-owned navigation policy and gates certificate consent on warning-page commit.</summary>
     public sealed class BrowserPolicy : IDisposable
     {
+        /// <summary>The public browser control managed by this policy.</summary>
         private readonly WebKitWebView _view;
         /// <summary>Package asset path used for the blocked-page template.</summary>
         private readonly string _packagedBlockedTemplatePath;
@@ -325,8 +337,7 @@ namespace WebKitMiniBrowser.Services
             RaiseStatus("Retrying the HTTPS request with your consent.");
         }
 
-        /// <summary>Remote certificate token kept separate from warning HostHtml navigation IDs.</summary>
-        /// <summary>Remote token retained separately from the associated HostHtml navigation ID.</summary>
+        /// <summary>Remote certificate token retained separately from the associated HostHtml navigation ID.</summary>
         private WebKitCertificateFailureToken _currentWarningToken;
 
         /// <summary>Associates only the next explicitly token-bound HostHtml warning proposal.</summary>

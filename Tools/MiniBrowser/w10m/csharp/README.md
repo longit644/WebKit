@@ -1,4 +1,4 @@
-# Windows 10 Mobile MiniBrowser (M10 tasks 8.1 and 8.2)
+# Windows 10 Mobile MiniBrowser (M10 tasks 8.1, 8.2 and 8.8)
 
 C#/XAML W10M application targeting Windows 10 Mobile, hosting the public `WebKit.WebKitWebView` control from compiled component metadata (`WebKit.winmd`). No `Source/WebKit/UIProcess/API/w10m/` source is compiled into this app; the WinMD plus its matching implementation DLL is the only contract. `BrowserViewModel` supplies address, title, history, loading, status, notification-demo and menu state. A phone Edge-inspired 48-DIP bottom bar contains a loading-swapped Reload/Stop control, a stretch address field, and the three-dot action toggle. The compact address text is shifted left 3 DIP to balance the refresh-control region; Enter submits the address. System Back comes from `SystemNavigationManager.BackRequested`. There is no extra Go button or tab switcher. Startup keeps null Source and an empty status; no permanent Ready footer or test navigation runs.
 
@@ -35,7 +35,7 @@ Targets 10.0.19041.0 / MinVersion 10.0.15063.0, Publisher `CN=WebKitWebView`,
 .NET Native, Community 2022 MSBuild. Package `WebKitProbe.MiniBrowser`
 1.0.0.22; app ID `WebKitProbe.MiniBrowser_2932e6rj4m41p!App` once installed
 (family name varies by signing key hash — confirm via install output).
-Suspension/Close lifetime belongs to task 8.8.
+Suspension/Close ownership is documented under `Sample embedding, configuration, and lifecycle (M10 task 8.8)` below; device suspension/final-close integration against the shared engine lifetime remains open.
 
 ## Device VisibleBounds run (owner)
 
@@ -117,3 +117,45 @@ Verified ARM package build: `-OutDir "$env:TEMP\opencode\m10-minibrowser-edge-ed
 The v9 visual refinement retains `AddressBox.VerticalContentAlignment="Center"` and adds a 4-DIP top-versus-bottom padding difference, shifting the text area down by 2 DIP to compensate for the phone's apparent high glyph placement. Optional layout diagnostics report the actual padding and assert the same optical offset in both compact and editing states.
 
 The Windows 10 Mobile app now lives under `Tools/MiniBrowser/w10m/csharp/`; `MiniBrowserW10M.csproj` and `build-arm-w10m-minibrowser.ps1` identify the target explicitly. W10M remains the underlying Windows app model and API surface. Historical package 1.0.0.22 built and signed, installed and launched on Lumia 950 XL / Mobile 15254.603; its base layout report passes. The v20 open-menu report verifies the native AppBarButton at 68×56 DIP and menu docking. BrowserPolicy is 23/23 and visible-bounds math 124/124. The MVVM-refactored shell currently builds/signs as package 0.0.0.48; its post-refactor device verification is pending.
+
+## Sample embedding, configuration, and lifecycle (M10 task 8.8)
+
+Windows 10 Mobile MiniBrowser; UWP as app model. The shell keeps MVVM Light (`ViewModelBase`, `RelayCommand`, `SimpleIoc` via `MiniBrowserServiceLocator`), two same-assembly `UserControl`s (`AddressBarControl`, `BrowserAppBarControl`), 40-DIP menu rows with 16-DIP icons, and `MainPage` ownership of safe-area/input/lifecycle coordination only.
+
+Minimal embedding of the public control from compiled component metadata (`WebKit.winmd` plus matching implementation DLL; no `Source/WebKit/UIProcess/API/w10m/` source compiled into the app):
+
+```xml
+<Page
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:web="using:WebKit">
+    <web:WebKitWebView x:Name="Browser" />
+</Page>
+```
+
+`MainPage.xaml` declares no `Source` attribute, so startup keeps null `Source`. `BrowserViewModel` starts with empty status (`status = string.Empty`) and an empty address when `Source` is null; `App.OnLaunched` and `MainPage` run no test navigation.
+
+Configuration paths, as wired in `MainPage` through `MiniBrowserServiceLocator.ConfigureBrowserPage`:
+
+- Packaged block template: `<InstalledLocation>\Assets\blocked.html`.
+- Readable LocalState override: `<LocalFolder>\blocked-override.html` (takes precedence; malformed/missing falls back to packaged, then built-in safe template).
+- Packaged demo markup: `<InstalledLocation>\Assets\demo.html` (opaque-origin HostHtml, no remote base or history insertion).
+
+Lifecycle ownership (shared engine lifetime):
+
+- `App.OnLaunched` requests `ApplicationViewBoundsMode.UseCoreWindow` before creating/navigating the `Frame`, so only `MainPage` applies `VisibleBoundsHelper.ComputeMargins` to `ShellRoot`.
+- `MainPage.OnLoaded` subscribes `VisibleBoundsChanged`, `BackRequested`, `InputPane.Showing/Hiding`, and `ViewModel.PropertyChanged`; `MainPage.OnUnloaded` revokes exactly those subscriptions, cancels address editing, and collapses/closes the menu view state without calling `Close()`.
+- `Close()` is terminal and belongs only to the owner actually ending the control's lifetime; transient `Unloaded` never closes.
+- `App.OnSuspending` takes no blocking work: it releases the suspension deferral immediately (`GetDeferral()` then `Complete()`).
+
+C# toolchain (fresh-TEMP ARM Release .NET Native + sign + verify) and host diagnostic commands:
+
+```powershell
+.\Tools\MiniBrowser\w10m\csharp\build-arm-w10m-minibrowser.ps1 `
+  -OutDir "$env:TEMP\opencode\m10-w10m-minibrowser-v48" -Version 0.0.0.48 -LayoutDiagnostics
+.\Tools\MiniBrowser\w10m\csharp\test-visible-bounds-math.ps1
+.\Tools\MiniBrowser\w10m\csharp\test-browser-policy.ps1
+```
+
+Host checks stay 23/23 (BrowserPolicy) and 124/124 (visible-bounds math). Static gates also enforce null-`Source` markup (no `Source=`), `UseCoreWindow` before `Frame`, and no private framework `.cpp` in the shell project.
+
+Device gaps left open: install/launch of the MVVM-refactored package, visual acceptance (portrait/landscape/theme/menu/toast/keyboard), real HTTPS warning/consent through the production control, and explicit suspension/final-close integration against the shared engine lifetime (suspend/resume cycles, transient reparent `Unloaded` without `Close`, owner-ended final `Close`).

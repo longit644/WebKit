@@ -213,8 +213,8 @@ namespace WebKitMiniBrowser.ViewModels
         /// <summary>Gets visibility for compact side controls hidden during address editing.</summary>
         public Visibility CompactChromeVisibility { get { return IsAddressEditing ? Visibility.Collapsed : Visibility.Visible; } }
 
-        /// <summary>Gets visibility for Reload when a source exists and the shell is idle.</summary>
-        public Visibility ReloadButtonVisibility { get { return HasSource && !IsLoading && !IsAddressEditing ? Visibility.Visible : Visibility.Collapsed; } }
+        /// <summary>Gets visibility for Reload when idle and outside address-edit mode; the command stays disabled until a source exists.</summary>
+        public Visibility ReloadButtonVisibility { get { return IsLoading || IsAddressEditing ? Visibility.Collapsed : Visibility.Visible; } }
 
         /// <summary>Gets visibility for Stop while loading and outside address-edit mode.</summary>
         public Visibility StopButtonVisibility { get { return IsLoading && !IsAddressEditing ? Visibility.Visible : Visibility.Collapsed; } }
@@ -310,13 +310,20 @@ namespace WebKitMiniBrowser.ViewModels
         private void CloseMenu() { IsMenuOpen = false; }
 
         /// <summary>Stores the current source as the cancellation target and begins editing.</summary>
-        private void BeginAddressEditing() { CloseMenu(); addressBeforeEditing = Address; IsAddressEditing = true; }
+        private void BeginAddressEditing()
+        {
+            if (IsAddressEditing)
+                return;
+            CloseMenu();
+            addressBeforeEditing = Address;
+            IsAddressEditing = true;
+        }
 
         /// <summary>Restores the latest committed address when editing is dismissed.</summary>
         private void CancelAddressEditing()
         {
             if (!IsAddressEditing) return;
-            Address = addressBeforeEditing;
+            Address = addressBeforeEditing ?? string.Empty;
             IsAddressEditing = false;
         }
 
@@ -333,6 +340,8 @@ namespace WebKitMiniBrowser.ViewModels
         /// <param name="state">The immutable state snapshot.</param>
         private void OnBrowserStateChanged(object sender, BrowserNavigationState state)
         {
+            if (isDisposed || state == null)
+                return;
             browserState = state;
             string committedAddress = state.Source == null ? string.Empty : state.Source.AbsoluteUri;
             if (IsAddressEditing)
@@ -356,11 +365,21 @@ namespace WebKitMiniBrowser.ViewModels
 
         /// <summary>Displays navigation-policy status to any status presentation bound by the host.</summary>
         /// <param name="text">The status message selected by policy.</param>
-        private void OnStatusChanged(string text) { Status = text; }
+        private void OnStatusChanged(string text)
+        {
+            if (isDisposed)
+                return;
+            Status = text ?? string.Empty;
+        }
 
         /// <summary>Updates consent availability after the matching warning page completes.</summary>
         /// <param name="ready">Whether explicit consent can proceed.</param>
-        private void OnWarningConsentReady(bool ready) { CanProceedWithWarning = ready; }
+        private void OnWarningConsentReady(bool ready)
+        {
+            if (isDisposed)
+                return;
+            CanProceedWithWarning = ready;
+        }
 
         /// <summary>Detaches browser service events and releases MVVM Light messenger subscriptions.</summary>
         public void Dispose()
