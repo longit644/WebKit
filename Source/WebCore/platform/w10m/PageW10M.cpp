@@ -61,7 +61,7 @@
 #include "PlatformMouseEvent.h"
 #include "Settings.h"
 #include "TextureMapperCompositorW10M.h"
-#include "TlsPolicyW10M.h"
+#include "TLSPolicyW10M.h"
 #include <algorithm>
 #include <atomic>
 #include <cmath>
@@ -93,7 +93,7 @@ PageHostW10M::~PageHostW10M()
         page = nullptr;
         MemoryCache::singleton().evictResources(sessionID);
         ResourcePolicyW10M::resetSessionLimits(sessionID);
-        TlsPolicyW10M::eraseSession(sessionID);
+        TLSPolicyW10M::eraseSession(sessionID);
     }
     if (storageProvider)
         storageProvider->close();
@@ -232,7 +232,7 @@ extern "C" __declspec(dllexport) unsigned __stdcall WKNavigatePageW10M(void* han
     // bundle a control navigates with freezes for its lifetime, so concurrent
     // controls cannot rebind each other's verification through the process
     // singleton. A later different bundle for the same session is ignored.
-    TlsPolicyW10M::snapshotSessionBundle(host(handle)->page->sessionID(), String(caPath));
+    TLSPolicyW10M::snapshotSessionBundle(host(handle)->page->sessionID(), String(caPath));
     ResourceRequest request;
     request.setURL(WTF::move(url));
     // Main-frame loads get a full minute before the transport gives up.

@@ -143,7 +143,7 @@ struct PageHostW10M {
 
     // Owner trust-bundle hash captured before peer teardown, for the
     // post-teardown intactness contrast.
-    String fixtureTlsOwnerHash;
+    String fixtureTLSOwnerHash;
 
     // Optional host veto consulted on every navigation policy check, after
     // the proceed interception. Null means allow per the normal rules.

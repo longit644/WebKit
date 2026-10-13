@@ -18,7 +18,7 @@ enum class TransientContentKindW10M : unsigned {
     // No transient content; the state below is Idle.
     None = 0,
     // Generic app-supplied markup; invalidates the recorded failure.
-    GenericHtml = 1,
+    GenericHTML = 1,
     // Warning interstitial; preserves the recorded failure for proceed.
     Warning = 2,
 };

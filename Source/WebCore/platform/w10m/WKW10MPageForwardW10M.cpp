@@ -198,18 +198,13 @@ WKW10MPageEvent eventFor(PageHostW10M& host, uint32_t kind, uint32_t contentKind
 }
 
 // Send a copied-value notification through the currently retained callback table.
-// A throwing subscriber must not unwind through WebCore; report and drop instead.
+// Native engine builds disable exceptions, so this TU cannot catch; the frozen
+// contract requires a non-throwing consumer and the host CX layer contains
+// handler failures at the ABI instead of propagating them here.
 void notify(PageHostW10M& host, const WKW10MPageEvent& event)
 {
-    if (!host.engineCallbacksAttached || !host.engineCallbacks.notify)
-        return;
-    try {
+    if (host.engineCallbacksAttached && host.engineCallbacks.notify)
         host.engineCallbacks.notify(host.engineCallbacks.context, &event);
-    } catch (...) {
-#if defined(WKW10M_HOSTHTML_CANDIDATE)
-        writeInitializationTrace("engine-notify-threw", 0);
-#endif
-    }
 }
 
 } // namespace
@@ -229,14 +224,7 @@ WKW10MResult startEngineNavigationW10M(PageHostW10M& host, uint64_t navigationId
     CString targetString(target);
     CString empty;
     auto event = eventFor(host, WKW10MEventStarting, contentKind, navigationId, targetString, empty);
-    try {
-        return host.engineCallbacks.starting(host.engineCallbacks.context, &event, cancel);
-    } catch (...) {
-#if defined(WKW10M_HOSTHTML_CANDIDATE)
-        writeInitializationTrace("engine-starting-threw", 0);
-#endif
-        return WKW10MResultInvalidState;
-    }
+    return host.engineCallbacks.starting(host.engineCallbacks.context, &event, cancel);
 }
 
 // Publish the committed document URI after the engine navigation controller updates its generation.
@@ -421,7 +409,7 @@ WKW10MResult detachEngineCallbacksW10M(WKW10MPageHandle id)
 }
 
 // Load explicit UTF-8 HostHtml via the engine's history-hidden about:blank substitute.
-WKW10MResult loadEngineHtmlW10M(WKW10MPageHandle id, const WKW10MNavigationRequest* request,
+WKW10MResult loadEngineHTMLW10M(WKW10MPageHandle id, const WKW10MNavigationRequest* request,
     uint64_t* navigationId)
 {
     if (GetCurrentThreadId() != s_engineOwner)
@@ -437,7 +425,7 @@ WKW10MResult loadEngineHtmlW10M(WKW10MPageHandle id, const WKW10MNavigationReque
         return WKW10MResultUnsupported;
     auto html = String::fromUTF8(std::span<const uint8_t>(request->html.data, request->html.length));
     slot->host->engineContentKind = WKW10MContentHostHtml;
-    slot->host->transient.show(TransientContentKindW10M::GenericHtml, html);
+    slot->host->transient.show(TransientContentKindW10M::GenericHTML, html);
     *navigationId = slot->host->transient.transientNavigationId();
     return *navigationId ? WKW10MResultOK : WKW10MResultInvalidState;
 }

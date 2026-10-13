@@ -36,7 +36,7 @@
 #include "Settings.h"
 #include "StorageSessionProviderW10M.h"
 #include "StyleComputedStyle+GettersInlines.h"
-#include "TlsPolicyW10M.h"
+#include "TLSPolicyW10M.h"
 #include "WKW10MPageForwardW10M.h"
 #include <wtf/WallTime.h>
 #include <wtf/text/AtomString.h>
@@ -174,7 +174,7 @@ String fixtureBundlePath(const char* filename)
 
 // Fixture HTTPS origin on the alternate fixture port, derived from the plain
 // fixture base so both controls address the same server identity.
-String fixtureTlsBase(const String& fixtureBase)
+String fixtureTLSBase(const String& fixtureBase)
 {
     URL base { fixtureBase };
     return makeString("https://"_s, base.host().toString(), ":8004/"_s);
@@ -452,49 +452,49 @@ enum FixtureSuitePhase {
     FixtureSuitePhaseBudgetSuspendStable = 77,
 
     // Snapshots the owner trust bundle and proves immutability.
-    FixtureSuitePhaseTlsSnapshot = 78,
+    FixtureSuitePhaseTLSSnapshot = 78,
 
     // Creates the peer control for the concurrent-bundle probe.
-    FixtureSuitePhaseTlsPeerCreate = 79,
+    FixtureSuitePhaseTLSPeerCreate = 79,
 
     // Waits for the peer control's document to settle.
-    FixtureSuitePhaseTlsPeerLoad = 80,
+    FixtureSuitePhaseTLSPeerLoad = 80,
 
     // Navigates the owner control over HTTPS with the package bundle.
-    FixtureSuitePhaseTlsOwnerHttps = 81,
+    FixtureSuitePhaseTLSOwnerHttps = 81,
 
     // Verifies the package bundle fails closed for the fixture server.
-    FixtureSuitePhaseTlsOwnerStable = 82,
+    FixtureSuitePhaseTLSOwnerStable = 82,
 
     // Navigates the bundle-A peer control over HTTPS.
-    FixtureSuitePhaseTlsPeerHttps = 83,
+    FixtureSuitePhaseTLSPeerHttps = 83,
 
     // Verifies bundle A verifies the fixture server.
-    FixtureSuitePhaseTlsPeerStable = 84,
+    FixtureSuitePhaseTLSPeerStable = 84,
 
     // Creates the second peer control for the unrelated bundle.
     // Renamed from the early no-poisoning probe before it ever fired; the
     // concurrent window below proves isolation more strongly.
-    FixtureSuitePhaseTlsPeerBCreate = 85,
+    FixtureSuitePhaseTLSPeerBCreate = 85,
 
     // Waits for the second peer's document, then snapshots bundle B.
     // Renamed with 85; neither number ever appeared in a device log.
-    FixtureSuitePhaseTlsPeerBLoad = 86,
+    FixtureSuitePhaseTLSPeerBLoad = 86,
 
     // Suspends with both controls' HTTPS loads in flight.
-    FixtureSuitePhaseTlsSuspend = 87,
+    FixtureSuitePhaseTLSSuspend = 87,
 
     // Resumes after the suspended span.
-    FixtureSuitePhaseTlsResume = 88,
+    FixtureSuitePhaseTLSResume = 88,
 
     // Verifies concurrent opposite outcomes under one suspension.
-    FixtureSuitePhaseTlsConcurrentStable = 89,
+    FixtureSuitePhaseTLSConcurrentStable = 89,
 
     // Requests engine init with a conflicting font directory.
-    FixtureSuitePhaseTlsFontConflict = 90,
+    FixtureSuitePhaseTLSFontConflict = 90,
 
     // Verifies session teardown drops trust snapshots.
-    FixtureSuitePhaseTlsTeardown = 91
+    FixtureSuitePhaseTLSTeardown = 91
 };
 
 // Retry state and run-loop delays used by the temporary fixture runner.
@@ -1158,7 +1158,7 @@ void scheduleFixtureSuite(PageHostW10M* owner, FixtureSuitePhase phase, unsigned
             // change neither the document nor the preserved failure.
             g_fixtureVetoSubstring = "about:blank";
             owner->policyHandler = fixtureVetoPolicy;
-            owner->transient.show(TransientContentKindW10M::GenericHtml,
+            owner->transient.show(TransientContentKindW10M::GenericHTML,
                 "<title>Generic</title><p>TRANSIENT GENERIC fixture</p>"_s);
             owner->fixtureVetoId = owner->transient.transientNavigationId();
             scheduleFixtureSuite(owner, FixtureSuitePhaseTransientVetoStable);
@@ -1185,7 +1185,7 @@ void scheduleFixtureSuite(PageHostW10M* owner, FixtureSuitePhase phase, unsigned
             return;
         }
         case FixtureSuitePhaseTransientGenericProbe:
-            owner->transient.show(TransientContentKindW10M::GenericHtml,
+            owner->transient.show(TransientContentKindW10M::GenericHTML,
                 "<title>Generic</title><p>TRANSIENT GENERIC fixture</p>"_s);
             scheduleFixtureSuite(owner, FixtureSuitePhaseTransientGenericStable);
             return;
@@ -1357,7 +1357,7 @@ void scheduleFixtureSuite(PageHostW10M* owner, FixtureSuitePhase phase, unsigned
             CertificateExceptionStoreW10M::issuedToken(owner->page->sessionID(), issuer, decision);
             owner->log("fixture-cert-warn-preserved",
                 issuer == owner->fixtureCertIssuerA && decision == owner->fixtureCertDecisionA);
-            owner->transient.show(TransientContentKindW10M::GenericHtml,
+            owner->transient.show(TransientContentKindW10M::GenericHTML,
                 "<title>Generic</title><p>TRANSIENT GENERIC fixture</p>"_s);
             scheduleFixtureSuite(owner, FixtureSuitePhaseCertGeneric);
             return;
@@ -1579,10 +1579,10 @@ void scheduleFixtureSuite(PageHostW10M* owner, FixtureSuitePhase phase, unsigned
             owner->log("fixture-budget-suspend-active",
                 owner->navigation.activeNavigationId() == owner->fixtureLoopId);
             ResourcePolicyW10M::resetSessionLimits(owner->page->sessionID());
-            navigate("index.html"_s, FixtureSuitePhaseTlsSnapshot);
+            navigate("index.html"_s, FixtureSuitePhaseTLSSnapshot);
             return;
         }
-        case FixtureSuitePhaseTlsSnapshot: {
+        case FixtureSuitePhaseTLSSnapshot: {
             if (!at("/index.html"_s)) {
                 wait();
                 return;
@@ -1591,26 +1591,26 @@ void scheduleFixtureSuite(PageHostW10M* owner, FixtureSuitePhase phase, unsigned
             // The shell's startup navigation already snapshotted this session
             // with the package bundle: first wins, so per-bundle proofs run
             // on fresh peers below with their own sessions.
-            auto* ownerSnapshot = TlsPolicyW10M::snapshotFor(owner->page->sessionID());
+            auto* ownerSnapshot = TLSPolicyW10M::snapshotFor(owner->page->sessionID());
             owner->log("fixture-tls-owner-bundle", ownerSnapshot && !ownerSnapshot->sha256Hex.isEmpty());
             if (ownerSnapshot)
-                owner->fixtureTlsOwnerHash = ownerSnapshot->sha256Hex;
+                owner->fixtureTLSOwnerHash = ownerSnapshot->sha256Hex;
 
             // Device wall clock for certificate validity diagnosis.
             auto wallSeconds = static_cast<unsigned long>(WallTime::now().secondsSinceEpoch().seconds());
             owner->log("fixture-wall-clock", wallSeconds);
-            scheduleFixtureSuite(owner, FixtureSuitePhaseTlsPeerCreate);
+            scheduleFixtureSuite(owner, FixtureSuitePhaseTLSPeerCreate);
             return;
         }
-        case FixtureSuitePhaseTlsPeerCreate:
+        case FixtureSuitePhaseTLSPeerCreate:
             g_fixturePeer = createIsolationPeer(owner->fixtureBase);
             if (!g_fixturePeer) {
                 owner->log("fixture-suite-completed", WKPageLogFalseW10M);
                 return;
             }
-            scheduleFixtureSuite(owner, FixtureSuitePhaseTlsPeerLoad);
+            scheduleFixtureSuite(owner, FixtureSuitePhaseTLSPeerLoad);
             return;
-        case FixtureSuitePhaseTlsPeerLoad: {
+        case FixtureSuitePhaseTLSPeerLoad: {
             auto* peerDocument = g_fixturePeer && g_fixturePeer->page && g_fixturePeer->page->localMainFrame()
                 ? g_fixturePeer->page->localMainFrame()->document()
                 : nullptr;
@@ -1623,52 +1623,52 @@ void scheduleFixtureSuite(PageHostW10M* owner, FixtureSuitePhase phase, unsigned
             auto bundleA = fixtureBundlePath("fixture-ca.pem");
             auto peerSession = g_fixturePeer->page->sessionID();
             owner->log("fixture-tls-snapshot-a",
-                !bundleA.isEmpty() && TlsPolicyW10M::snapshotSessionBundle(peerSession, bundleA));
-            auto* snapshotA = TlsPolicyW10M::snapshotFor(peerSession);
+                !bundleA.isEmpty() && TLSPolicyW10M::snapshotSessionBundle(peerSession, bundleA));
+            auto* snapshotA = TLSPolicyW10M::snapshotFor(peerSession);
             owner->log("fixture-tls-snapshot-hash", snapshotA && !snapshotA->sha256Hex.isEmpty());
             // A later different bundle for the same session is ignored: the
             // snapshot is immutable, so concurrent controls cannot rebind it.
             auto bundleB = fixtureBundlePath("fixture-unrelated-ca.pem");
             String hashBefore = snapshotA ? snapshotA->sha256Hex : String();
-            bool rebinding = TlsPolicyW10M::snapshotSessionBundle(peerSession, bundleB);
-            auto* snapshotAfter = TlsPolicyW10M::snapshotFor(peerSession);
+            bool rebinding = TLSPolicyW10M::snapshotSessionBundle(peerSession, bundleB);
+            auto* snapshotAfter = TLSPolicyW10M::snapshotFor(peerSession);
             owner->log("fixture-tls-immutable",
                 rebinding && snapshotAfter && snapshotAfter->sha256Hex == hashBefore);
             // Owner HTTPS with the package bundle fails closed: the fixture
             // CA is not in it, so verification must reject.
             ResourceRequest ownerRequest;
-            ownerRequest.setURL(URL { makeString(fixtureTlsBase(owner->fixtureBase), "index.html"_s) });
+            ownerRequest.setURL(URL { makeString(fixtureTLSBase(owner->fixtureBase), "index.html"_s) });
             owner->fixtureLoopId = owner->navigation.beginNavigation();
             owner->fixtureNavigationId = owner->fixtureLoopId;
             owner->fixtureNavigationGeneration = owner->navigation.documentGeneration();
             owner->frame().loader().load(FrameLoadRequest(owner->frame(), WTF::move(ownerRequest)));
-            scheduleFixtureSuite(owner, FixtureSuitePhaseTlsOwnerHttps);
+            scheduleFixtureSuite(owner, FixtureSuitePhaseTLSOwnerHttps);
             return;
         }
-        case FixtureSuitePhaseTlsOwnerHttps:
+        case FixtureSuitePhaseTLSOwnerHttps:
             if (outcome(owner->fixtureLoopId) != NavigationOutcomeW10M::ProvisionalFailure) {
                 wait();
                 return;
             }
-            scheduleFixtureSuite(owner, FixtureSuitePhaseTlsOwnerStable);
+            scheduleFixtureSuite(owner, FixtureSuitePhaseTLSOwnerStable);
             return;
-        case FixtureSuitePhaseTlsOwnerStable: {
+        case FixtureSuitePhaseTLSOwnerStable: {
             // The package bundle fails closed for the fixture server: the
             // fixture CA is not in it, so verification must reject. This also
             // proves no native-store augmentation sneaks the private CA in.
             owner->log("fixture-tls-owner-fails-closed", owner->navigation.transportError() == 60);
             g_fixturePeer->navigation.beginNavigation();
             ResourceRequest peerRequest;
-            peerRequest.setURL(URL { makeString(fixtureTlsBase(owner->fixtureBase), "index.html"_s) });
+            peerRequest.setURL(URL { makeString(fixtureTLSBase(owner->fixtureBase), "index.html"_s) });
             auto& peerFrame = g_fixturePeer->frame();
             peerFrame.loader().load(FrameLoadRequest(peerFrame, WTF::move(peerRequest)));
-            scheduleFixtureSuite(owner, FixtureSuitePhaseTlsPeerHttps);
+            scheduleFixtureSuite(owner, FixtureSuitePhaseTLSPeerHttps);
             return;
         }
-        case FixtureSuitePhaseTlsPeerHttps:
-            scheduleFixtureSuite(owner, FixtureSuitePhaseTlsPeerStable);
+        case FixtureSuitePhaseTLSPeerHttps:
+            scheduleFixtureSuite(owner, FixtureSuitePhaseTLSPeerStable);
             return;
-        case FixtureSuitePhaseTlsPeerStable: {
+        case FixtureSuitePhaseTLSPeerStable: {
             auto peerANavId = g_fixturePeer->navigation.activeNavigationId();
             bool peerACommitted = g_fixturePeer->navigation.terminalOutcome(peerANavId) == NavigationOutcomeW10M::Committed;
             if (!peerACommitted) {
@@ -1678,18 +1678,18 @@ void scheduleFixtureSuite(PageHostW10M* owner, FixtureSuitePhase phase, unsigned
 
             // Bundle A verifies the fixture server over real TLS.
             owner->log("fixture-tls-peerA-committed", WKPageLogTrueW10M);
-            scheduleFixtureSuite(owner, FixtureSuitePhaseTlsPeerBCreate);
+            scheduleFixtureSuite(owner, FixtureSuitePhaseTLSPeerBCreate);
             return;
         }
-        case FixtureSuitePhaseTlsPeerBCreate:
+        case FixtureSuitePhaseTLSPeerBCreate:
             g_fixturePeerB = createIsolationPeer(owner->fixtureBase);
             if (!g_fixturePeerB) {
                 owner->log("fixture-suite-completed", WKPageLogFalseW10M);
                 return;
             }
-            scheduleFixtureSuite(owner, FixtureSuitePhaseTlsPeerBLoad);
+            scheduleFixtureSuite(owner, FixtureSuitePhaseTLSPeerBLoad);
             return;
-        case FixtureSuitePhaseTlsPeerBLoad: {
+        case FixtureSuitePhaseTLSPeerBLoad: {
             auto* peerBDocument = g_fixturePeerB && g_fixturePeerB->page && g_fixturePeerB->page->localMainFrame()
                 ? g_fixturePeerB->page->localMainFrame()->document()
                 : nullptr;
@@ -1702,11 +1702,11 @@ void scheduleFixtureSuite(PageHostW10M* owner, FixtureSuitePhase phase, unsigned
 
             auto bundleB = fixtureBundlePath("fixture-unrelated-ca.pem");
             owner->log("fixture-tls-snapshot-b",
-                !bundleB.isEmpty() && TlsPolicyW10M::snapshotSessionBundle(g_fixturePeerB->page->sessionID(), bundleB));
-            scheduleFixtureSuite(owner, FixtureSuitePhaseTlsSuspend);
+                !bundleB.isEmpty() && TLSPolicyW10M::snapshotSessionBundle(g_fixturePeerB->page->sessionID(), bundleB));
+            scheduleFixtureSuite(owner, FixtureSuitePhaseTLSSuspend);
             return;
         }
-        case FixtureSuitePhaseTlsSuspend: {
+        case FixtureSuitePhaseTLSSuspend: {
             // Suspend with both peers' HTTPS loads in flight so they
             // handshake and transfer concurrently under opposite bundles.
             auto strategyHandle = platformStrategies()->loaderStrategy();
@@ -1714,25 +1714,25 @@ void scheduleFixtureSuite(PageHostW10M* owner, FixtureSuitePhase phase, unsigned
             strategy->suspendPendingRequests();
             g_fixturePeer->navigation.beginNavigation();
             ResourceRequest peerARequest;
-            peerARequest.setURL(URL { makeString(fixtureTlsBase(owner->fixtureBase), "index.html"_s) });
+            peerARequest.setURL(URL { makeString(fixtureTLSBase(owner->fixtureBase), "index.html"_s) });
             auto& peerAFrame = g_fixturePeer->frame();
             peerAFrame.loader().load(FrameLoadRequest(peerAFrame, WTF::move(peerARequest)));
             g_fixturePeerB->navigation.beginNavigation();
             ResourceRequest peerBRequest;
-            peerBRequest.setURL(URL { makeString(fixtureTlsBase(owner->fixtureBase), "index.html"_s) });
+            peerBRequest.setURL(URL { makeString(fixtureTLSBase(owner->fixtureBase), "index.html"_s) });
             auto& peerBFrame = g_fixturePeerB->frame();
             peerBFrame.loader().load(FrameLoadRequest(peerBFrame, WTF::move(peerBRequest)));
-            scheduleFixtureSuite(owner, FixtureSuitePhaseTlsResume, kInitialFixtureRetry, 1500_ms);
+            scheduleFixtureSuite(owner, FixtureSuitePhaseTLSResume, kInitialFixtureRetry, 1500_ms);
             return;
         }
-        case FixtureSuitePhaseTlsResume: {
+        case FixtureSuitePhaseTLSResume: {
             auto strategyHandle = platformStrategies()->loaderStrategy();
             auto* strategy = static_cast<LoaderStrategyW10M*>(strategyHandle.get());
             strategy->resumePendingRequests();
-            scheduleFixtureSuite(owner, FixtureSuitePhaseTlsConcurrentStable);
+            scheduleFixtureSuite(owner, FixtureSuitePhaseTLSConcurrentStable);
             return;
         }
-        case FixtureSuitePhaseTlsConcurrentStable: {
+        case FixtureSuitePhaseTLSConcurrentStable: {
             auto peerANavId = g_fixturePeer->navigation.activeNavigationId();
             auto peerBNavId = g_fixturePeerB->navigation.activeNavigationId();
             bool peerACommitted = g_fixturePeer->navigation.terminalOutcome(peerANavId) == NavigationOutcomeW10M::Committed;
@@ -1747,18 +1747,18 @@ void scheduleFixtureSuite(PageHostW10M* owner, FixtureSuitePhase phase, unsigned
             // bundle B fails closed, sharing only timing, never trust.
             owner->log("fixture-tls-concurrent-owner", WKPageLogTrueW10M);
             owner->log("fixture-tls-concurrent-peer", WKPageLogTrueW10M);
-            scheduleFixtureSuite(owner, FixtureSuitePhaseTlsFontConflict);
+            scheduleFixtureSuite(owner, FixtureSuitePhaseTLSFontConflict);
             return;
         }
-        case FixtureSuitePhaseTlsFontConflict: {
+        case FixtureSuitePhaseTLSFontConflict: {
             // A conflicting font directory fails before any page creation
             // instead of silently changing live pages.
             unsigned result = engineEnsureInitializedW10M(L"C:\\nonexistent-fonts-4-11", owner->log);
             owner->log("fixture-tls-font-conflict", result == FirstPageResultConfigurationConflictW10M);
-            scheduleFixtureSuite(owner, FixtureSuitePhaseTlsTeardown);
+            scheduleFixtureSuite(owner, FixtureSuitePhaseTLSTeardown);
             return;
         }
-        case FixtureSuitePhaseTlsTeardown:
+        case FixtureSuitePhaseTLSTeardown:
             // The single teardown point in Done drops trust snapshots with
             // everything else; ending on plain HTTP leaves a clean document.
             navigate("index.html"_s, FixtureSuitePhaseDone);
@@ -1783,7 +1783,7 @@ void scheduleFixtureSuite(PageHostW10M* owner, FixtureSuitePhase phase, unsigned
                 delete g_fixturePeer;
                 g_fixturePeer = nullptr;
                 peerTornDown = !storageSessionW10M(certPeerSession)
-                    && !TlsPolicyW10M::snapshotFor(certPeerSession);
+                    && !TLSPolicyW10M::snapshotFor(certPeerSession);
             }
             owner->log("fixture-cert-peer-torn-down", peerTornDown);
             // The second peer vanishes with its unrelated-bundle snapshot too.
@@ -1793,14 +1793,14 @@ void scheduleFixtureSuite(PageHostW10M* owner, FixtureSuitePhase phase, unsigned
                 delete g_fixturePeerB;
                 g_fixturePeerB = nullptr;
                 peerBTornDown = !storageSessionW10M(peerBSession)
-                    && !TlsPolicyW10M::snapshotFor(peerBSession);
+                    && !TLSPolicyW10M::snapshotFor(peerBSession);
             }
             owner->log("fixture-tls-peerB-torn-down", peerBTornDown);
             // Trust teardown rides the same deletion: the peer snapshot is
             // gone while the owner snapshot keeps its frozen hash.
-            auto* ownerSnapshot = TlsPolicyW10M::snapshotFor(owner->page->sessionID());
+            auto* ownerSnapshot = TLSPolicyW10M::snapshotFor(owner->page->sessionID());
             owner->log("fixture-tls-teardown-intact",
-                ownerSnapshot && ownerSnapshot->sha256Hex == owner->fixtureTlsOwnerHash);
+                ownerSnapshot && ownerSnapshot->sha256Hex == owner->fixtureTLSOwnerHash);
             owner->log("fixture-suite-completed", WKPageLogTrueW10M);
             return;
         }

@@ -33,7 +33,7 @@ WKW10MResult attachEngineCallbacksW10M(WKW10MPageHandle, const WKW10MPageCallbac
 // Detach the page callbacks and release the retained context.
 WKW10MResult detachEngineCallbacksW10M(WKW10MPageHandle);
 // Load borrowed explicit-length HostHtml as history-hidden substitute data.
-WKW10MResult loadEngineHtmlW10M(WKW10MPageHandle, const WKW10MNavigationRequest*, uint64_t*);
+WKW10MResult loadEngineHTMLW10M(WKW10MPageHandle, const WKW10MNavigationRequest*, uint64_t*);
 
 // Apply checked CSS viewport/device geometry without allocating a host paint surface.
 WKW10MResult resizeEnginePageW10M(WKW10MPageHandle, uint32_t, uint32_t, double, double);

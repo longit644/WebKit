@@ -14,7 +14,7 @@ namespace WebCore {
 
 // Immutable CA-file snapshot for one page session: the bundle path handed to
 // curl plus the file bytes hashed at snapshot time for identity proof.
-struct TlsBundleSnapshot {
+struct TLSBundleSnapshot {
     // CA bundle path as handed to curl; empty means no snapshot.
     String caPath;
 
@@ -24,7 +24,7 @@ struct TlsBundleSnapshot {
 
 // Immutable per-session CA snapshots with explicit teardown. Owns bundle
 // identity and lifetime; enforcement reads snapshots without mutating them.
-class TlsPolicyW10M {
+class TLSPolicyW10M {
 public:
     // Snapshots the CA file for a session on first use; later paths are
     // ignored so concurrent controls cannot rebind each other's trust.
@@ -32,7 +32,7 @@ public:
     static bool snapshotSessionBundle(PAL::SessionID, const String& caPath);
 
     // Snapshot for a session, or null when it never snapshotted one.
-    static const TlsBundleSnapshot* snapshotFor(PAL::SessionID);
+    static const TLSBundleSnapshot* snapshotFor(PAL::SessionID);
 
     // Drops a session's snapshot at teardown.
     static void eraseSession(PAL::SessionID);
@@ -43,7 +43,7 @@ public:
 
 private:
     // Live snapshots by session; entries vanish at teardown, never by timeout.
-    static HashMap<PAL::SessionID, TlsBundleSnapshot>& sessions();
+    static HashMap<PAL::SessionID, TLSBundleSnapshot>& sessions();
 };
 
 } // namespace WebCore

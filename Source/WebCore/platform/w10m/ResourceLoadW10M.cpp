@@ -17,7 +17,7 @@
 #include "ResourceResponse.h"
 #include "SameSiteInfo.h"
 #include "SharedBuffer.h"
-#include "TlsPolicyW10M.h"
+#include "TLSPolicyW10M.h"
 #include <wtf/MainThread.h>
 #include <wtf/RunLoop.h>
 #include <wtf/text/MakeString.h>
@@ -149,7 +149,7 @@ void ResourceLoadW10M::start(const ResourceRequest& request)
     // connection reuse attempts.
     if (transportRequest.url().protocolIs("https"_s)) {
         String caCertPath;
-        if (auto* snapshot = TlsPolicyW10M::snapshotFor(m_sessionID))
+        if (auto* snapshot = TLSPolicyW10M::snapshotFor(m_sessionID))
             caCertPath = snapshot->caPath;
         reportTransferURL("w10m-tls-bundle", transportRequest.url(), !caCertPath.isEmpty());
         m_request->setRequestSSLPolicyState(caCertPath, false, false);

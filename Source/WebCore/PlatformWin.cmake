@@ -65,7 +65,7 @@ if (WK_W10M)
     list(APPEND WebCore_SOURCES platform/w10m/ResourcePolicyW10M.cpp)
     list(APPEND WebCore_SOURCES platform/w10m/StorageSessionProviderW10M.cpp)
     list(APPEND WebCore_SOURCES platform/w10m/TextureMapperCompositorW10M.cpp)
-    list(APPEND WebCore_SOURCES platform/w10m/TlsPolicyW10M.cpp)
+    list(APPEND WebCore_SOURCES platform/w10m/TLSPolicyW10M.cpp)
     list(APPEND WebCore_SOURCES platform/w10m/TransientPageW10M.cpp)
     # ARM32 clang-cl's include dependency output omits quoted W10M headers
     # (proven by stale EngineW10M/ChromeClient/Transient objects crashing at

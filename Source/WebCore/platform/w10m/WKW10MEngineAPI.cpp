@@ -72,7 +72,7 @@ WKW10MResult attachEngineCallbacksW10M(WKW10MPageHandle, const WKW10MPageCallbac
 // Deactivates and releases one callback attachment.
 WKW10MResult detachEngineCallbacksW10M(WKW10MPageHandle);
 // Submits one explicit-length history-neutral HostHtml request.
-WKW10MResult loadEngineHtmlW10M(WKW10MPageHandle, const WKW10MNavigationRequest*, uint64_t*);
+WKW10MResult loadEngineHTMLW10M(WKW10MPageHandle, const WKW10MNavigationRequest*, uint64_t*);
 }
 #endif
 
@@ -310,7 +310,7 @@ void fillEngineTable(WKW10MEngineAPI* api)
     api->closePage = WebCore::closeEnginePageW10M;
     api->setCallbacks = WebCore::attachEngineCallbacksW10M;
     api->detachCallbacks = WebCore::detachEngineCallbacksW10M;
-    api->loadHtml = WebCore::loadEngineHtmlW10M;
+    api->loadHtml = WebCore::loadEngineHTMLW10M;
     api->resize = WebCore::resizeEnginePageW10M;
     api->attachCompositor = WebCore::attachEngineCompositorW10M;
     api->detachCompositor = WebCore::detachEngineCompositorW10M;
