@@ -31,29 +31,29 @@ namespace WebKitMiniBrowser
         /// <summary>The keyboard event source for app-owned input-pane avoidance.</summary>
         private readonly InputPane inputPane;
 
+        /// <summary>Render-only address-bar movement after keyboard/system-bar safe-area layout.</summary>
+        private readonly ChromeLayoutTransition addressBarTransition;
+
         /// <summary>The most recently announced keyboard rectangle, in window-local logical pixels.</summary>
         private Windows.Foundation.Rect inputPaneOccludedRect;
+
+        /// <summary>Last bottom system inset observed independently of docked keyboard occlusion.</summary>
+        private double browserSystemBottomInset;
 
         /// <summary>Whether external layout and Back event sources are currently subscribed.</summary>
         private bool subscriptionsActive;
 
-        /// <summary>Height of the shared bottom address/app-bar surface, in logical pixels.</summary>
-        private const double BrowserChromeHeight = 48;
-
-        /// <summary>Height reserved for the expanded primary icon-and-label strip.</summary>
-        private const double ExpandedActionsHeight = 56;
-
-        /// <summary>Default platform width of a native AppBarButton.</summary>
-        private const double HelloActionWidth = 68;
-
-        /// <summary>Duration of the app-bar panel's upward/downward slide.</summary>
-        private const double MenuAnimationMilliseconds = 180;
+        /// <summary>Name of the candidate interaction report in app LocalState.</summary>
+        private const string HostHtmlCandidateReportFileName = "hosthtml-candidate.txt";
 
         /// <summary>The active view-owned menu transition, if any.</summary>
         private Storyboard menuAnimation;
 
         /// <summary>Monotonic transition identity rejecting callbacks from interrupted slides.</summary>
         private int menuTransitionId;
+
+        /// <summary>Owns reveal/morph/focus and reverse closing choreography for address editing.</summary>
+        private AddressEditingTransition addressEditing;
 
         /// <summary>The MVVM command/state source used by the page and its app-bar panel.</summary>
         public BrowserViewModel ViewModel { get; private set; }
@@ -107,6 +107,13 @@ namespace WebKitMiniBrowser
         private bool layoutReportPending;
 #endif
 
+#if HOSTHTML_SMOKE
+        /// <summary>Whether the candidate's one-time automatic HostHtml command has been issued.</summary>
+        private bool hostHtmlSmokeSubmitted;
+        /// <summary>Whether candidate-only event/state diagnostics are subscribed.</summary>
+        private bool hostHtmlSmokeSubscribed;
+#endif
+
         /// <summary>
         /// Initializes compiled XAML, attaches the public browser control to its
         /// view model, and configures visible-bounds layout.
@@ -114,6 +121,7 @@ namespace WebKitMiniBrowser
         public MainPage()
         {
             InitializeComponent();
+            addressBarTransition = new ChromeLayoutTransition(AddressBar, this);
             string packagePath = Package.Current.InstalledLocation.Path;
             string overridePath = Path.Combine(ApplicationData.Current.LocalFolder.Path, "blocked-override.html");
             MiniBrowserServiceLocator.ConfigureBrowserPage(
@@ -130,6 +138,13 @@ namespace WebKitMiniBrowser
             applicationView = ApplicationView.GetForCurrentView();
             navigationManager = SystemNavigationManager.GetForCurrentView();
             inputPane = InputPane.GetForCurrentView();
+            addressEditing = new AddressEditingTransition(
+                AddressBar,
+                AddressEditingOverlay,
+                inputPane,
+                () => subscriptionsActive,
+                () => inputPaneOccludedRect.Height > 0,
+                () => Focus(FocusState.Programmatic));
             Loaded += OnLoaded;
             Unloaded += OnUnloaded;
             SizeChanged += OnSizeChanged;
@@ -143,7 +158,9 @@ namespace WebKitMiniBrowser
         /// <param name="args">Change details.</param>
         private void OnVisibleBoundsChanged(ApplicationView sender, object args)
         {
-            ApplyVisibleBounds();
+            addressBarTransition.MotionEnabled = inputPaneOccludedRect.Height <= 0
+                && !addressEditing.KeyboardMotionInProgress;
+            ApplyVisibleBounds(animateSystemChange: true);
         }
 
         /// <summary>Reapplies safe-area margins when the OS resumes the application.</summary>
@@ -159,6 +176,9 @@ namespace WebKitMiniBrowser
         /// <param name="args">The routed Loaded event.</param>
         private void OnLoaded(object sender, RoutedEventArgs args)
         {
+            addressBarTransition.Reset();
+            addressEditing.Reset();
+            addressEditing.PhaseChanged += OnAddressEditingPhaseChanged;
             if (!subscriptionsActive)
             {
                 applicationView.VisibleBoundsChanged += OnVisibleBoundsChanged;
@@ -167,12 +187,37 @@ namespace WebKitMiniBrowser
                 inputPane.Hiding += OnInputPaneHiding;
                 Application.Current.Resuming += OnResuming;
                 ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+#if HOSTHTML_SMOKE
+                Browser.SizeChanged += OnHostHtmlViewportChanged;
+                Window.Current.VisibilityChanged += OnHostHtmlWindowVisibilityChanged;
+                Window.Current.Activated += OnHostHtmlWindowActivated;
+#endif
                 subscriptionsActive = true;
             }
 
             inputPaneOccludedRect = inputPane.OccludedRect;
             ApplyAddressEditing();
             ApplyVisibleBounds();
+#if HOSTHTML_SMOKE
+            if (!hostHtmlSmokeSubscribed)
+            {
+                var version = Package.Current.Id.Version;
+                string reportPath = Path.Combine(ApplicationData.Current.LocalFolder.Path, HostHtmlCandidateReportFileName);
+                File.WriteAllText(reportPath, "package=" + version.Major + "." + version.Minor + "."
+                    + version.Build + "." + version.Revision + Environment.NewLine);
+                AppendHostHtmlSmoke("package", "installed=" + Package.Current.InstalledLocation.Path);
+                Browser.NavigationStarting += OnHostHtmlStarting;
+                Browser.NavigationCompleted += OnHostHtmlCompleted;
+                ViewModel.PropertyChanged += OnHostHtmlStateChanged;
+                hostHtmlSmokeSubscribed = true;
+                WriteHostHtmlSmokeSnapshot("startup");
+            }
+            if (!hostHtmlSmokeSubmitted)
+            {
+                hostHtmlSmokeSubmitted = true;
+                Browser.EnsureInitializedAsync().Completed += OnHostHtmlSmokeInitialized;
+            }
+#endif
         }
 
         /// <summary>Revokes external view subscriptions without closing a temporarily unloaded browser.</summary>
@@ -180,7 +225,10 @@ namespace WebKitMiniBrowser
         /// <param name="args">The routed Unloaded event.</param>
         private void OnUnloaded(object sender, RoutedEventArgs args)
         {
+            addressBarTransition.Reset();
+            addressEditing.PhaseChanged -= OnAddressEditingPhaseChanged;
             ViewModel.CancelAddressEditingCommand.Execute(null);
+            addressEditing.Reset();
             if (subscriptionsActive)
             {
                 applicationView.VisibleBoundsChanged -= OnVisibleBoundsChanged;
@@ -189,12 +237,115 @@ namespace WebKitMiniBrowser
                 inputPane.Hiding -= OnInputPaneHiding;
                 Application.Current.Resuming -= OnResuming;
                 ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+#if HOSTHTML_SMOKE
+                Browser.SizeChanged -= OnHostHtmlViewportChanged;
+                Window.Current.VisibilityChanged -= OnHostHtmlWindowVisibilityChanged;
+                Window.Current.Activated -= OnHostHtmlWindowActivated;
+                Browser.NavigationStarting -= OnHostHtmlStarting;
+                Browser.NavigationCompleted -= OnHostHtmlCompleted;
+                ViewModel.PropertyChanged -= OnHostHtmlStateChanged;
+                hostHtmlSmokeSubscribed = false;
+#endif
                 subscriptionsActive = false;
             }
 
             CollapseMenuImmediately();
             ViewModel.CloseMenuCommand.Execute(null);
         }
+
+#if HOSTHTML_SMOKE
+        /// <summary>Records public-control readiness before issuing the local demo command.</summary>
+        private void OnHostHtmlSmokeInitialized(Windows.Foundation.IAsyncAction operation, Windows.Foundation.AsyncStatus status)
+        {
+            try
+            {
+                if (status != Windows.Foundation.AsyncStatus.Completed)
+                {
+                    var error = operation.ErrorCode;
+                    AppendHostHtmlSmoke("initialized", "status=" + status + ";error=0x"
+                        + (error == null ? "00000000" : error.HResult.ToString("X8"))
+                        + ";detail=" + (error == null ? string.Empty : error.Message));
+                    return;
+                }
+                operation.GetResults();
+                AppendHostHtmlSmoke("initialized", "result=S_OK");
+                ViewModel.LoadDemoCommand.Execute(null);
+            }
+            catch (Exception exception)
+            {
+                string detail = exception.ToString().Replace('\r', ' ').Replace('\n', ' ');
+                AppendHostHtmlSmoke("initialized", "result=0x" + exception.HResult.ToString("X8") + ";detail=" + detail);
+            }
+        }
+
+        /// <summary>Records the actual frozen-table Starting callback in app LocalState.</summary>
+        private void OnHostHtmlStarting(WebKit.WebKitWebView sender, WebKit.WebKitNavigationStartingEventArgs args)
+        {
+            AppendHostHtmlSmoke("starting", "id=" + args.NavigationId + ";kind=" + args.ContentKind + ";uri=" + args.Uri);
+        }
+
+        /// <summary>Records the actual frozen-table terminal and its status/history snapshot.</summary>
+        private void OnHostHtmlCompleted(WebKit.WebKitWebView sender, WebKit.WebKitNavigationCompletedEventArgs args)
+        {
+            AppendHostHtmlSmoke("completed", "id=" + args.NavigationId + ";kind=" + args.ContentKind
+                + ";outcome=" + args.Outcome + ";http=" + args.HasHttpStatus + ";status=" + args.HttpStatus);
+            WriteHostHtmlSmokeSnapshot("terminal");
+        }
+
+        /// <summary>Captures public observable state changes caused by the demo navigation.</summary>
+        private void OnHostHtmlStateChanged(object sender, PropertyChangedEventArgs args)
+        {
+            if (args.PropertyName == "Source" || args.PropertyName == "CanGoBack"
+                || args.PropertyName == "CanGoForward" || args.PropertyName == "IsLoading"
+                || args.PropertyName == "DocumentTitle" || args.PropertyName == "Status")
+                WriteHostHtmlSmokeSnapshot(args.PropertyName);
+        }
+
+        /// <summary>Appends a value-only candidate diagnostic line; no remote URL or credential is recorded.</summary>
+        private void AppendHostHtmlSmoke(string phase, string detail)
+        {
+            string path = Path.Combine(ApplicationData.Current.LocalFolder.Path, HostHtmlCandidateReportFileName);
+            File.AppendAllText(path, phase + ": " + detail + Environment.NewLine);
+        }
+
+        /// <summary>Records the local demo's public Source/history/loading/title state.</summary>
+        private void WriteHostHtmlSmokeSnapshot(string phase)
+        {
+            AppendHostHtmlSmoke(phase, "source=" + ViewModel.Address + ";back=" + ViewModel.CanGoBack
+                + ";forward=" + ViewModel.CanGoForward + ";loading=" + ViewModel.IsLoading
+                + ";title=" + ViewModel.DocumentTitle + ";status=" + ViewModel.Status);
+        }
+
+        /// <summary>Records only focus/mode/geometry facts, without typed address content.</summary>
+        private void WriteKeyboardTransition(string phase)
+        {
+            AppendHostHtmlSmoke("ux", "phase=" + phase + ";time=" + DateTime.UtcNow.ToString("O")
+                + ";editing=" + ViewModel.IsAddressEditing + ";menu=" + ViewModel.IsMenuOpen
+                + ";visual-editing=" + AddressBar.IsAddressEditing
+                + ";edit-layer=" + AddressEditingOverlay.Visibility + ";layer-opacity=" + AddressEditingOverlay.Opacity
+                + ";focus=" + AddressBox.FocusState + ";web=" + Browser.ActualWidth + "x" + Browser.ActualHeight
+                + ";chrome=" + ShellRoot.ActualWidth + "x" + ShellRoot.ActualHeight
+                + ";keyboard=" + inputPaneOccludedRect.Height + AddressBar.GetColorDiagnostic());
+        }
+
+        /// <summary>Correlates actual web viewport changes with focus and keyboard events.</summary>
+        private void OnHostHtmlViewportChanged(object sender, SizeChangedEventArgs args)
+        {
+            WriteKeyboardTransition("web-size");
+        }
+
+        /// <summary>Correlates window exposure with system panels without forcing a redraw from the shell.</summary>
+        private void OnHostHtmlWindowVisibilityChanged(object sender, Windows.UI.Core.VisibilityChangedEventArgs args)
+        {
+            WriteKeyboardTransition("window-visible-" + args.Visible);
+        }
+
+        /// <summary>Records Action Center activation transitions independently of viewport geometry.</summary>
+        private void OnHostHtmlWindowActivated(object sender, Windows.UI.Core.WindowActivatedEventArgs args)
+        {
+            WriteKeyboardTransition("window-activation-" + args.WindowActivationState);
+        }
+#endif
 
         /// <summary>Dismisses address editing or actions before traversing engine history.</summary>
         /// <param name="sender">The system navigation manager.</param>
@@ -237,6 +388,9 @@ namespace WebKitMiniBrowser
         {
             ViewModel.BeginAddressEditingCommand.Execute(null);
             AddressBox.SelectAll();
+#if HOSTHTML_SMOKE
+            WriteKeyboardTransition("address-focus");
+#endif
         }
 
         /// <summary>Returns to compact chrome when focus leaves the address editor.</summary>
@@ -248,6 +402,9 @@ namespace WebKitMiniBrowser
             {
                 ViewModel.CancelAddressEditingCommand.Execute(null);
             }
+#if HOSTHTML_SMOKE
+            WriteKeyboardTransition("address-blur");
+#endif
         }
 
         /// <summary>Dismisses the active address edit or app-bar panel without changing history.</summary>
@@ -294,7 +451,7 @@ namespace WebKitMiniBrowser
             }
 
             double menuWidth = width > height ? width / 2 : width;
-            double availableHeight = Math.Max(0, height - BrowserChromeHeight);
+            double availableHeight = Math.Max(0, height - BrowserChromeGeometry.ChromeHeight);
             double panelInsets = MenuSheet.Padding.Top + MenuSheet.Padding.Bottom
                 + MenuSheet.BorderThickness.Top + MenuSheet.BorderThickness.Bottom;
             if (MenuSheet.Width != menuWidth)
@@ -303,8 +460,8 @@ namespace WebKitMiniBrowser
             }
 
             MenuSheet.MaxHeight = availableHeight;
-            MenuScroll.MaxHeight = Math.Max(0, availableHeight - panelInsets - ExpandedActionsHeight);
-            double primaryWidth = Math.Min(HelloActionWidth, menuWidth);
+            MenuScroll.MaxHeight = Math.Max(0, availableHeight - panelInsets - BrowserChromeGeometry.ExpandedActionsHeight);
+            double primaryWidth = Math.Min(BrowserChromeGeometry.HelloActionWidth, menuWidth);
             HelloActionHost.Width = primaryWidth;
             HelloActionButton.Width = primaryWidth;
             MenuOverlayClip.Rect = new Windows.Foundation.Rect(0, 0, width, height);
@@ -318,28 +475,39 @@ namespace WebKitMiniBrowser
             if (args.PropertyName == "IsMenuOpen")
             {
                 AnimateMenu(ViewModel.IsMenuOpen);
+#if HOSTHTML_SMOKE
+                WriteKeyboardTransition("menu-state");
+#endif
             }
             else if (args.PropertyName == "IsAddressEditing")
             {
                 ApplyAddressEditing();
+#if HOSTHTML_SMOKE
+                WriteKeyboardTransition("editing-state");
+#endif
             }
         }
 
-        /// <summary>Applies editor geometry and focus while leaving editing state in the ViewModel.</summary>
+        /// <summary>Delegates reveal/morph/focus choreography while ViewModel owns logical editing state.</summary>
         private void ApplyAddressEditing()
         {
             if (ViewModel.IsAddressEditing)
-            {
                 CollapseMenuImmediately();
-            }
-            else if (AddressBox.FocusState != FocusState.Unfocused)
-            {
-                Focus(FocusState.Programmatic);
-                inputPane.TryHide();
-            }
+            addressEditing.Request(ViewModel.IsAddressEditing);
 
 #if LAYOUT_DIAGNOSTICS
             QueueLayoutReport();
+#endif
+        }
+
+        /// <summary>Reports view-only edit phases for candidate diagnostics.</summary>
+        /// <param name="phase">Current transition phase.</param>
+        private void OnAddressEditingPhaseChanged(AddressEditingPhase phase)
+        {
+#if HOSTHTML_SMOKE
+            WriteKeyboardTransition("edit-phase-" + phase);
+#else
+            Debug.WriteLine("Address edit phase: " + phase);
 #endif
         }
 
@@ -391,7 +559,7 @@ namespace WebKitMiniBrowser
             {
                 From = startOffset,
                 To = open ? 0 : panelHeight,
-                Duration = new Duration(TimeSpan.FromMilliseconds(MenuAnimationMilliseconds)),
+                Duration = new Duration(TimeSpan.FromMilliseconds(BrowserChromeTiming.MenuSlideMilliseconds)),
                 EasingFunction = new CubicEase { EasingMode = open ? EasingMode.EaseOut : EasingMode.EaseIn }
             };
             Storyboard.SetTarget(slide, MenuSheetTranslation);
@@ -446,14 +614,19 @@ namespace WebKitMiniBrowser
             ApplyVisibleBounds();
         }
 
-        /// <summary>Reserves the keyboard's occlusion once instead of allowing automatic focus panning.</summary>
+        /// <summary>Lets XAML/Windows own focused-input avoidance and the keyboard's native movement.</summary>
         /// <param name="sender">The app's input pane.</param>
         /// <param name="args">The keyboard rectangle and focus-visibility contract.</param>
         private void OnInputPaneShowing(InputPane sender, InputPaneVisibilityEventArgs args)
         {
+            addressBarTransition.MotionEnabled = false;
+            addressBarTransition.Reset();
             inputPaneOccludedRect = args.OccludedRect;
-            args.EnsuredFocusedElementInView = true;
             ApplyVisibleBounds();
+            args.EnsuredFocusedElementInView = false;
+#if HOSTHTML_SMOKE
+            WriteKeyboardTransition("keyboard-show");
+#endif
         }
 
         /// <summary>Restores the system-bar safe area after the docked keyboard is hidden.</summary>
@@ -461,30 +634,47 @@ namespace WebKitMiniBrowser
         /// <param name="args">The input-pane transition and focus-visibility contract.</param>
         private void OnInputPaneHiding(InputPane sender, InputPaneVisibilityEventArgs args)
         {
+            addressBarTransition.MotionEnabled = false;
+            addressBarTransition.Reset();
+            addressEditing.KeyboardHiding();
             inputPaneOccludedRect = new Windows.Foundation.Rect();
-            args.EnsuredFocusedElementInView = true;
             ViewModel.CancelAddressEditingCommand.Execute(null);
+            if (!ViewModel.IsAddressEditing)
+                addressEditing.Request(false);
             ApplyVisibleBounds();
+            args.EnsuredFocusedElementInView = false;
+#if HOSTHTML_SMOKE
+            WriteKeyboardTransition("keyboard-hide");
+#endif
         }
 
         /// <summary>
         /// Computes and applies the margins that keep shell content within the
         /// current visible bounds.
         /// </summary>
-        private void ApplyVisibleBounds()
+        /// <param name="animateSystemChange">Whether a changed system inset starts a shared motion deadline.</param>
+        private void ApplyVisibleBounds(bool animateSystemChange = false)
         {
             Windows.Foundation.Rect windowBounds = Window.Current.Bounds;
             Windows.Foundation.Rect visibleBounds = applicationView.VisibleBounds;
-            VisibleBoundsMargins margins = VisibleBoundsHelper.ComputeMargins(
+            VisibleBoundsMargins margins = VisibleBoundsHelper.ComputeBrowserMargins(
                 windowBounds.X, windowBounds.Y, windowBounds.Width, windowBounds.Height,
                 visibleBounds.X, visibleBounds.Y, visibleBounds.Width, visibleBounds.Height,
-                inputPaneOccludedRect.X, inputPaneOccludedRect.Y,
-                inputPaneOccludedRect.Width, inputPaneOccludedRect.Height);
+                inputPaneOccludedRect.Height > 0, inputPaneOccludedRect.Y, browserSystemBottomInset);
             Thickness margin = new Thickness(margins.Left, margins.Top, margins.Right, margins.Bottom);
             if (!ShellRoot.Margin.Equals(margin))
             {
+                if (subscriptionsActive && animateSystemChange && !addressBarTransition.IsTransitionInProgress)
+                    addressBarTransition.PrepareTransition();
                 ShellRoot.Margin = margin;
             }
+            if (inputPaneOccludedRect.Height <= 0
+                || windowBounds.Height - margins.Bottom > inputPaneOccludedRect.Y + 1)
+                browserSystemBottomInset = margins.Bottom;
+            Thickness browserMargin = new Thickness(margins.Left, margins.Top,
+                margins.Right, margins.Bottom);
+            if (!WebLayoutRoot.Margin.Equals(browserMargin))
+                WebLayoutRoot.Margin = browserMargin;
             UpdateMenuDimensions();
 #if LAYOUT_DIAGNOSTICS
             QueueLayoutReport();

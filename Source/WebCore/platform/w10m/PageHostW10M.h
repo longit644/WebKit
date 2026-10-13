@@ -7,6 +7,7 @@
 #include "StorageSessionProviderW10M.h"
 #include "TextureMapperCompositorW10M.h"
 #include "TransientPageW10M.h"
+#include "WKW10MNavigation.h"
 #include <memory>
 #include <wtf/RefPtr.h>
 #include <wtf/text/CString.h>
@@ -60,6 +61,15 @@ struct PageHostW10M {
 
     // Navigation identity, generations and typed source/title/HTTP signals.
     NavigationControllerW10M navigation;
+
+    // Frozen page identity and callback transaction state used by the M10 table.
+    uint64_t enginePageId { 0 };
+    uint64_t callbackSequence { 0 };
+    WKW10MPageCallbacks engineCallbacks { };
+    bool engineCallbacksAttached { false };
+    uint32_t engineContentKind { WKW10MContentRemote };
+    bool engineIsLoading { false };
+    uint64_t engineTerminalId { 0 };
 
     // Transient substitute-data host HTML; history-hidden by construction.
     TransientPageW10M transient { *this };

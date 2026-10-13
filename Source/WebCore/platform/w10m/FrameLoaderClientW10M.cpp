@@ -37,6 +37,7 @@
 #include "StorageSessionProviderW10M.h"
 #include "StyleComputedStyle+GettersInlines.h"
 #include "TlsPolicyW10M.h"
+#include "WKW10MPageForwardW10M.h"
 #include <wtf/WallTime.h>
 #include <wtf/text/AtomString.h>
 #include <wtf/text/MakeString.h>
@@ -1928,6 +1929,7 @@ void FrameLoaderClientW10M::dispatchDidCommitLoad(
         m_owner.transient.noteCommitted();
     else
         m_owner.transient.noteDismissed();
+    notifyEngineSourceChangedW10M(m_owner, m_owner.engineContentKind);
     report("navigation-committed", WKPageLogFalseW10M);
     report("navigation-committed-id", m_owner.navigation.lastCommitId());
     if (document && m_owner.log) {
@@ -1945,6 +1947,8 @@ void FrameLoaderClientW10M::dispatchDidFinishLoad()
     report("navigation-completed", WKPageLogFalseW10M);
     if (m_owner.navigation.noteLoadFinished())
         report("navigation-late-success", m_owner.navigation.activeNavigationId());
+    else
+        notifyEngineNavigationCompletedW10M(m_owner, m_owner.engineContentKind, WKW10MOutcomeCompleted);
     if (auto* document = m_owner.frame().document(); document && m_owner.log) {
         auto stage = makeString("navigation-completed-url: "_s, document->url().string()).utf8();
         m_owner.log(stage.data(), WKPageLogFalseW10M);
@@ -2042,6 +2046,9 @@ void FrameLoaderClientW10M::dispatchDidFailProvisionalLoad(
             CertificateExceptionStoreW10M::noteFailure(m_owner.page->sessionID(), error.failingURL());
     }
     m_owner.navigation.setFailedUrl(error.failingURL().string());
+    notifyEngineNavigationCompletedW10M(m_owner, m_owner.engineContentKind,
+        error.isCancellation() ? WKW10MOutcomeCancelled : WKW10MOutcomeFailed,
+        WKW10MErrorDomainNetwork, error.errorCode());
 }
 
 // Records committed-load failures such as teardown races. A failure after
@@ -2055,9 +2062,11 @@ void FrameLoaderClientW10M::dispatchDidFailLoad(const ResourceError& error)
     auto stage = makeString("navigation-error-url: "_s, error.failingURL().string()).utf8();
     m_owner.log(stage.data(), error.errorCode());
     const String& source = m_owner.navigation.source();
-    if (source.isEmpty() || error.failingURL().string() == source)
+    if (source.isEmpty() || error.failingURL().string() == source) {
         m_owner.navigation.noteCommittedFailure();
-    else
+        notifyEngineNavigationCompletedW10M(m_owner, m_owner.engineContentKind,
+            WKW10MOutcomeFailed, WKW10MErrorDomainNetwork, error.errorCode());
+    } else
         m_owner.navigation.noteStaleSignal();
 }
 

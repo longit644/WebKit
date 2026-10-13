@@ -6,6 +6,33 @@
     Loaded="OnLoaded">
 
     <UserControl.Resources>
+        <!-- The default phone template forces ContentElement to Light when focused. -->
+        <ControlTemplate x:Key="BrowserAddressInputTemplate" TargetType="TextBox">
+            <Grid>
+                <VisualStateManager.VisualStateGroups>
+                    <VisualStateGroup x:Name="CommonStates">
+                        <VisualState x:Name="Normal" />
+                        <VisualState x:Name="PointerOver" />
+                        <VisualState x:Name="Focused" />
+                        <VisualState x:Name="Disabled" />
+                    </VisualStateGroup>
+                </VisualStateManager.VisualStateGroups>
+                <ScrollViewer x:Name="ContentElement" IsTabStop="False" ZoomMode="Disabled"
+                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                              HorizontalScrollMode="Auto" HorizontalScrollBarVisibility="Hidden"
+                              VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Hidden"
+                              VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                              Padding="{TemplateBinding Padding}" Foreground="{TemplateBinding Foreground}"
+                              AutomationProperties.AccessibilityView="Raw" />
+                <TextBlock x:Name="PlaceholderTextContentPresenter" IsHitTestVisible="False"
+                           Text="{TemplateBinding PlaceholderText}" Padding="{TemplateBinding Padding}"
+                           VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                           Foreground="{TemplateBinding Foreground}" Opacity="0.65" />
+            </Grid>
+        </ControlTemplate>
+        <ControlTemplate x:Key="AddressTapTargetTemplate" TargetType="Button">
+            <Grid Background="Transparent" />
+        </ControlTemplate>
         <ControlTemplate x:Key="BrowserCommandTemplate" TargetType="Button">
             <Grid x:Name="CommandSurface" Background="{TemplateBinding Background}">
                 <VisualStateManager.VisualStateGroups>
@@ -70,16 +97,23 @@
                 <VisualState x:Name="CompactAddress" />
                 <VisualState x:Name="EditingAddress">
                     <VisualState.Setters>
-                        <Setter Target="ChromeGrid.Height" Value="44" />
+                        <Setter Target="ChromeGrid.Background" Value="{ThemeResource BrowserEditSurfaceBrush}" />
                         <Setter Target="AddressInput.(Grid.Column)" Value="0" />
                         <Setter Target="AddressInput.(Grid.ColumnSpan)" Value="3" />
                         <Setter Target="AddressInput.Margin" Value="4" />
-                        <Setter Target="AddressInput.Padding" Value="6,6,6,2" />
-                        <Setter Target="AddressInput.FontSize" Value="14" />
-                        <Setter Target="AddressInput.Background"
-                                Value="{ThemeResource TextControlBackgroundFocused}" />
+                        <Setter Target="AddressSurface.(Grid.Column)" Value="0" />
+                        <Setter Target="AddressSurface.(Grid.ColumnSpan)" Value="3" />
+                        <Setter Target="AddressSurface.Margin" Value="4" />
+                        <Setter Target="AddressInput.IsHitTestVisible" Value="True" />
+                        <Setter Target="AddressInput.IsTabStop" Value="True" />
+                        <Setter Target="AddressInput.Padding" Value="6,0,6,0" />
                         <Setter Target="AddressInput.Foreground"
-                                Value="{ThemeResource TextControlForegroundFocused}" />
+                                Value="{ThemeResource BrowserEditForegroundBrush}" />
+                        <Setter Target="ReloadButton.Visibility" Value="Collapsed" />
+                        <Setter Target="StopButton.Visibility" Value="Collapsed" />
+                        <Setter Target="OverflowButton.Visibility" Value="Collapsed" />
+                        <Setter Target="AddressDivider.Visibility" Value="Collapsed" />
+                        <Setter Target="AddressTapTarget.Visibility" Value="Collapsed" />
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
@@ -103,15 +137,23 @@
                     Command="{Binding StopCommand}">
                 <SymbolIcon Symbol="Cancel" />
             </Button>
-            <TextBox x:Name="AddressInput" Grid.Column="1" Margin="0,5" MinWidth="0"
-                     Padding="3,8,6,4" FontSize="15" HorizontalAlignment="Stretch"
+            <Border x:Name="AddressSurface" Grid.Column="1" Margin="0,4" Canvas.ZIndex="1"
+                    Background="{ThemeResource BrowserEditFieldBrush}"
+                    Opacity="0" IsHitTestVisible="False" />
+            <TextBox x:Name="AddressInput" Grid.Column="1" Margin="0,4" MinWidth="0" Canvas.ZIndex="2"
+                      Padding="3,0,6,0" FontSize="15" HorizontalAlignment="Stretch"
                      VerticalContentAlignment="Center" Background="Transparent" BorderThickness="0"
                      Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"
                      Text="{Binding Address, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                      PlaceholderText="Enter web address" InputScope="Url"
-                     IsSpellCheckEnabled="False" IsTextPredictionEnabled="False"
+                      IsSpellCheckEnabled="False" IsTextPredictionEnabled="False"
+                      IsHitTestVisible="False" IsTabStop="False" Template="{StaticResource BrowserAddressInputTemplate}"
                      ToolTipService.ToolTip="{Binding DocumentTitle}"
-                     AutomationProperties.Name="Web address" />
+                      AutomationProperties.Name="Web address" />
+            <Button x:Name="AddressTapTarget" Grid.Column="1" Canvas.ZIndex="3" Style="{StaticResource BrowserChromeButtonStyle}"
+                    Template="{StaticResource AddressTapTargetTemplate}"
+                    Visibility="{Binding CompactChromeVisibility}"
+                    Command="{Binding BeginAddressEditingCommand}" AutomationProperties.Name="Edit web address" />
             <Button x:Name="OverflowButton" Grid.Column="2" Style="{StaticResource BrowserChromeButtonStyle}"
                     Visibility="{Binding CompactChromeVisibility}"
                     AutomationProperties.Name="{Binding MenuButtonLabel}"

@@ -32,7 +32,7 @@ function Invoke-InputTool([string]$executable, [string[]]$arguments) {
 try {
     $common = @('/nologo', '/c', '/EHsc', '/MD', '/std:c++17', '/W4', '/WX', '/DNOMINMAX', "/I$api", "/I$repo\Source\WebKit\Shared\w10m")
     $files = @("$api\input\ScrollControllerW10M.cpp", "$api\input\InputAdapterW10M.cpp",
-        "$api\native\PageControllerW10M.cpp", "$PSScriptRoot\InputControllerTests.cpp")
+        "$api\native\PageControllerW10M.cpp", "$api\native\EngineModuleW10M.cpp", "$PSScriptRoot\InputControllerTests.cpp")
     $objects = @()
     foreach ($file in $files) {
         $object = Join-Path $OutDir ([IO.Path]::GetFileNameWithoutExtension($file) + '.obj')

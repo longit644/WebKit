@@ -42,12 +42,12 @@ constexpr double kProfileMinSeconds = 1.0;
 constexpr double kMillisecondsPerSecond = 1000.0;
 // Conversion from monotonic elapsed seconds to diagnostic microseconds.
 constexpr double kMicrosecondsPerSecond = 1000000.0;
+// CPU stage accumulators are milliseconds, unlike tile counters measured in seconds.
+constexpr double kMicrosecondsPerMillisecond = 1000.0;
 // Capacity of one bounded GPU aggregate/resize diagnostic line.
 constexpr size_t kGpuProfileMessageCapacity = 512;
 // Allow panel event propagation across a few frames before persistent geometry failure recovers.
 constexpr unsigned maximumSurfaceResizeAttempts = 4;
-// Tolerance for ceil versus ANGLE nearest rounding at fractional panel/DPI edges.
-constexpr int surfacePixelRoundingTolerance = 1;
 
 // Eight-bit stencil mask and the default framebuffer binding required before clear.
 constexpr GLuint kAllStencilBits = 0xff;
@@ -186,6 +186,7 @@ void TextureMapperCompositorW10M::resize(unsigned width, unsigned height, float 
     m_width = width;
     m_height = height;
     m_scale = scale;
+    m_traceNextFrame = true;
     if (!m_viewport)
         return;
     m_viewport->setSize({ static_cast<float>(width), static_cast<float>(height) });
@@ -215,44 +216,46 @@ bool TextureMapperCompositorW10M::querySurfaceSize(int& width, int& height) cons
         && width > 0 && height > 0;
 }
 
-// ANGLE SurfaceD3D applies client resize after swap; synchronize before painting the new layout.
+// ANGLE's waitNative explicitly synchronizes its native swap-chain geometry.
+// A dummy eglSwapBuffers here would present before this frame has been painted.
 bool TextureMapperCompositorW10M::synchronizeSurface()
 {
     int beforeWidth = 0, beforeHeight = 0;
     if (!querySurfaceSize(beforeWidth, beforeHeight)) return false;
+    if (!eglWaitNative(EGL_CORE_NATIVE_ENGINE)) {
+        if (m_log) m_log("gpu-native-synchronize-failed", eglGetError());
+        return false;
+    }
+    int afterWidth = 0, afterHeight = 0;
+    if (!querySurfaceSize(afterWidth, afterHeight)) return false;
     int targetWidth = static_cast<int>(std::ceil(m_width * m_scale));
     int targetHeight = static_cast<int>(std::ceil(m_height * m_scale));
-    bool matches = std::abs(beforeWidth - targetWidth) <= surfacePixelRoundingTolerance
-        && std::abs(beforeHeight - targetHeight) <= surfacePixelRoundingTolerance;
+    // V1 CSS dimensions truncate the panel's fractional DIP size. ANGLE uses
+    // its original float size, so the legitimate error is bounded by one DIP.
+    int roundingTolerance = static_cast<int>(std::ceil(m_scale));
+    bool matches = std::abs(afterWidth - targetWidth) <= roundingTolerance
+        && std::abs(afterHeight - targetHeight) <= roundingTolerance;
+    bool reportGeometry = m_surfaceResizePending || beforeWidth != afterWidth || beforeHeight != afterHeight;
+    m_surfaceWidthPixels = afterWidth;
+    m_surfaceHeightPixels = afterHeight;
+    if (reportGeometry && m_log) {
+        char report[kGpuProfileMessageCapacity];
+        sprintf_s(report, "gpu-surface-sync revision=%llu css=%ux%u scale=%.3f target=%dx%d before=%dx%d after=%dx%d tolerance=%d ready=%u",
+            m_surfaceRevision, m_width, m_height, m_scale, targetWidth, targetHeight,
+            beforeWidth, beforeHeight, afterWidth, afterHeight, roundingTolerance, matches);
+        m_log(report, WKPageLogFalseW10M);
+    }
     if (matches) {
-        m_surfaceWidthPixels = beforeWidth;
-        m_surfaceHeightPixels = beforeHeight;
         m_surfaceResizePending = false;
+        m_surfaceResizeAttempts = 0;
         return true;
     }
     m_surfaceResizePending = true;
     if (++m_surfaceResizeAttempts > maximumSurfaceResizeAttempts) {
-        if (m_log) m_log("gpu-surface-resize-unresolved", WKPageLogTrueW10M);
+        if (m_log && m_surfaceResizeAttempts == maximumSurfaceResizeAttempts + 1)
+            m_log("gpu-surface-resize-unresolved", WKPageLogTrueW10M);
         return false;
     }
-
-    // Presenting once lets ANGLE consume its owner panel event and rebuild the
-    // engine-owned buffers. Caller pixels/layout are not drawn at stale extents.
-    if (!eglSwapBuffers(m_display->eglDisplay(), eglGetCurrentSurface(EGL_DRAW))) return false;
-    int afterWidth = 0, afterHeight = 0;
-    if (!querySurfaceSize(afterWidth, afterHeight)) return false;
-    matches = std::abs(afterWidth - targetWidth) <= surfacePixelRoundingTolerance
-        && std::abs(afterHeight - targetHeight) <= surfacePixelRoundingTolerance;
-    if (m_log) {
-        char report[kGpuProfileMessageCapacity];
-        sprintf_s(report, "gpu-surface-resize revision=%llu css=%ux%u scale=%.3f target=%dx%d before=%dx%d after=%dx%d attempt=%u ready=%u",
-            m_surfaceRevision, m_width, m_height, m_scale, targetWidth, targetHeight,
-            beforeWidth, beforeHeight, afterWidth, afterHeight, m_surfaceResizeAttempts, matches);
-        m_log(report, WKPageLogFalseW10M);
-    }
-    m_surfaceWidthPixels = afterWidth;
-    m_surfaceHeightPixels = afterHeight;
-    m_surfaceResizePending = !matches;
     return true;
 }
 
@@ -283,6 +286,7 @@ bool TextureMapperCompositorW10M::render(double overscrollY)
 {
     if (!m_root || !makeCurrent())
         return false;
+    bool traceFrame = m_traceNextFrame || m_surfaceResizePending || !m_presentedFrames;
     if (!synchronizeSurface()) return false;
     // Owner panel notification may still be pending; retain frame demand and
     // draw only after both target axes belong to the same actual backing.
@@ -350,12 +354,37 @@ bool TextureMapperCompositorW10M::render(double overscrollY)
     root.layer().applyAnimationsRecursively(MonotonicTime::now());
     root.layer().paint(*m_mapper);
     m_mapper->endPainting();
+#if defined(WKW10M_FRAME_READBACK_DIAGNOSTICS)
+    unsigned char sample[4] { };
+    if (traceFrame && m_log)
+        glReadPixels(pixelWidth / 2, pixelHeight / 2, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, sample);
+#endif
+    // Failed paint/readback must leave the prior front buffer intact, not swap it away.
+    GLenum paintError = glGetError();
+    if (paintError != GL_NO_ERROR) {
+        if (m_log) m_log("gpu-frame-paint-failed", paintError);
+        return false;
+    }
     double composited = clock();
     if (!eglSwapBuffers(m_display->eglDisplay(), surface)) {
         if (m_log)
             m_log("gpu-swap-failed", eglGetError());
         return false;
     }
+    ++m_presentedFrames;
+    if (traceFrame && m_log) {
+        char report[kGpuProfileMessageCapacity];
+#if defined(WKW10M_FRAME_READBACK_DIAGNOSTICS)
+        sprintf_s(report, "gpu-painted-present frame=%llu revision=%llu backing=%dx%d paint=%llu pixels=%llu sample=%02x%02x%02x%02x",
+            m_presentedFrames, m_surfaceRevision, pixelWidth, pixelHeight, tileStats.rasterCalls, tileStats.rasterPixels,
+            sample[0], sample[1], sample[2], sample[3]);
+#else
+        sprintf_s(report, "gpu-painted-present frame=%llu revision=%llu backing=%dx%d paint=%llu pixels=%llu readback=off",
+            m_presentedFrames, m_surfaceRevision, pixelWidth, pixelHeight, tileStats.rasterCalls, tileStats.rasterPixels);
+#endif
+        m_log(report, WKPageLogFalseW10M);
+    }
+    m_traceNextFrame = false;
     int swappedWidth = 0, swappedHeight = 0;
     if (!querySurfaceSize(swappedWidth, swappedHeight)) return false;
     // A notification arriving during swap requires another complete repaint,
@@ -382,7 +411,7 @@ bool TextureMapperCompositorW10M::render(double overscrollY)
             // for every counter on the render thread.
             char summary[kGpuProfileMessageCapacity];
             sprintf_s(summary, "gpu-frame-profile n=%u flush-us=%.0f composite-us=%.0f swap-us=%.0f host=%u paint=%llu gpu-paint=%llu cpu-paint=%llu pixels=%llu paint-us=%.0f upload-us=%.0f submits=%llu submit-us=%.0f",
-                m_frames, m_flushMS * kMicrosecondsPerSecond / m_frames, m_compositeMS * kMicrosecondsPerSecond / m_frames, m_swapMS * kMicrosecondsPerSecond / m_frames,
+                m_frames, m_flushMS * kMicrosecondsPerMillisecond / m_frames, m_compositeMS * kMicrosecondsPerMillisecond / m_frames, m_swapMS * kMicrosecondsPerMillisecond / m_frames,
                 m_paintCalls, m_tileStats.rasterCalls, m_tileStats.gpuPaintCalls, m_tileStats.rasterCalls - m_tileStats.gpuPaintCalls,
                 m_tileStats.rasterPixels / m_frames, m_tileStats.rasterSeconds * kMicrosecondsPerSecond / m_frames, m_tileStats.uploadSeconds * kMicrosecondsPerSecond / m_frames,
                 m_tileStats.gpuSubmitCalls, m_tileStats.gpuSubmitSeconds * kMicrosecondsPerSecond / m_frames);

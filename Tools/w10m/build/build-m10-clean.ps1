@@ -66,6 +66,11 @@ staging audits close over.
 Maximum parallel native build jobs (default 8). Lower this on memory-limited
 hosts; the resolved value is recorded in the build-identity manifest.
 
+.PARAMETER HostHtmlCandidate
+Build the unverified local HostHtml phone-test candidate. This opt-in defines
+WKW10M_HOSTHTML_CANDIDATE and advertises only StructuredNotifications/HostHtml
+for that test image; ordinary builds keep the provider capability mask at zero.
+
 .PARAMETER SourceCache
 Preserved, read-only CMake cache used only to seed feature/dependency choices.
 Compiler/link flags, SDK RC and target-port switches come from the discovered
@@ -112,6 +117,7 @@ param(
     [switch]$SkipSign,
     [string[]]$NativeTargets = @('WebCore', 'JavaScriptCore'),
     [ValidateRange(1, 64)][int]$NativeParallel = 8,
+    [switch]$HostHtmlCandidate,
     [switch]$Resume,
     [switch]$SkipNative,
     [switch]$SkipComponent,
@@ -210,6 +216,10 @@ if (-not $DryRun) {
         if ($cacheText -notmatch '(?m)^PORT:STRING=Win\r?$' -or $cacheText -notmatch '(?m)^WK_W10M:BOOL=ON\r?$') {
             throw 'Resume native CMake cache is not configured for the W10M port'
         }
+        $expectedCandidate = if ($HostHtmlCandidate) { 'ON' } else { 'OFF' }
+        if ($cacheText -notmatch "(?m)^WKW10M_HOSTHTML_CANDIDATE:BOOL=$expectedCandidate\r?$") {
+            throw "Resume HostHtml candidate setting differs from the CMake cache (expected $expectedCandidate)"
+        }
     } else {
         New-Item -ItemType Directory -Path $OutRoot -Force | Out-Null
         $discoveryJson = & $discoverScript -SdkVersion $SdkVersion -VsPath $VsPath -MsvcVersion $MsvcVersion -Json
@@ -228,7 +238,8 @@ if (-not $SkipNative) {
         if (-not $SourceCache) { $SourceCache = Join-Path $repo 'build-arm-uwp-skia\CMakeCache.txt' }
         if (-not (Test-Path -LiteralPath $SourceCache)) { throw "Feature baseline cache is missing: $SourceCache; specify -SourceCache or retain a known-good feature cache" }
         Add-Command "powershell -ExecutionPolicy Bypass -File $prepareCacheScript -SourceCache $SourceCache -OutFile $nativeCache"
-        $configureCmd = "cmake -S $repo -B $nativeDir -G Ninja -C $nativeCache -DPORT=Win -DWK_W10M=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=$toolchainFile"
+        $candidateOption = if ($HostHtmlCandidate) { ' -DWKW10M_HOSTHTML_CANDIDATE=ON' } else { '' }
+        $configureCmd = "cmake -S $repo -B $nativeDir -G Ninja -C $nativeCache -DPORT=Win -DWK_W10M=ON$candidateOption -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=$toolchainFile"
         Add-Command ". $envScript -VsPath $VsPath -MsvcVersion $MsvcVersion -SdkRoot $SdkRoot -SdkVersion $SdkVersion"
         Add-Command $configureCmd
     } else {
@@ -242,7 +253,8 @@ if (-not $SkipNative) {
             if (Test-Path -LiteralPath $nativeDir) { throw "Native build directory already exists; use a fresh -OutRoot: $nativeDir" }
             & $prepareCacheScript -SourceCache $SourceCache -OutFile $nativeCache
             if ($LASTEXITCODE -ne 0) { throw 'Could not prepare clean native feature/dependency cache' }
-            & cmake -S $repo -B $nativeDir -G Ninja -C $nativeCache -DPORT=Win -DWK_W10M=ON -DCMAKE_BUILD_TYPE=Release "-DCMAKE_TOOLCHAIN_FILE=$toolchainFile" 2>&1 |
+            $candidateArgs = if ($HostHtmlCandidate) { @('-DWKW10M_HOSTHTML_CANDIDATE=ON') } else { @() }
+            & cmake -S $repo -B $nativeDir -G Ninja -C $nativeCache -DPORT=Win -DWK_W10M=ON @candidateArgs -DCMAKE_BUILD_TYPE=Release "-DCMAKE_TOOLCHAIN_FILE=$toolchainFile" 2>&1 |
                 Tee-Object -FilePath (Join-Path $OutRoot 'native-configure.log')
             if ($LASTEXITCODE -ne 0) { throw 'Native clean configure failed' }
         }
@@ -341,6 +353,7 @@ $identity = [ordered]@{
     SdkVersion    = $SdkVersion
     NativeTargets = $NativeTargets
     NativeJobs    = $NativeParallel
+    HostHtmlCandidate = [bool]$HostHtmlCandidate
     Discovery     = $discovery
     Component     = (Get-PhaseIdentity (Join-Path $componentDir 'build-identity.json'))
     App           = (Get-PhaseIdentity (Join-Path $appsDir 'build-identity.json'))

@@ -215,6 +215,18 @@ WKW10MResult EngineModuleW10M::closePage(WKW10MPageHandle page)
     return result;
 }
 
+// Forget a page after its provider-side asynchronous close has been acknowledged.
+WKW10MResult EngineModuleW10M::acknowledgeClosedPage(WKW10MPageHandle page)
+{
+    auto found = findPage(page);
+    if (found == m_pageCount)
+        return WKW10MResultInvalidArgument;
+    for (uint32_t index = found + 1; index < m_pageCount; ++index)
+        m_pages[index - 1] = m_pages[index];
+    m_pages[--m_pageCount] = 0;
+    return WKW10MResultOK;
+}
+
 // See EngineModuleW10M.h: the close/recreate baseline is a zero page count.
 uint32_t EngineModuleW10M::openPageCount() const
 {

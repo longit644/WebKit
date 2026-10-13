@@ -26,6 +26,7 @@ def verify_sources(repository: Path, sources: list[str]) -> None:
         "Source/WebKit/UIProcess/API/w10m/platform/PageCallbacksW10M.cpp",
         "Source/WebKit/UIProcess/API/w10m/platform/InitializationActionW10M.cpp",
         "Source/WebKit/UIProcess/API/w10m/native/PageControllerW10M.cpp",
+        "Source/WebKit/UIProcess/API/w10m/native/EngineModuleW10M.cpp",
     }
     assert expected <= set(sources), "Component omitted an authored public/structured boundary source"
     for name in sources:

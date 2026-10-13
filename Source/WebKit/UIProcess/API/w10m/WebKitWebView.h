@@ -7,8 +7,10 @@
 #include "platform/InitializationActionW10M.h"
 #include "platform/PageCallbacksW10M.h"
 #include "platform/EventHandlersW10M.h"
+#include "rendering/SwapChainPresenterW10M.h"
 
 #include <deque>
+#include <memory>
 #include <vector>
 
 namespace WebKit {
@@ -215,6 +217,16 @@ internal:
 private:
     // Join process service for a bound page; visual presentation hooks are configured separately.
     HRESULT AttachFrameService(const WKW10MEngineAPI*);
+    // Create the SwapChainPanel visual and its host-owned presenter once.
+    void EnsurePanel();
+    // Resize the engine page and attach the engine-owned compositor when laid out.
+    HRESULT EnsurePresentation();
+    // Render one dirty engine frame; S_FALSE when nothing was eligible or dirty.
+    HRESULT RenderPresentation(int64_t epoch);
+    // Detach the engine surface and release the visual before close/teardown.
+    HRESULT TeardownPresentation();
+    // Retry presentation after layout settles; layout itself never navigates.
+    void OnControlSizeChanged(Platform::Object^, Windows::UI::Xaml::SizeChangedEventArgs^);
     // Forward declaration of the owned native/CX-safe deferred command record.
     struct DeferredSource;
     // Enforce owning UI-dispatcher access before state reads or mutations.
@@ -289,8 +301,30 @@ private:
     std::unique_ptr<WebViewConfigurationW10M> m_configuration;
     // Retained validated CA bytes/paths/limits used by initialization retries.
     std::unique_ptr<const ValidatedWebViewOptionsW10M> m_validatedOptions;
+    // Pins the packaged engine and tracks this control's page until close acknowledgement.
+    std::unique_ptr<EngineModuleW10M> m_engineModule;
     // Native frozen-table page consumer; module pin/lifetime is supplied by the runtime.
     std::unique_ptr<PageControllerW10M> m_pageController;
+    // Visible engine surface; created once on the owner thread, never a page identity.
+    Windows::UI::Xaml::Controls::SwapChainPanel^ m_panel;
+    // Host-owned presenter bridging the panel to the engine-owned compositor.
+    std::unique_ptr<SwapChainPresenterW10M> m_presenter;
+    // Last geometry accepted by the engine; reattach is required on scale change.
+    unsigned m_presentationWidth { 0 }, m_presentationHeight { 0 };
+    // Last device scale accepted by the engine attachment.
+    double m_presentationScaleX { 0 }, m_presentationScaleY { 0 };
+    // Native exposure requires restoring a painted frame even at unchanged geometry.
+    bool m_presentationNeedsRevalidation { false };
+    // Window visibility pauses presentation alone, not process service.
+    bool m_windowVisible { true };
+    // Weak external window hooks are revoked at ordinary Close.
+    Windows::UI::Xaml::Window^ m_presentationWindow;
+    // Captured external hook identities contain no strong control delegate.
+    Windows::Foundation::EventRegistrationToken m_windowVisibilityToken, m_windowActivationToken;
+    // Whether the external hooks still require revocation.
+    bool m_windowHooksInstalled { false };
+    // Engine surface is currently attached to the visible panel.
+    bool m_presentationAttached { false };
     // Shared weak-target SDK timer/rendering driver for a service-capable page table.
     FrameSchedulerDriverW10M^ m_frameDriver;
     // Native instance service lease remains live while ordinary Close is Pending.

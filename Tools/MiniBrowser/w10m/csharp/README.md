@@ -23,7 +23,7 @@ The three-dot button reveals Edge's three-layer composition: the persistent addr
 
 The latest compact-menu refinement sets Forward and Local demo menu labels to 14 DIP, with 40-DIP rows and 16-DIP icons. The Hello action retains native AppBarButton sizing.
 
-Carry from task 6.3: `App` requests `ApplicationViewBoundsMode.UseCoreWindow` before creating/navigating the Frame. `MainPage` alone applies `VisibleBoundsHelper.ComputeMargins` to `ShellRoot`; combining `UseVisible` with these margins caused repeated safe-area insets in the earlier shell. The page refreshes margins after Loaded, SizeChanged, and VisibleBoundsChanged, and revokes its external subscriptions on Unloaded. Application and chrome inherit Windows light/dark settings through ThemeResource brushes. Web page colors remain document-owned.
+Carry from task 6.3: `App` requests `ApplicationViewBoundsMode.UseCoreWindow` before creating/navigating the Frame. `MainPage` alone applies `VisibleBoundsHelper.ComputeBrowserMargins` to `ShellRoot` and `WebLayoutRoot`; combining `UseVisible` with these margins caused repeated safe-area insets in the earlier shell. The page refreshes margins after Loaded, SizeChanged, and VisibleBoundsChanged, and revokes its external subscriptions on Unloaded. Application and chrome inherit Windows light/dark settings through ThemeResource brushes. Web page colors remain document-owned.
 
 ```powershell
 # Full gate: fresh component metadata + ARM Release .NET Native + sign + verify
@@ -55,7 +55,7 @@ python Tools/w10m/device-portal.py --url https://<portal> --insecure launch `
   'WebKitProbe.MiniBrowser_1.0.0.22_arm__2932e6rj4m41p'
 ```
 
-Confirm the browser fills the area above the bottom address bar, with no repeated blank strip above/below chrome and no custom status footer. Rotate portrait → landscape → portrait, keep the system navigation bar visible, and confirm there is no content beneath it. Open the app-bar panel in both orientations: full width in portrait, half width aligned right in landscape, Forward/Local demo rows flush above the address bar, and the single Hello action immediately above it. Check 48-DIP menu rows, 14-DIP text, gray hover/pressed feedback, Forward disabled state, badge dismissal and system toast, outside-tap/system Back dismissal, repeated toggles, keyboard Enter, and light/dark chrome. For address editing, confirm the divider between address and dots in compact mode, the full-width editor and dimmed document while focused, and draft restoration after outside-tap, Escape, or Back. Loading should show a 2-DIP accent progress line immediately above the address bar and replace Reload with Stop in the same left control slot. A `-LayoutDiagnostics` build records the package version and verifies root/chrome/progress/button geometry, plus three open-menu checks and two address-editing checks. The report records theme and keyboard occlusion, never address text or page URI. Reports retain at most twelve snapshots.
+Confirm the browser fills the area above the bottom address bar, with no repeated blank strip above/below chrome and no custom status footer. Rotate portrait → landscape → portrait, keep the system navigation bar visible, and confirm there is no content beneath it. Open the app-bar panel in both orientations: full width in portrait, half width aligned right in landscape, Forward/Local demo rows flush above the address bar, and the single Hello action immediately above it. Check 40-DIP menu rows, 14-DIP text, gray hover/pressed feedback, Forward disabled state, badge dismissal and system toast, outside-tap/system Back dismissal, repeated toggles, keyboard Enter, and light/dark chrome. For address editing, confirm the divider between address and dots in compact mode, the full-width editor and dimmed document while focused, and draft restoration after outside-tap, Escape, or Back. Loading should show a 2-DIP accent progress line immediately above the address bar and replace Reload with Stop in the same left control slot. A `-LayoutDiagnostics` build records the package version and verifies root/chrome/progress/button geometry, plus three open-menu checks and two address-editing checks. The report records theme and keyboard occlusion, never address text or page URI. Reports retain at most twelve snapshots.
 
 ## Browser policy and certificate-warning run (M10 task 8.3)
 
@@ -109,17 +109,45 @@ Host-only verification (no WinRT control required):
 .\Tools\MiniBrowser\w10m\csharp\test-browser-policy.ps1
 ```
 
-## Address editing and keyboard-safe layout (v1.0.0.7)
+## Address editing and native keyboard layout (v1.0.0.107)
 
-The compact bottom bar has a system-themed 1-DIP divider between the address field and the three-dot button. Focusing the address enters MVVM editing state: the bar is 44 DIP high, the editor spans the bar with 4-DIP side margins and 14-DIP text, and Reload, dots, and divider collapse. A neutral document scrim is shown. Enter submits through BrowserPolicy; outside tap, Escape, system Back, or input-pane dismissal cancels the draft and restores the latest committed address.
+The compact bottom bar has a system-themed 1-DIP divider between the address field and the three-dot button. Tapping the address requests MVVM editing state. A themed opaque surface covers the web with an 80-ms reveal; the rectangular address field then expands over 120 ms, and only then receives focus. Both modes keep the bar 48 DIP high, the input 40 DIP high with 4-DIP top/bottom margins, and the font at 15 DIP. Editing expands horizontally with 4-DIP side margins; Reload, dots, and divider collapse. Enter submits through BrowserPolicy; outside tap, Escape, system Back, or input-pane dismissal cancels the draft and restores the latest committed address. Obsolete reveal/focus stages are canceled on dismissal/unload.
 
-InputPane occlusion is folded into the visible-bounds margin without shrinking the Frame/Page. Keyboard and system navigation insets are combined by maximum, and an already keyboard-reduced VisibleBounds is not inset twice. The optional layout report now records keyboard occlusion and checks editing geometry/focus/control visibility while preserving the six base checks plus two checks per active menu/editing state. Reports do not contain address text or page URIs.
+Windows/XAML owns focused-input keyboard avoidance: Showing/Hiding leave `EnsuredFocusedElementInView=false`, and the shell applies system-only `ComputeBrowserMargins` instead of adding keyboard occlusion again. `WebLayoutRoot` retains the web viewport independently of the edit/chrome surface; keyboard-only transitions do not request web resize/repaint. Navigation-bar changes still update normal visible bounds. The optional report records keyboard occlusion and checks final geometry, without address text or page URIs.
+
+`ChromeLayoutTransition` handles the 120-ms input/background morph and independent
+150-ms system-bar repositioning from the current visual. Retargeted geometry
+shares the remaining deadline. Its reposition motion is suppressed during native
+keyboard movement. Text/caret do not scale; final layout is installed once and
+render-only transforms interpolate it. Repositioning resets on unload/width changes
+and respects Windows' animation setting.
+
+App theme dictionaries provide a full dark/light editing surface, a contrasting
+field background and readable text. Dark uses surface `#1C1B1F`, field `#343238`,
+text `#F5F5F5`; light uses white, `#F1F1F3` and `#1C1B1F`. A minimal native TextBox
+template keeps `ContentElement` without the default Focused state's forced Light
+theme/black foreground. Field fill is explicit rather than owned by a transient
+opacity storyboard. The field is rectangular, and the native content host binds
+`VerticalAlignment=Center` to arrange the native 20-DIP content host inside the
+40-DIP input, with zero vertical padding. `VerticalContentAlignment` alone did
+not center the native TextBox content in v106. Placeholder alignment follows the
+same layout. The old 2-DIP optical padding compensation is removed, and the
+compact tap target stays transparent across pointer-state changes.
+
+The design reference is Firefox Android's
+[`ImeInsetsSynchronizer`](https://github.com/mozilla-firefox/firefox/blob/main/mobile/android/android-components/components/support/ktx/src/main/java/mozilla/components/support/ktx/android/view/ImeInsetsSynchronizer.kt)
+and
+[`ViewYTranslationStrategy`](https://github.com/mozilla-firefox/firefox/blob/main/mobile/android/android-components/components/ui/widgets/src/main/java/mozilla/components/ui/widgets/behavior/ViewYTranslationStrategy.kt).
+Firefox's IME movement follows the platform animation fraction; its independent
+toolbar snap uses 150 ms with deceleration. The owner-provided Firefox video also
+shows an opaque search/edit surface. On Windows 10 Mobile, the keyboard's native
+focus-avoidance mechanism owns this movement instead of an estimated IME tween.
 
 Verified ARM package build: `-OutDir "$env:TEMP\opencode\m10-minibrowser-edge-editing-v7" -Version 1.0.0.7 -LayoutDiagnostics`. The Lumia 950 XL installed/launched v7; all collected package-version-matched snapshots in `%TEMP%\opencode\m10-minibrowser-v7-layout.txt` pass, including compact mode, full-width focused editing, and docked keyboard positioning. The report proves measured geometry, not owner screenshot/theme/landscape visual acceptance.
 
-The v9 visual refinement retains `AddressBox.VerticalContentAlignment="Center"` and adds a 4-DIP top-versus-bottom padding difference, shifting the text area down by 2 DIP to compensate for the phone's apparent high glyph placement. Optional layout diagnostics report the actual padding and assert the same optical offset in both compact and editing states.
+Historical v9 used a 4-DIP top-versus-bottom padding difference as an optical offset. V107 instead centers the native content host itself and uses symmetric padding; runtime diagnostics record content/input/chrome heights. The owner confirms both vertical alignment and consistent display/edit height.
 
-The Windows 10 Mobile app now lives under `Tools/MiniBrowser/w10m/csharp/`; `MiniBrowserW10M.csproj` and `build-arm-w10m-minibrowser.ps1` identify the target explicitly. UWP remains the underlying Windows app model and API surface. Historical package 1.0.0.22 built and signed, installed and launched on Lumia 950 XL / Mobile 15254.603; its base layout report passes. The v20 open-menu report verifies the native AppBarButton at 68×56 DIP and menu docking. BrowserPolicy is 23/23 and visible-bounds math 124/124. The MVVM-refactored shell currently builds/signs as package 0.0.0.48; its post-refactor device verification is pending.
+The Windows 10 Mobile app now lives under `Tools/MiniBrowser/w10m/csharp/`; `MiniBrowserW10M.csproj` and `build-arm-w10m-minibrowser.ps1` identify the target explicitly. UWP remains the underlying Windows app model and API surface. Historical package 1.0.0.22 built and signed, installed and launched on Lumia 950 XL / Mobile 15254.603; its base layout report passes. The v20 open-menu report verifies the native AppBarButton at 68×56 DIP and menu docking. BrowserPolicy is 23/23 and visible-bounds math 140/140. The MVVM-refactored shell currently builds/signs as package 0.0.0.48; its post-refactor device verification is pending.
 
 ## Sample embedding, configuration, and lifecycle (M10 task 8.8)
 
@@ -145,7 +173,7 @@ Configuration paths, as wired in `MainPage` through `MiniBrowserServiceLocator.C
 
 Lifecycle ownership (shared engine lifetime):
 
-- `App.OnLaunched` requests `ApplicationViewBoundsMode.UseCoreWindow` before creating/navigating the `Frame`, so only `MainPage` applies `VisibleBoundsHelper.ComputeMargins` to `ShellRoot`.
+- `App.OnLaunched` requests `ApplicationViewBoundsMode.UseCoreWindow` before creating/navigating the `Frame`; `MainPage` applies system-only `ComputeBrowserMargins` to `ShellRoot` and `WebLayoutRoot`, with native keyboard avoidance owning focus panning.
 - `MainPage.OnLoaded` subscribes `VisibleBoundsChanged`, `BackRequested`, `InputPane.Showing/Hiding`, and `ViewModel.PropertyChanged`; `MainPage.OnUnloaded` revokes exactly those subscriptions, cancels address editing, and collapses/closes the menu view state without calling `Close()`.
 - `Close()` is terminal and belongs only to the owner actually ending the control's lifetime; transient `Unloaded` never closes.
 - `App.OnSuspending` takes no blocking work: it releases the suspension deferral immediately (`GetDeferral()` then `Complete()`).
@@ -159,6 +187,6 @@ C# toolchain (fresh-TEMP ARM Release .NET Native + sign + verify) and host diagn
 .\Tools\MiniBrowser\w10m\csharp\test-browser-policy.ps1
 ```
 
-Host checks stay 23/23 (BrowserPolicy) and 124/124 (visible-bounds math). Static gates also enforce null-`Source` markup (no `Source=`), `UseCoreWindow` before `Frame`, and no private framework `.cpp` in the shell project.
+Host checks are 23/23 (BrowserPolicy) and 140/140 (visible-bounds/browser-viewport math). Static gates also enforce null-`Source` markup (no `Source=`), `UseCoreWindow` before `Frame`, and no private framework `.cpp` in the shell project.
 
 Device gaps left open: install/launch of the MVVM-refactored package, visual acceptance (portrait/landscape/theme/menu/toast/keyboard), real HTTPS warning/consent through the production control, and explicit suspension/final-close integration against the shared engine lifetime (suspend/resume cycles, transient reparent `Unloaded` without `Close`, owner-ended final `Close`).

@@ -46,13 +46,16 @@ public:
     // Paints dirty layers and swaps with the given overscroll offset; reports false on GL loss.
     bool render(double overscrollY);
 
+    // Counts only completed painted swaps, never deferred resize or idle calls.
+    uint64_t presentedFrameCount() const { return m_presentedFrames; }
+
     // Whether animations or dirty layers need another frame.
     bool needsFrame() const;
 
 private:
     // Read the current EGL backing extent on the owning context without guessed dimensions.
     bool querySurfaceSize(int& widthPixels, int& heightPixels) const;
-    // Bring ANGLE's delayed swap-chain resize current before any viewport-dependent drawing.
+    // Synchronize native geometry without issuing an unpainted buffer swap.
     bool synchronizeSurface();
     // Flags the next render; layers repaint through paintContents.
     void notifyFlushRequired(const GraphicsLayer*) final;
@@ -111,6 +114,11 @@ private:
     unsigned m_surfaceResizeAttempts { 0 };
     // Actual physical extent used for the last successfully painted framebuffer.
     int m_surfaceWidthPixels { 0 }, m_surfaceHeightPixels { 0 };
+
+    // Lifetime painted-swap count; profile-window resets must not reset this proof.
+    uint64_t m_presentedFrames { 0 };
+    // Geometry/exposure diagnostic samples only a completed framebuffer before its swap.
+    bool m_traceNextFrame { true };
 
     // Paint calls and presented frames in the current profile window.
     unsigned m_paintCalls { 0 }, m_frames { 0 };

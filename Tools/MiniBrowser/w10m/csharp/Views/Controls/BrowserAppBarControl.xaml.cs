@@ -13,43 +13,45 @@ namespace WebKitMiniBrowser.Views.Controls
             InitializeComponent();
         }
 
+        // x:Name generates a field in the same partial class, so internal elements
+        // are referenced directly. FindName is only for another namescope.
         /// <summary>Gets the menu overlay for page-level visibility and sizing control.</summary>
-        internal Grid MenuOverlay { get { return (Grid)FindName("MenuOverlayElement"); } }
+        internal Grid MenuOverlay { get { return MenuOverlayElement; } }
 
         /// <summary>Gets the address-editing scrim for page-level layout placement.</summary>
-        internal Button AddressEditingOverlay { get { return (Button)FindName("AddressEditingOverlayElement"); } }
+        internal Button AddressEditingOverlay { get { return AddressEditingOverlayElement; } }
 
         /// <summary>Gets the menu sheet for page-level sizing and animation.</summary>
-        internal Border MenuSheet { get { return (Border)FindName("MenuSheetElement"); } }
+        internal Border MenuSheet { get { return MenuSheetElement; } }
 
         /// <summary>Gets the secondary-action scroller for page-level sizing.</summary>
-        internal ScrollViewer MenuScroll { get { return (ScrollViewer)FindName("MenuScrollElement"); } }
+        internal ScrollViewer MenuScroll { get { return MenuScrollElement; } }
 
         /// <summary>Gets the sheet translation used by the page's menu animation.</summary>
         internal TranslateTransform MenuSheetTranslation
         {
-            get { return (TranslateTransform)FindName("MenuSheetTranslationElement"); }
+            get { return MenuSheetTranslationElement; }
         }
 
         /// <summary>Gets the clipping geometry sized by the page.</summary>
         internal RectangleGeometry MenuOverlayClip
         {
-            get { return (RectangleGeometry)FindName("MenuOverlayClipElement"); }
+            get { return MenuOverlayClipElement; }
         }
 
         /// <summary>Gets the Forward menu action for focus and enabled-state checks.</summary>
-        internal Button ForwardMenuButton { get { return (Button)FindName("ForwardMenuButtonElement"); } }
+        internal Button ForwardMenuButton { get { return ForwardMenuButtonElement; } }
 
         /// <summary>Gets the local demo menu action for focus management.</summary>
-        internal Button DemoMenuButton { get { return (Button)FindName("DemoMenuButtonElement"); } }
+        internal Button DemoMenuButton { get { return DemoMenuButtonElement; } }
 
         /// <summary>Gets the native primary action host for responsive sizing.</summary>
-        internal Grid HelloActionHost { get { return (Grid)FindName("HelloActionHostElement"); } }
+        internal Grid HelloActionHost { get { return HelloActionHostElement; } }
 
         /// <summary>Gets the native Hello app-bar action for responsive sizing.</summary>
-        internal AppBarButton HelloActionButton { get { return (AppBarButton)FindName("HelloActionButtonElement"); } }
+        internal AppBarButton HelloActionButton { get { return HelloActionButtonElement; } }
 
         /// <summary>Gets the one-DIP divider above the secondary menu rows.</summary>
-        internal Border MenuTopDivider { get { return (Border)FindName("MenuTopDividerElement"); } }
+        internal Border MenuTopDivider { get { return MenuTopDividerElement; } }
     }
 }

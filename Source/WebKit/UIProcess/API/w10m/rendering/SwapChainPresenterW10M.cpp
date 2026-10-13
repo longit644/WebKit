@@ -143,7 +143,8 @@ HRESULT SwapChainPresenterW10M::renderCompositor(double overscroll)
     if (!std::isfinite(overscroll)) return E_INVALIDARG;
     if (m_mode != PresentationModeW10M::GPU) return E_ILLEGAL_METHOD_CALL;
     if (m_detachPending) return E_PENDING;
-    return engineResultToHRESULT(m_gpuAPI.renderCompositor(m_gpuPage, overscroll));
+    auto rendered = m_gpuAPI.renderCompositor(m_gpuPage, overscroll);
+    return rendered == WKW10MResultPending ? S_FALSE : engineResultToHRESULT(rendered);
 }
 
 // Creates the hardware D3D11 device and records the performance-counter rate.

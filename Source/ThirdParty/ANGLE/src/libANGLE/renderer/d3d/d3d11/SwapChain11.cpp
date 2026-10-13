@@ -370,10 +370,18 @@ EGLint SwapChain11::resetOffscreenColorBuffer(DisplayD3D *displayD3D,
         deviceContext->CopySubresourceRegion(mOffscreenTexture.get(), 0, 0, yoffset, 0,
                                              previousOffscreenTexture.get(), 0, &sourceBox);
 
+        // W10M's owner synchronizes native resize before painting a complete
+        // frame. Preserve old pixels in the offscreen texture, but do not
+        // publish that partial preservation image: newly exposed rows are not
+        // initialized, and mWidth/mHeight are still the previous dimensions
+        // until resetOffscreenBuffers returns. The subsequent painted EGL swap
+        // is the first valid presentation at the new extent.
+#if !defined(WTF_PLATFORM_W10M)
         if (mSwapChain)
         {
             swapRect(displayD3D, 0, 0, backbufferWidth, backbufferHeight);
         }
+#endif
     }
 
     return EGL_SUCCESS;

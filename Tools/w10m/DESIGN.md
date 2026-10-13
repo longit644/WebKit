@@ -19,10 +19,11 @@ and [handoff](../../openspec/changes/wkview-m10-w10m-cppcx-restructure/artifact/
 
 ## 1. Scope and authoring boundary
 
-All authored Windows 10 Mobile application, public component, XAML, and WinRT OS-service
-projections use C++/CX. The public runtime type remains `WebKit.WebKitWebView`.
-Its authored files stay directly in `Source/WebKit/UIProcess/API/w10m/`.
-Language choice does not require moving the control to Tools or a WinRT folder.
+Application shells use C# over the component WinMD; public component, XAML identity,
+and WinRT OS-service projections use C++/CX. The public runtime type remains
+`WebKit.WebKitWebView`. Its authored files stay directly in
+`Source/WebKit/UIProcess/API/w10m/`. Language choice does not require moving
+the control to Tools or a WinRT folder.
 
 Native engine algorithms, transport, rendering math, DirectX COM interfaces,
 and third-party code retain ordinary C/C++. WebCore, WTF, JavaScriptCore, and
@@ -48,7 +49,7 @@ need `ref class` wrappers just to satisfy a naming policy.
 ## 2. Layers and ownership
 
 ```text
-MiniBrowser / device runner / diagnostic apps (C++/CX projections)
+MiniBrowser / device runner / diagnostic apps (C# over WebKit.winmd)
                           |
                 WebKit.WebKitWebView (C++/CX)
                           |

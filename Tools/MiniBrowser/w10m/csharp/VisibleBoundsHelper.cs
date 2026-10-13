@@ -95,6 +95,37 @@ namespace WebKitMiniBrowser
             return margins;
         }
 
+        /// <summary>
+        /// Computes system-only browser margins while the independent chrome avoids the keyboard.
+        /// If VisibleBounds already ends at the keyboard, retain the last observed system bottom
+        /// inset instead of reflowing the covered web viewport to the IME rectangle.
+        /// </summary>
+        /// <param name="x">Window left.</param>
+        /// <param name="y">Window top.</param>
+        /// <param name="w">Window width.</param>
+        /// <param name="h">Window height.</param>
+        /// <param name="vx">Visible-bounds left.</param>
+        /// <param name="vy">Visible-bounds top.</param>
+        /// <param name="vw">Visible-bounds width.</param>
+        /// <param name="vh">Visible-bounds height.</param>
+        /// <param name="keyboardVisible">Whether the input pane currently occludes the window.</param>
+        /// <param name="keyboardTop">Keyboard top in window-local coordinates.</param>
+        /// <param name="systemBottomInset">Last bottom inset observed without keyboard reduction.</param>
+        /// <returns>Browser margins excluding docked keyboard occlusion.</returns>
+        public static VisibleBoundsMargins ComputeBrowserMargins(
+            double x, double y, double w, double h,
+            double vx, double vy, double vw, double vh,
+            bool keyboardVisible, double keyboardTop, double systemBottomInset)
+        {
+            VisibleBoundsMargins margins = ComputeMargins(x, y, w, h, vx, vy, vw, vh);
+            if (w > 0 && h > 0 && vw > 0 && vh > 0 && keyboardVisible
+                && IsFinite(keyboardTop) && keyboardTop > 0 && keyboardTop < h
+                && IsFinite(systemBottomInset) && systemBottomInset >= 0
+                && h - margins.Bottom <= keyboardTop + 1)
+                margins.Bottom = System.Math.Min(System.Math.Max(0, h - margins.Top), systemBottomInset);
+            return margins;
+        }
+
         /// <summary>Checks whether a coordinate or extent is finite.</summary>
         /// <param name="value">The coordinate or extent to check.</param>
         /// <returns>True for a finite value; otherwise false.</returns>

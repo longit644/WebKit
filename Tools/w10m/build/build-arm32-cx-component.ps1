@@ -138,7 +138,7 @@ try {
         # The clipboard stack ships with its diagnostic consumers; the production
         # control adopts the owner in section 8.
         $files += "$api\platform\DispatcherW10M.cpp", "$api\platform\ClipboardPlatformW10M.cpp"
-        $clipboardNativeFiles = @("$api\platform\ClipboardServiceW10M.cpp", "$api\platform\ClipboardRouteW10M.cpp", "$api\platform\RuntimeOwnerW10M.cpp", "$api\native\EngineModuleW10M.cpp")
+        $clipboardNativeFiles = @("$api\platform\ClipboardServiceW10M.cpp", "$api\platform\ClipboardRouteW10M.cpp", "$api\platform\RuntimeOwnerW10M.cpp")
     }
     $objects = @()
     foreach ($file in $files) {
@@ -148,6 +148,7 @@ try {
     }
     $nativeFlags = @($common | Where-Object { $_ -notmatch '^/(ZW|AI|D_WINRT_DLL)' })
     $nativeFiles = @("$api\native\WebViewConfigurationW10M.cpp", "$api\native\NavigationStateW10M.cpp", "$api\native\PageControllerW10M.cpp",
+        "$api\native\EngineModuleW10M.cpp",
         "$api\rendering\SwapChainPresenterW10M.cpp", "$api\rendering\FrameMetricsW10M.cpp", "$api\rendering\FrameSchedulerW10M.cpp",
         "$api\input\ScrollControllerW10M.cpp", "$api\input\InputAdapterW10M.cpp")
     $nativeFiles = @($nativeFiles + $clipboardNativeFiles)

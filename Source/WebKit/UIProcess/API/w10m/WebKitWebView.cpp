@@ -1,8 +1,10 @@
 #include "WebKitWebView.h"
 #include "platform/FrameSchedulerDriverW10M.h"
+#include "rendering/ViewportExtentW10M.h"
 
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <limits>
 #include <new>
 #include <utility>
@@ -199,6 +201,7 @@ WebKitWebView::WebKitWebView()
 {
     CheckThread();
     SourceProperty;
+    EnsurePanel();
 }
 
 // Construct a real XAML control with an immutable copy of application configuration.
@@ -208,6 +211,7 @@ WebKitWebView::WebKitWebView(WebKitWebViewOptions^ options)
 {
     CheckThread();
     SourceProperty;
+    EnsurePanel();
 }
 
 // Report RPC_E_WRONG_THREAD before touching this control's owner-thread state.
@@ -470,13 +474,16 @@ HRESULT WebKitWebView::BindPageController(const WKW10MEngineAPI* api, unsigned l
         auto attached = BuildPageCallbacks(&callbacks);
         if (FAILED(attached)) return attached;
         auto controller = std::make_unique<PageControllerW10M>();
-        attached = controller->bind(api, page, &callbacks);
+        attached = controller->bind(api, page, &callbacks, m_engineModule.get());
         if (FAILED(attached)) return attached;
         if (api->service) {
             attached = AttachFrameService(api);
             if (FAILED(attached)) { controller->close(); return attached; }
         }
         m_pageController = std::move(controller);
+        // Presentation is best-effort: readiness does not depend on a laid-out visual.
+        // SizeChanged and frame callbacks retry until the panel geometry arrives.
+        EnsurePresentation();
         return S_OK;
     } catch (Exception^ exception) { return exception->HResult; }
     catch (const std::bad_alloc&) { return E_OUTOFMEMORY; }
@@ -491,17 +498,183 @@ HRESULT WebKitWebView::AttachFrameService(const WKW10MEngineAPI* api)
         auto driver = FrameSchedulerDriverW10M::Acquire(api, Dispatcher);
         auto scheduler = std::make_shared<FrameSchedulerW10M>();
         Platform::WeakReference weak(this);
-        auto token = driver->AddClient(scheduler, [weak](int64_t) {
+        auto token = driver->AddClient(scheduler, [weak](int64_t epoch) {
             auto view = weak.Resolve<WebKitWebView>();
-            // Renderer/visual ownership supplies presentation eligibility in the next gate.
-            return view && !view->m_closing ? S_OK : S_FALSE;
+            if (!view || view->m_closing)
+                return S_FALSE;
+            return view->RenderPresentation(epoch);
         });
         m_frameDriver = driver;
         m_frameScheduler = std::move(scheduler);
         m_frameClient = token;
+        m_frameScheduler->setPresentationEnabled(m_windowVisible && !!(api->capabilities & WKW10MCapabilityGPUCompositor));
         return S_OK;
     } catch (Platform::Exception^ exception) { return exception->HResult; }
     catch (const std::bad_alloc&) { return E_OUTOFMEMORY; }
+    catch (...) { return E_FAIL; }
+}
+
+// Create the visible SwapChainPanel once and hook layout retries.
+void WebKitWebView::EnsurePanel()
+{
+    CheckThread();
+    if (m_panel)
+        return;
+    if (!m_presenter)
+        m_presenter = std::make_unique<SwapChainPresenterW10M>();
+    auto panel = ref new Windows::UI::Xaml::Controls::SwapChainPanel();
+    panel->HorizontalAlignment = Windows::UI::Xaml::HorizontalAlignment::Stretch;
+    panel->VerticalAlignment = Windows::UI::Xaml::VerticalAlignment::Stretch;
+    Content = panel;
+    m_panel = panel;
+    SizeChanged += ref new Windows::UI::Xaml::SizeChangedEventHandler(this, &WebKitWebView::OnControlSizeChanged);
+    m_presentationWindow = Window::Current;
+    if (m_presentationWindow) {
+        WeakReference weak(this);
+        m_windowVisible = m_presentationWindow->Visible;
+        m_windowVisibilityToken = m_presentationWindow->VisibilityChanged += ref new WindowVisibilityChangedEventHandler(
+            [weak](Object^, Windows::UI::Core::VisibilityChangedEventArgs^ args) {
+                auto view = weak.Resolve<WebKitWebView>();
+                if (!view || view->m_closing) return;
+                view->m_windowVisible = args->Visible;
+                if (args->Visible) view->m_presentationNeedsRevalidation = true;
+                if (view->m_frameScheduler) view->m_frameScheduler->setPresentationEnabled(args->Visible);
+            });
+        m_windowActivationToken = m_presentationWindow->Activated += ref new WindowActivatedEventHandler(
+            [weak](Object^, Windows::UI::Core::WindowActivatedEventArgs^ args) {
+                auto view = weak.Resolve<WebKitWebView>();
+                if (view && !view->m_closing && args->WindowActivationState != Windows::UI::Core::CoreWindowActivationState::Deactivated)
+                    view->m_presentationNeedsRevalidation = true;
+            });
+        m_windowHooksInstalled = true;
+    }
+}
+
+// Retry presentation after layout settles; layout itself never navigates.
+void WebKitWebView::OnControlSizeChanged(Platform::Object^, Windows::UI::Xaml::SizeChangedEventArgs^)
+{
+    // ANGLE receives this event too. Engine work belongs to the subsequent
+    // SDK frame, after all panel listeners have installed their geometry.
+    if (m_frameScheduler && !m_closing)
+        m_frameScheduler->setPresentationEnabled(m_windowVisible);
+}
+
+// Resize the engine page and attach the engine-owned compositor when laid out.
+HRESULT WebKitWebView::EnsurePresentation()
+{
+    try {
+        if (!Dispatcher->HasThreadAccess)
+            return RPC_E_WRONG_THREAD;
+        if (m_closing || m_closed || !m_pageController || !m_pageController->isBound() || !m_engineModule || !m_engineModule->api())
+            return S_FALSE;
+        EnsurePanel();
+        if (!m_panel || !m_presenter)
+            return S_FALSE;
+        double actualWidth = ActualWidth;
+        double actualHeight = ActualHeight;
+        if (!std::isfinite(actualWidth) || !std::isfinite(actualHeight)
+            || actualWidth > 2048 || actualHeight > 2048)
+            return E_INVALIDARG;
+        if (!(actualWidth >= 1.0) || !(actualHeight >= 1.0))
+            return S_FALSE;
+        unsigned width = enclosingCssViewportExtentW10M(actualWidth);
+        unsigned height = enclosingCssViewportExtentW10M(actualHeight);
+        if (!width || !height)
+            return S_FALSE;
+        float scaleX = m_panel->CompositionScaleX;
+        float scaleY = m_panel->CompositionScaleY;
+        if (!std::isfinite(scaleX) || !std::isfinite(scaleY) || scaleX <= 0 || scaleY <= 0)
+            return E_INVALIDARG;
+        double deviceX = scaleX;
+        double deviceY = scaleY;
+        // Steady geometry needs no engine work; resize unconditionally would
+        // dirty every frame and spam the candidate trace.
+        if (m_presentationAttached && width == m_presentationWidth && height == m_presentationHeight
+            && deviceX == m_presentationScaleX && deviceY == m_presentationScaleY
+            && !m_presentationNeedsRevalidation) {
+            return S_OK;
+        }
+
+        // A scale change requires detach before resize; size-only changes do not.
+        if (m_presentationAttached && (deviceX != m_presentationScaleX || deviceY != m_presentationScaleY)) {
+            auto detached = m_presenter->detach();
+            if (FAILED(detached))
+                return detached;
+            m_presentationAttached = false;
+            m_presentationWidth = m_presentationHeight = 0;
+            m_presentationScaleX = m_presentationScaleY = 0;
+            if (m_frameScheduler)
+                m_frameScheduler->setPresentationEnabled(false);
+        }
+        auto resized = m_pageController->resize(width, height, deviceX, deviceY);
+        if (FAILED(resized))
+            return resized;
+        m_presentationWidth = width;
+        m_presentationHeight = height;
+        m_presentationScaleX = deviceX;
+        m_presentationScaleY = deviceY;
+        m_presentationNeedsRevalidation = false;
+        if (!m_presentationAttached) {
+            const auto* api = m_engineModule->api();
+            auto page = m_pageController->page();
+            IUnknown* rawPanel = reinterpret_cast<IUnknown*>(m_panel);
+            auto attached = m_presenter->initializeForCompositor(api, page, rawPanel, deviceX, deviceY);
+            if (FAILED(attached))
+                return attached;
+            m_presentationAttached = true;
+            if (m_frameScheduler)
+                m_frameScheduler->setPresentationEnabled(m_windowVisible);
+        }
+        return S_OK;
+    } catch (Platform::Exception^ exception) { return exception->HResult; }
+    catch (const std::bad_alloc&) { return E_OUTOFMEMORY; }
+    catch (...) { return E_FAIL; }
+}
+
+// Render one dirty engine frame; S_FALSE when nothing was eligible or dirty.
+HRESULT WebKitWebView::RenderPresentation(int64_t)
+{
+    try {
+        if (!Dispatcher->HasThreadAccess)
+            return RPC_E_WRONG_THREAD;
+        if (m_closing || m_closed || !m_windowVisible || !m_pageController || !m_pageController->isBound() || !m_presenter)
+            return S_FALSE;
+        // Protect the complete geometry/tick/paint operation from callback-driven Close.
+        ++m_nativeCallDepth;
+        HRESULT result = S_FALSE;
+        try {
+            result = EnsurePresentation();
+            if (result == S_OK && m_presentationAttached && !m_closing)
+                result = m_presenter->renderCompositor(0.0);
+        } catch (...) {
+            --m_nativeCallDepth;
+            throw;
+        }
+        --m_nativeCallDepth;
+        DrainCommands();
+        return result;
+    } catch (Platform::Exception^ exception) { return exception->HResult; }
+    catch (const std::bad_alloc&) { return E_OUTOFMEMORY; }
+    catch (...) { return E_FAIL; }
+}
+
+// Detach the engine surface and release the visual before close/teardown.
+HRESULT WebKitWebView::TeardownPresentation()
+{
+    try {
+        if (!Dispatcher->HasThreadAccess)
+            return RPC_E_WRONG_THREAD;
+        if (m_frameScheduler)
+            m_frameScheduler->setPresentationEnabled(false);
+        if (m_presenter && m_presentationAttached) {
+            auto detached = m_presenter->detach();
+            if (detached != S_OK) return detached;
+            m_presentationAttached = false;
+            m_presentationWidth = m_presentationHeight = 0;
+            m_presentationScaleX = m_presentationScaleY = 0;
+        }
+        return S_OK;
+    } catch (Platform::Exception^ exception) { return exception->HResult; }
     catch (...) { return E_FAIL; }
 }
 
@@ -574,7 +747,10 @@ void WebKitWebView::ExecuteNative(SourceActionW10M action, const std::wstring& t
             switch (action) {
             case SourceActionW10M::Navigate: result = m_pageController->navigate(span, &navigation); break;
             case SourceActionW10M::Stop: result = m_pageController->stop(); break;
-            case SourceActionW10M::Close: result = m_pageController->close(); break;
+            case SourceActionW10M::Close:
+                result = TeardownPresentation();
+                if (result == S_OK) result = m_pageController->close();
+                break;
             default: result = E_INVALIDARG; break;
             }
         } else if (m_commandHandler)
@@ -947,16 +1123,39 @@ void WebKitWebView::IssueInitialization(unsigned long long attempt)
             WKW10MString empty { nullptr, 0 };
             result = m_commandHandler(m_commandContext, SourceActionW10M::Initialize, &empty);
         } else {
-            // The production negotiated page slots remain Unsupported until the
-            // controller forward is connected. Return an actual failed action,
-            // never readiness inferred from a configured/painted placeholder.
-            WeakReference weak(this);
-            Dispatcher->RunAsync(Windows::UI::Core::CoreDispatcherPriority::Normal,
-                ref new Windows::UI::Core::DispatchedHandler([weak, attempt] {
-                    auto view = weak.Resolve<WebKitWebView>();
-                    if (view)
-                        view->CompleteInitialization(attempt, 0, E_NOTIMPL);
-                }));
+            constexpr uint64_t required = WKW10MCapabilityStructuredNotifications | WKW10MCapabilityHostHtml;
+            m_engineModule = std::make_unique<EngineModuleW10M>();
+            auto negotiated = m_engineModule->bind(L"WebCore.dll", WKW10M_ABI_MINOR_VERSION, required);
+            if (negotiated == WKW10MResultMissingCapability) {
+                // Preserve per-caller async readiness while the device gate keeps
+                // unverified engine bits unadvertised.
+                WeakReference weak(this);
+                auto queued = Dispatcher->RunAsync(Windows::UI::Core::CoreDispatcherPriority::Normal,
+                    ref new Windows::UI::Core::DispatchedHandler([weak, attempt] {
+                        auto view = weak.Resolve<WebKitWebView>();
+                        if (view)
+                            view->CompleteInitialization(attempt, 0, E_NOTIMPL);
+                    }));
+                result = queued != nullptr ? S_OK : E_FAIL;
+            } else if (negotiated != WKW10MResultOK)
+                result = PageControllerW10M::resultToHRESULT(negotiated);
+            if (negotiated == WKW10MResultOK && SUCCEEDED(result)) {
+                auto* api = m_engineModule->api();
+                auto engineOptions = m_validatedOptions->engineOptions(nullptr);
+                result = PageControllerW10M::resultToHRESULT(api->initialize(&engineOptions));
+                if (SUCCEEDED(result)) {
+                    auto pageOptions = m_validatedOptions->pageOptions();
+                    WKW10MPageHandle page = 0;
+                    result = PageControllerW10M::resultToHRESULT(m_engineModule->createPage(&pageOptions, &page));
+                    if (SUCCEEDED(result)) {
+                        result = BindPageController(api, page);
+                        if (FAILED(result))
+                            m_engineModule->closePage(page);
+                        else
+                            result = CompleteInitialization(attempt, page, S_OK);
+                    }
+                }
+            }
         }
     } catch (Exception^ exception) { result = exception->HResult; }
     catch (const std::bad_alloc&) { result = E_OUTOFMEMORY; }
@@ -964,6 +1163,8 @@ void WebKitWebView::IssueInitialization(unsigned long long attempt)
     --m_nativeCallDepth;
     if (FAILED(result))
         CompleteInitialization(attempt, 0, result);
+    else
+        DrainCommands();
 }
 
 // Create one SDK IAsyncAction with independent state and weak owner-thread detachment.
@@ -1229,6 +1430,13 @@ void WebKitWebView::FinishClose()
     PublishState(std::move(next), stateOnly, nullptr);
     m_closed = true;
     RevokePublicEvents();
+    TeardownPresentation();
+    if (m_windowHooksInstalled) {
+        m_presentationWindow->VisibilityChanged -= m_windowVisibilityToken;
+        m_presentationWindow->Activated -= m_windowActivationToken;
+        m_windowHooksInstalled = false;
+    }
+    m_presentationWindow = nullptr;
     if (m_frameDriver && m_frameClient) m_frameDriver->RemoveClient(m_frameClient);
     m_frameClient = 0;
     m_frameScheduler.reset();
@@ -1237,6 +1445,7 @@ void WebKitWebView::FinishClose()
     m_deferredEvents.clear();
     m_pageCallbacks.reset();
     m_pageController.reset();
+    m_engineModule.reset();
     m_commandHandler = nullptr;
     m_commandContext = nullptr;
     m_validatedOptions.reset();
@@ -1256,6 +1465,8 @@ void WebKitWebView::Close()
         return;
     }
     m_closing = true;
+    // Native detach must wait until any in-progress frame/callback stack unwinds.
+    if (m_frameScheduler) m_frameScheduler->setPresentationEnabled(false);
     InvalidateCertificateToken();
     m_policyInterrupted = true;
     m_state.markClosing();

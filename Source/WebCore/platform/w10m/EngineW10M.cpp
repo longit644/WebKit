@@ -12,6 +12,7 @@
 #include "WebCoreMainThread.h"
 #include "WKW10MEngine.h"
 #include <fontconfig/fontconfig.h>
+#include <fontconfig/fcfreetype.h>
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include <pal/crypto/CryptoDigest.h>
@@ -34,6 +35,11 @@ std::atomic<bool> engineInitialized { false };
 bool engineSuspended { false };
 // Prevent recursive generic RunLoop cycles during owner callbacks.
 bool engineServicing { false };
+#if defined(WKW10M_HOSTHTML_CANDIDATE)
+// Bounded candidate service trace distinguishes a stalled owner timer from loading.
+WKPageLogW10M engineLog { nullptr };
+unsigned serviceTraceCount { 0 };
+#endif
 
 } // namespace
 
@@ -121,6 +127,9 @@ unsigned engineEnsureInitializedW10M(const wchar_t* fontDirectory, WKPageLogW10M
             log(stage, result);
     };
     report("page-initialize-start");
+#if defined(WKW10M_HOSTHTML_CANDIDATE)
+    engineLog = log;
+#endif
     setLoaderStrategyW10MLog(log);
     initializeMainThreadIfNeeded();
     report("page-main-thread-ready");
@@ -128,8 +137,10 @@ unsigned engineEnsureInitializedW10M(const wchar_t* fontDirectory, WKPageLogW10M
     FcConfig* fonts = FcConfigCreate();
     if (!fonts)
         return FirstPageResultNoFontConfigW10M;
-    auto regular = makeString(directory, "/DejaVuSans.ttf"_s).utf8();
-    auto bold = makeString(directory, "/DejaVuSans-Bold.ttf"_s).utf8();
+    // Fontconfig passes this path directly to FreeType's WinRT file opener;
+    // retain native separators so CreateFile2 receives a Windows package path.
+    auto regular = makeString(directory, "\\DejaVuSans.ttf"_s).utf8();
+    auto bold = makeString(directory, "\\DejaVuSans-Bold.ttf"_s).utf8();
     auto nativePath = makeString(directory, "\\DejaVuSans.ttf"_s).wideCharacters();
     HANDLE fontFile = CreateFile2(nativePath.span().data(), GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING, nullptr);
     report("page-font-native-open", fontFile == INVALID_HANDLE_VALUE ? GetLastError() : WKPageLogFalseW10M);
@@ -140,10 +151,61 @@ unsigned engineEnsureInitializedW10M(const wchar_t* fontDirectory, WKPageLogW10M
     report("page-font-freetype-init", ftResult);
     if (!ftResult) {
         FT_Face face;
+        SetLastError(ERROR_SUCCESS);
         ftResult = FT_New_Face(freeType, regular.data(), kRegularFontFaceIndex, &face);
+        auto faceOsError = GetLastError();
         report("page-font-freetype-open", ftResult);
+        report("page-font-freetype-open-os-error", faceOsError);
         if (!ftResult)
             FT_Done_Face(face);
+#if defined(WKW10M_HOSTHTML_CANDIDATE)
+        report(regular.data(), 0);
+        int major = 0, minor = 0, patch = 0;
+        FT_Library_Version(freeType, &major, &minor, &patch);
+        report("page-font-freetype-version", major * 10000 + minor * 100 + patch);
+
+        // Reproduce FreeType's exact native open parameters, then its mapping
+        // calls, independently of its filename conversion and parser.
+        CREATEFILE2_EXTENDED_PARAMETERS parameters { };
+        parameters.dwSize = sizeof(parameters);
+        parameters.dwFileAttributes = FILE_ATTRIBUTE_NORMAL;
+        auto file = CreateFile2(nativePath.span().data(), GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING, &parameters);
+        auto openError = file == INVALID_HANDLE_VALUE ? GetLastError() : ERROR_SUCCESS;
+        report("page-font-native-open-extended", openError);
+        if (file != INVALID_HANDLE_VALUE) {
+            LARGE_INTEGER size { };
+            auto sized = GetFileSizeEx(file, &size);
+            report("page-font-native-size-error", sized ? ERROR_SUCCESS : GetLastError());
+            report("page-font-native-size", size.LowPart);
+            auto mapping = CreateFileMappingFromApp(file, nullptr, PAGE_READONLY, 0, nullptr);
+            report("page-font-native-map-error", mapping ? ERROR_SUCCESS : GetLastError());
+            if (mapping) {
+                auto view = MapViewOfFileFromApp(mapping, FILE_MAP_READ, 0, 0);
+                report("page-font-native-view-error", view ? ERROR_SUCCESS : GetLastError());
+                if (view)
+                    UnmapViewOfFile(view);
+                CloseHandle(mapping);
+            }
+            CloseHandle(file);
+        }
+
+        // If memory parsing succeeds, the font contents and driver are valid;
+        // the failure is in the dependency's stream opener, not the package.
+        auto bytes = FileSystem::readEntireFile(makeString(directory, "\\DejaVuSans.ttf"_s));
+        report("page-font-native-read-bytes", bytes ? bytes->size() : 0);
+        if (bytes && !bytes->isEmpty()) {
+            FT_Face memoryFace = nullptr;
+            auto memoryResult = FT_New_Memory_Face(freeType, bytes->span().data(), bytes->size(), 0, &memoryFace);
+            report("page-font-freetype-memory", memoryResult);
+            if (!memoryResult) {
+                auto pattern = FcFreeTypeQueryFace(memoryFace, reinterpret_cast<const FcChar8*>(regular.data()), 0, nullptr);
+                report("page-font-fontconfig-memory-query", !!pattern);
+                if (pattern)
+                    FcPatternDestroy(pattern);
+                FT_Done_Face(memoryFace);
+            }
+        }
+#endif
         FT_Done_FreeType(freeType);
     }
     auto regularAdded = FcConfigAppFontAddFile(fonts, reinterpret_cast<const FcChar8*>(regular.data()));
@@ -178,7 +240,16 @@ void engineServiceW10M()
     if (!engineInitialized.load() || GetCurrentThreadId() != engineThread.load() || engineSuspended || engineServicing)
         return;
     engineServicing = true;
+#if defined(WKW10M_HOSTHTML_CANDIDATE)
+    auto trace = engineLog && serviceTraceCount < 3;
+    if (trace)
+        engineLog("engine-service-enter", ++serviceTraceCount);
+#endif
     WTF::RunLoop::cycle();
+#if defined(WKW10M_HOSTHTML_CANDIDATE)
+    if (trace)
+        engineLog("engine-service-exit", serviceTraceCount);
+#endif
     engineServicing = false;
 }
 

@@ -13,6 +13,13 @@ elseif (USE_SKIA)
 endif ()
 
 if (WK_W10M)
+    option(WKW10M_HOSTHTML_CANDIDATE "Enable the unverified HostHtml phone-test candidate capability" OFF)
+    option(WKW10M_FRAME_READBACK_DIAGNOSTICS "Enable blocking framebuffer pixel readback for explicit phone diagnostics" OFF)
+    if (WKW10M_HOSTHTML_CANDIDATE AND WKW10M_FRAME_READBACK_DIAGNOSTICS)
+        set_source_files_properties(platform/w10m/TextureMapperCompositorW10M.cpp PROPERTIES
+            COMPILE_DEFINITIONS WKW10M_FRAME_READBACK_DIAGNOSTICS=1
+            SKIP_PRECOMPILE_HEADERS ON)
+    endif ()
     # WebKitWebView: FreeType font stack (never GDI on W10M).
     if (USE_CAIRO)
         include(platform/FreeType.cmake)
@@ -32,8 +39,23 @@ if (WK_W10M)
     list(APPEND WebCore_SOURCES platform/w10m/PageW10M.cpp)
     # WKW10M V1 discovery export, capability mask and build identity (task 3.2).
     list(APPEND WebCore_SOURCES platform/w10m/WKW10MEngineAPI.cpp)
-    # Configured engine service forwards; standalone negotiation tests have no WebCore dependency.
-    set_source_files_properties(platform/w10m/WKW10MEngineAPI.cpp PROPERTIES COMPILE_DEFINITIONS WKW10M_OWNER_SERVICE_FORWARD=1)
+    # First negotiated page-table slice routes history-neutral HostHtml.
+    list(APPEND WebCore_SOURCES platform/w10m/WKW10MPageForwardW10M.cpp)
+    # Configured engine service/page forwards; standalone negotiation tests retain stubs.
+    set(W10M_ENGINE_API_DEFINITIONS WKW10M_OWNER_SERVICE_FORWARD=1 WKW10M_PAGE_FORWARD=1)
+    if (WKW10M_HOSTHTML_CANDIDATE)
+        list(APPEND W10M_ENGINE_API_DEFINITIONS WKW10M_HOSTHTML_CANDIDATE=1)
+        # Candidate diagnostics use per-source definitions, so these files must
+        # not consume a PCH compiled without the same definition.
+        set_source_files_properties(platform/w10m/EngineW10M.cpp platform/w10m/WKW10MPageForwardW10M.cpp PROPERTIES
+            COMPILE_DEFINITIONS WKW10M_HOSTHTML_CANDIDATE=1
+            SKIP_PRECOMPILE_HEADERS ON)
+        set_source_files_properties(platform/w10m/WKW10MEngineAPI.cpp PROPERTIES
+            COMPILE_DEFINITIONS "${W10M_ENGINE_API_DEFINITIONS}"
+            SKIP_PRECOMPILE_HEADERS ON)
+    else ()
+        set_source_files_properties(platform/w10m/WKW10MEngineAPI.cpp PROPERTIES COMPILE_DEFINITIONS "${W10M_ENGINE_API_DEFINITIONS}")
+    endif ()
     # The frozen shared ABI headers are included by their own names, matching the
     # dual-compiler layout check, so only their directory is added here.
     list(APPEND WebCore_PRIVATE_INCLUDE_DIRECTORIES "${WEBKIT_DIR}/Shared/w10m")

@@ -85,16 +85,21 @@ struct InputProvider {
     // Last forwarded event copy and focus value.
     WKW10MInputEvent last { };
     unsigned inputCalls { 0 }, focusCalls { 0 }, lastFocus { 0 };
+    unsigned htmlCalls { 0 };
+    WKW10MNavigationRequest lastHtmlRequest { };
+    uint64_t lastNavigationId { 0 };
+    std::vector<uint8_t> lastHtml;
     // Controlled originating results.
     WKW10MResult inputResult { WKW10MResultOK }, focusResult { WKW10MResultOK };
 
     // Build a capable table with controllable input/focus slots.
-    InputProvider(bool inputCapable)
+    InputProvider(bool inputCapable, bool certificateCapable = true)
     {
         api.header = { sizeof(api), WKW10M_STRUCTURE_VERSION };
         api.abiMajor = WKW10M_ABI_MAJOR_VERSION;
         api.capabilities = WKW10MCapabilityStructuredNotifications | WKW10MCapabilityHostHtml
-            | WKW10MCapabilityCertificateDecisions | (inputCapable ? WKW10MCapabilityInput : 0);
+            | (certificateCapable ? WKW10MCapabilityCertificateDecisions : 0)
+            | (inputCapable ? WKW10MCapabilityInput : 0);
         api.setCallbacks = &setCallbacks;
         api.navigate = &navigate;
         api.loadHtml = &loadHtml;
@@ -131,7 +136,19 @@ struct InputProvider {
     // Unused navigation slot answers success without side effects.
     static WKW10MResult __stdcall navigate(WKW10MPageHandle, const WKW10MNavigationRequest*, uint64_t*) { return WKW10MResultOK; }
     // Unused HTML slot answers success without side effects.
-    static WKW10MResult __stdcall loadHtml(WKW10MPageHandle, const WKW10MNavigationRequest*, uint64_t*) { return WKW10MResultOK; }
+    static WKW10MResult __stdcall loadHtml(WKW10MPageHandle page, const WKW10MNavigationRequest* request, uint64_t* navigationId)
+    {
+        auto self = find(page);
+        if (!self || !request || !navigationId)
+            return WKW10MResultInvalidArgument;
+        ++self->htmlCalls;
+        self->lastHtmlRequest = *request;
+        self->lastHtml.assign(request->html.data, request->html.data + request->html.length);
+        self->lastNavigationId = 73;
+        *navigationId = self->lastNavigationId;
+        return WKW10MResultOK;
+    }
+
     // Unused history/stop slots answer success without side effects.
     static WKW10MResult __stdcall noop(WKW10MPageHandle) { return WKW10MResultOK; }
     // Unused stop slot answers success without side effects.
@@ -466,6 +483,29 @@ void runForwarding()
     }
 }
 
+// HostHtml is independently usable before certificate-decision forwarding is proven.
+void runHostHtmlForwarding()
+{
+    InputProvider provider(false, false);
+    PageControllerW10M controller;
+    check(bindController(controller, provider) == S_OK,
+        "HostHtml/structured-notification table binds without certificate capability");
+    const uint8_t htmlBytes[] { 'A', 0, 'B' };
+    WKW10MString html { htmlBytes, sizeof(htmlBytes) };
+    uint64_t navigationId = 0;
+    check(controller.loadHtml(html, { 0, 0 }, &navigationId) == S_OK
+            && navigationId == provider.lastNavigationId && provider.htmlCalls == 1,
+        "HostHtml forwarding returns the provider-assigned navigation ID");
+    check(provider.lastHtmlRequest.contentKind == WKW10MContentHostHtml
+            && !provider.lastHtmlRequest.uri.data && !provider.lastHtmlRequest.uri.length
+            && provider.lastHtmlRequest.html.length == sizeof(htmlBytes)
+            && provider.lastHtml == std::vector<uint8_t>(std::begin(htmlBytes), std::end(htmlBytes)),
+        "HostHtml forwarding preserves explicit-length bytes including embedded NULs and no base URI");
+    WKW10MCertificateToken token { 1, 1 };
+    check(controller.proceed(token, &navigationId) == E_NOTIMPL,
+        "certificate retry stays unavailable when its capability is not delivered");
+}
+
 } // namespace
 
 // Run native gesture/physics/forwarding laws without any XAML or engine image.
@@ -473,6 +513,7 @@ int main()
 {
     runGestures();
     runForwarding();
+    runHostHtmlForwarding();
     std::printf("M10 input contract: %u checks, %u failures\n", checks, failures);
     return failures ? 1 : 0;
 }

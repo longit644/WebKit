@@ -5,6 +5,11 @@ Builds the M10 Windows 10 Mobile C# MiniBrowser shell (task 8.1): fresh componen
 TEMP, ARM Release .NET Native app build via Community 2022 MSBuild, signing,
 and all four verification gates. Never builds inside shared build dirs or
 modifies the shared native engine/component trees.
+
+.PARAMETER HostHtmlSmoke
+Build a test-only shell that automatically requests the packaged local demo
+through the public WebKit control and records its structured events/state in
+LocalState/hosthtml-candidate.txt.
 #>
 [CmdletBinding()]
 param(
@@ -13,7 +18,8 @@ param(
     [string]$SignThumbprint = '18FD65CF5E103CF96F04C2A451DC49C94788A40D',
     [string]$MsBuildPath = 'C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin',
     [switch]$SkipSign,
-    [switch]$LayoutDiagnostics
+    [switch]$LayoutDiagnostics,
+    [switch]$HostHtmlSmoke
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -40,7 +46,7 @@ function Invoke-ShellTool([string]$exe, [string[]]$arguments) {
 
 # Gate 4 (static half): VisibleBoundsChanged subscription + margin math wiring.
 $codeBehind = Get-Content "$source\MainPage.xaml.cs" -Raw
-foreach ($pattern in @('VisibleBoundsChanged\s*\+=', 'VisibleBoundsChanged\s*-=', 'VisibleBoundsHelper\.ComputeMargins', 'ShellRoot\.Margin')) {
+foreach ($pattern in @('VisibleBoundsChanged\s*\+=', 'VisibleBoundsChanged\s*-=', 'VisibleBoundsHelper\.ComputeBrowserMargins', 'ShellRoot\.Margin')) {
     if ($codeBehind -notmatch $pattern) { throw "Code-behind missing required wiring: $pattern" }
 }
 # The full-window mode precedes Frame construction; only the shell applies insets.
@@ -99,6 +105,7 @@ $shellBuildArgs = @("$buildSrc\MiniBrowserW10M.csproj", '/t:Rebuild', '/p:Config
     '/m:4', '/v:minimal', '/restore', "/p:WebKitMetadataDir=$metadataDir", "/p:WebKitBinaryDir=$OutDir\component\", '/p:AppxBundle=Never',
     "/fl", "/flp:logfile=$logFile;verbosity=normal")
 if ($LayoutDiagnostics) { $shellBuildArgs += '/p:LayoutDiagnostics=true' }
+if ($HostHtmlSmoke) { $shellBuildArgs += '/p:HostHtmlSmoke=true' }
 Invoke-ShellTool $msbuild $shellBuildArgs
 $log = Get-Content $logFile -Raw
 # Gate 3 (build half): no native compiler invocation in the shell build.
@@ -171,7 +178,7 @@ try {
         if ($packagedManifest -notmatch $pattern) { throw "Packaged manifest missing registration: $pattern" }
     }
 } finally { $zip.Dispose() }
-$identity = [ordered]@{ Version = $Version; Package = 'WebKitProbe.MiniBrowser'; LayoutDiagnostics = [bool]$LayoutDiagnostics;
+$identity = [ordered]@{ Version = $Version; Package = 'WebKitProbe.MiniBrowser'; LayoutDiagnostics = [bool]$LayoutDiagnostics; HostHtmlSmoke = [bool]$HostHtmlSmoke;
     Payload = @(Get-ChildItem $OutDir -Recurse -File | ForEach-Object {
         [ordered]@{ Path = $_.FullName.Substring($OutDir.Length + 1); SHA256 = (Get-FileHash $_.FullName -Algorithm SHA256).Hash }
     }) }

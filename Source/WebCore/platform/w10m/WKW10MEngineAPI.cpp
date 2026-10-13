@@ -15,19 +15,20 @@
  *     engine builds also forward process service/suspension (task 6.2), after
  *     actual engine initialization; standalone negotiation tests have no WebCore
  *     dependency and retain Unsupported stubs for those slots. The
- *     24 table slots are filled, because the contract forbids a null call, but
- *     every slot whose implementation belongs to a later task reports
- *     WKW10MResultUnsupported. Nothing here creates a page, allocates an
- *     identifier or touches engine state, so a rejected negotiation request
- *     cannot have produced a side effect.
+ *     24 table slots are filled, because the contract forbids a null call. In
+ *     configured builds WKW10MPageForwardW10M supplies initialize/create/close,
+ *     callback attachment and history-neutral HostHtml; standalone negotiation
+ *     builds retain dependency-free Unsupported stubs. Remote navigation, TLS
+ *     retry, input and presentation remain unsupported.
  *   - The capability mask advertises only what a consumer can rely on
  *     end to end: the engine must honour the bit and the control must be able
  *     to consume it through production forwarding. Engine-side work alone does
  *     not advertise; neither does a host-side service the engine never calls.
- *     Which today is nothing: production initialization still fails Unsupported
- *     by design, engine slots report Unsupported, and the runtime owner in
- *     task 7.5 is unwired. Each bit is added only by the task that completes
- *     its end-to-end path. Claiming a capability that the engine does not
+ *     HostHtml and its structured callback route are now implemented in the
+ *     configured provider and public controller, but their mask remains zero
+ *     until the task 11.0 package passes the ordered phone proof. Each bit is
+ *     added only by the task that completes and verifies its end-to-end path.
+ *     Claiming a capability that the engine does not
  *     honour would make a consumer's negotiation succeed and then fail at use,
  *     which is precisely the silent-failure mode the contract is written to
  *     prevent.
@@ -45,6 +46,10 @@
 
 #include "WKW10MEngine.h"
 
+#if defined(WKW10M_PAGE_FORWARD)
+#include "WKW10MPageForwardW10M.h"
+#endif
+
 #include <string.h>
 
 #if defined(WKW10M_OWNER_SERVICE_FORWARD)
@@ -54,6 +59,23 @@ extern "C" WKW10MResult __stdcall wkw10mEngineServiceW10M();
 extern "C" WKW10MResult __stdcall wkw10mEngineSetSuspendedW10M(uint32_t);
 #endif
 
+#if defined(WKW10M_PAGE_FORWARD)
+namespace WebCore {
+// Configured-engine page-table forwarding implemented in WKW10MPageForwardW10M.cpp.
+WKW10MResult initializeEnginePagesW10M(const WKW10MEngineOptions*);
+// Creates one validated page and registers its non-pointer ABI handle.
+WKW10MResult createEnginePageW10M(const WKW10MPageOptions*, WKW10MPageHandle*);
+// Closes and unregisters one retained page handle.
+WKW10MResult closeEnginePageW10M(WKW10MPageHandle);
+// Installs one copied callback table and retains its opaque context.
+WKW10MResult attachEngineCallbacksW10M(WKW10MPageHandle, const WKW10MPageCallbacks*);
+// Deactivates and releases one callback attachment.
+WKW10MResult detachEngineCallbacksW10M(WKW10MPageHandle);
+// Submits one explicit-length history-neutral HostHtml request.
+WKW10MResult loadEngineHtmlW10M(WKW10MPageHandle, const WKW10MNavigationRequest*, uint64_t*);
+}
+#endif
+
 namespace {
 
 // Capabilities this build delivers, as a bitwise OR of WKW10MCapability values.
@@ -61,9 +83,8 @@ namespace {
 // A bit is advertised only when its end-to-end path works through production
 // forwarding, never for engine-side or host-side work alone. Engine state and
 // the unblocking condition per bit (task 7.4 review):
-// StructuredNotifications (0x001): engine navigation controller done (4.3,
-// real signals); needs production forwarding integration.
-// HostHtml (0x002): substitute-data contract done (4.5); needs the same.
+// StructuredNotifications (0x001) + HostHtml (0x002): production local-only
+// forwarding is implemented; keep unadvertised pending exact-package phone proof.
 // IndependentSessions (0x004): cookie isolation done (4.7); needs the same.
 // CPUPaint (0x008): CPU presentation device-proven (6.1); needs production
 // presenter wiring and resize correctness (6.3).
@@ -80,7 +101,14 @@ namespace {
 // production forwarding integration.
 // GlobalFontConfiguration (0x200): canonical fingerprint done (4.1/4.11);
 // needs production initialization integration.
+#if defined(WKW10M_HOSTHTML_CANDIDATE)
+// Explicit phone-test candidate; never enabled by ordinary production builds.
+constexpr uint64_t s_deliveredCapabilities = WKW10MCapabilityStructuredNotifications
+    | WKW10MCapabilityHostHtml | WKW10MCapabilityGPUCompositor;
+#else
+// Never advertise before the matching package and phone run prove the full path.
 constexpr uint64_t s_deliveredCapabilities = 0;
+#endif
 
 // Every capability bit frozen by artifact/native-abi.md; nothing else may be claimed.
 constexpr uint64_t kFrozenCapabilityBits = WKW10MCapabilityStructuredNotifications
@@ -276,6 +304,18 @@ void fillEngineTable(WKW10MEngineAPI* api)
     api->renderCompositor = unimplementedRenderCompositor;
     api->beginShutdown = unimplementedNoArguments;
     api->pollShutdown = unimplementedNoArguments;
+#if defined(WKW10M_PAGE_FORWARD)
+    api->initialize = WebCore::initializeEnginePagesW10M;
+    api->createPage = WebCore::createEnginePageW10M;
+    api->closePage = WebCore::closeEnginePageW10M;
+    api->setCallbacks = WebCore::attachEngineCallbacksW10M;
+    api->detachCallbacks = WebCore::detachEngineCallbacksW10M;
+    api->loadHtml = WebCore::loadEngineHtmlW10M;
+    api->resize = WebCore::resizeEnginePageW10M;
+    api->attachCompositor = WebCore::attachEngineCompositorW10M;
+    api->detachCompositor = WebCore::detachEngineCompositorW10M;
+    api->renderCompositor = WebCore::renderEngineCompositorW10M;
+#endif
 }
 
 } // namespace

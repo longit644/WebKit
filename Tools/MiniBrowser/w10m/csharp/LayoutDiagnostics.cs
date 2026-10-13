@@ -46,17 +46,20 @@ namespace WebKitMiniBrowser
         /// <summary>Allowed geometry difference in logical pixels.</summary>
         private const double GeometryTolerance = 1.0;
 
-        /// <summary>Required height of the idle bottom browser chrome in logical pixels.</summary>
-        private const double ChromeHeight = 48.0;
+        /// <summary>Required height of the idle bottom browser chrome, matching BrowserChromeGeometry.</summary>
+        private const double ChromeHeight = BrowserChromeGeometry.ChromeHeight;
 
-        /// <summary>Required height of the bottom browser chrome while editing the address, in logical pixels.</summary>
-        private const double EditingChromeHeight = 44.0;
+        /// <summary>Required height while editing, matching BrowserChromeGeometry (no 44-DIP mode).</summary>
+        private const double EditingChromeHeight = BrowserChromeGeometry.ChromeHeight;
 
-        /// <summary>Required left and right address margins while editing, in logical pixels.</summary>
+        /// <summary>Required left and right address margins while editing, matching XAML.</summary>
         private const double AddressEditingMargin = 4.0;
 
-        /// <summary>Required address font size while editing, in logical pixels.</summary>
-        private const double AddressEditingFontSize = 14.0;
+        /// <summary>Required address font size while editing, matching XAML.</summary>
+        private const double AddressEditingFontSize = 15.0;
+
+        /// <summary>Required 2-DIP progress line height, matching MainPage.xaml.</summary>
+        private const double LoadingProgressHeight = 2.0;
 
         /// <summary>Serializes report writes and access to the bounded history.</summary>
         private static readonly SemaphoreSlim ReportGate = new SemaphoreSlim(1, 1);
@@ -197,7 +200,7 @@ namespace WebKitMiniBrowser
             Rect? menuBounds = GetTransformedBounds(menuSheet, shellRoot, "MenuSheet to ShellRoot");
             Thickness rootMargin = shellRoot.Margin;
             Rect fullWindowSlot = new Rect(0, 0, windowBounds.Width, windowBounds.Height);
-            Rect? expectedRoot = GetExpectedRootBounds(windowBounds, visibleBounds, inputPaneOccludedRect);
+            Rect? expectedRoot = GetExpectedRootBounds(windowBounds, visibleBounds, inputPaneOccludedRect, rootMargin.Bottom);
 
             // Unarranged Frame/Page/Root surfaces must never produce a misleading PASS.
             bool geometryReady = HasPositiveSize(windowBounds) && HasPositiveSize(visibleBounds)
@@ -287,10 +290,10 @@ namespace WebKitMiniBrowser
             AppendCheck(body, "05 BrowserChrome abuts ShellRoot bottom and fits inside root",
                 geometryReady && HasPositiveSize(chromeSize) && FitsWithinRoot(chromeBounds, rootSize)
                 && Near(chromeBounds.Value.Bottom, rootSize.Height), ref failures);
-            AppendCheck(body, "06 AddressBox has positive size and a centered content box with 2 DIP optical glyph offset",
+            AppendCheck(body, "06 AddressBox has positive size and vertically centered content with symmetric padding",
                 geometryReady && HasPositiveSize(addressSize) && FitsWithinRoot(addressBounds, rootSize)
                 && addressVerticalContentAlignment == VerticalAlignment.Center
-                && Near(addressPadding.Top - addressPadding.Bottom, 4.0), ref failures);
+                && Near(addressPadding.Top - addressPadding.Bottom, 0.0), ref failures);
             bool reloadAndStopMatchEditing = addressEditing
                 ? reloadButtonVisibility == Visibility.Collapsed && stopButtonVisibility == Visibility.Collapsed
                 : (reloadButtonVisibility == Visibility.Visible) != (stopButtonVisibility == Visibility.Visible);
@@ -303,7 +306,7 @@ namespace WebKitMiniBrowser
                     && HasPositiveSize(chromeBounds.Value)
                     && Near(progressBounds.Value.X, 0)
                     && Near(progressSize.Width, rootSize.Width)
-                    && Near(progressSize.Height, 2.0)
+                    && Near(progressSize.Height, LoadingProgressHeight)
                     && Near(progressBounds.Value.Bottom, chromeBounds.Value.Y);
             AppendCheck(body, "08 Progress line is hidden at idle or spans 2 DIP directly above the address bar",
                 progressAtAddressEdge, ref failures);
@@ -320,7 +323,7 @@ namespace WebKitMiniBrowser
                 AppendCheck(body, "11 Hello AppBarButton uses native 68x56 DIP sizing and touches the address bar",
                     helloActionButton != null && HasPositiveSize(helloActionSize)
                     && helloActionBounds.HasValue && HasPositiveSize(helloActionBounds.Value)
-                    && Near(helloActionSize.Width, 68.0) && Near(helloActionSize.Height, 56.0)
+                    && Near(helloActionSize.Width, BrowserChromeGeometry.HelloActionWidth) && Near(helloActionSize.Height, BrowserChromeGeometry.ExpandedActionsHeight)
                     && chromeBounds.HasValue && HasPositiveSize(chromeBounds.Value)
                     && Near(helloActionBounds.Value.Right, rootSize.Width)
                     && Near(helloActionBounds.Value.Bottom, chromeBounds.Value.Y), ref failures);
@@ -343,7 +346,7 @@ namespace WebKitMiniBrowser
                     AddressEditingFontSize),
                     addressGeometryReady && addressFocusState != FocusState.Unfocused && !menuOpen
                     && addressFontSize == AddressEditingFontSize
-                    && Near(addressPadding.Top - addressPadding.Bottom, 4.0)
+                    && Near(addressPadding.Top - addressPadding.Bottom, 0.0)
                     && reloadButtonVisibility == Visibility.Collapsed
                     && stopButtonVisibility == Visibility.Collapsed
                     && moreButtonVisibility == Visibility.Collapsed
@@ -395,17 +398,18 @@ namespace WebKitMiniBrowser
         /// <param name="windowBounds">The full-window bounds.</param>
         /// <param name="visibleBounds">The system-visible bounds in the same coordinate space.</param>
         /// <param name="inputPaneOccludedRect">The input-pane occlusion in window-local coordinates.</param>
+        /// <param name="systemBottomInset">The retained system bottom inset while Windows owns keyboard avoidance.</param>
         /// <returns>The finite, positive root bounds relative to the page, or null for invalid or empty geometry.</returns>
-        private static Rect? GetExpectedRootBounds(Rect windowBounds, Rect visibleBounds, Rect inputPaneOccludedRect)
+        private static Rect? GetExpectedRootBounds(Rect windowBounds, Rect visibleBounds, Rect inputPaneOccludedRect,
+            double systemBottomInset)
         {
             if (!HasPositiveSize(windowBounds) || !HasPositiveSize(visibleBounds))
                 return null;
 
-            VisibleBoundsMargins margins = VisibleBoundsHelper.ComputeMargins(
+            VisibleBoundsMargins margins = VisibleBoundsHelper.ComputeBrowserMargins(
                 windowBounds.X, windowBounds.Y, windowBounds.Width, windowBounds.Height,
                 visibleBounds.X, visibleBounds.Y, visibleBounds.Width, visibleBounds.Height,
-                inputPaneOccludedRect.X, inputPaneOccludedRect.Y,
-                inputPaneOccludedRect.Width, inputPaneOccludedRect.Height);
+                inputPaneOccludedRect.Height > 0, inputPaneOccludedRect.Y, systemBottomInset);
             double width = windowBounds.Width - margins.Left - margins.Right;
             double height = windowBounds.Height - margins.Top - margins.Bottom;
             if (!IsFinite(margins.Left) || !IsFinite(margins.Top)

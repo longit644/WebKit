@@ -80,6 +80,9 @@
   <PropertyGroup Condition=" '$(LayoutDiagnostics)' == 'true' ">
     <DefineConstants>$(DefineConstants);LAYOUT_DIAGNOSTICS</DefineConstants>
   </PropertyGroup>
+  <PropertyGroup Condition=" '$(HostHtmlSmoke)' == 'true' ">
+    <DefineConstants>$(DefineConstants);HOSTHTML_SMOKE</DefineConstants>
+  </PropertyGroup>
   <ItemGroup>
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
@@ -101,6 +104,10 @@
     <Compile Include="Views\Controls\BrowserAppBarControl.xaml.cs">
       <DependentUpon>BrowserAppBarControl.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\Controls\ChromeLayoutTransition.cs" />
+    <Compile Include="Views\Controls\BrowserChromeTiming.cs" />
+    <Compile Include="Views\Controls\AddressEditingPhase.cs" />
+    <Compile Include="Views\Controls\AddressEditingTransition.cs" />
     <Compile Include="VisibleBoundsHelper.cs" />
     <Compile Include="LayoutDiagnostics.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

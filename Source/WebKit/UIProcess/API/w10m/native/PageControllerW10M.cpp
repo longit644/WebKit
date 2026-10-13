@@ -12,7 +12,8 @@ HRESULT PageControllerW10M::resultToHRESULT(WKW10MResult result)
 }
 
 // Validate the exact V1 identity and command capability set before attaching anything.
-HRESULT PageControllerW10M::bind(const WKW10MEngineAPI* api, WKW10MPageHandle page, const WKW10MPageCallbacks* callbacks)
+HRESULT PageControllerW10M::bind(const WKW10MEngineAPI* api, WKW10MPageHandle page,
+    const WKW10MPageCallbacks* callbacks, EngineModuleW10M* owner)
 {
     if (GetCurrentThreadId() != m_owner) return RPC_E_WRONG_THREAD;
     if (m_page) return E_ILLEGAL_METHOD_CALL;
@@ -21,7 +22,7 @@ HRESULT PageControllerW10M::bind(const WKW10MEngineAPI* api, WKW10MPageHandle pa
         || api->abiMajor != WKW10M_ABI_MAJOR_VERSION || api->abiMinor < WKW10M_ABI_MINOR_VERSION)
         return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
     // These bits correspond to the commands this controller can actually forward.
-    constexpr uint64_t required = WKW10MCapabilityStructuredNotifications | WKW10MCapabilityHostHtml | WKW10MCapabilityCertificateDecisions;
+    constexpr uint64_t required = WKW10MCapabilityStructuredNotifications | WKW10MCapabilityHostHtml;
     if ((api->capabilities & required) != required) return E_NOTIMPL;
     if (!api->setCallbacks || !api->navigate || !api->loadHtml || !api->goBack || !api->goForward
         || !api->reload || !api->stop || !api->proceedWithCertificateFailure || !api->closePage)
@@ -30,6 +31,7 @@ HRESULT PageControllerW10M::bind(const WKW10MEngineAPI* api, WKW10MPageHandle pa
     if (FAILED(result)) return result;
     m_api = *api;
     m_page = page;
+    m_moduleOwner = owner;
     return S_OK;
 }
 
@@ -55,7 +57,9 @@ HRESULT PageControllerW10M::loadHtml(const WKW10MString& html, WKW10MCertificate
 {
     auto ready = checkBound();
     if (FAILED(ready)) return ready;
+    if (!(m_api.capabilities & WKW10MCapabilityHostHtml)) return E_NOTIMPL;
     if ((html.length && !html.data) || !navigationId || (!!warning.issuer != !!warning.decision)) return E_INVALIDARG;
+    if (warning.issuer && !(m_api.capabilities & WKW10MCapabilityCertificateDecisions)) return E_NOTIMPL;
     WKW10MNavigationRequest request { { sizeof(request), WKW10M_STRUCTURE_VERSION }, WKW10MContentHostHtml, { nullptr, 0 }, html, warning };
     return resultToHRESULT(m_api.loadHtml(m_page, &request, navigationId));
 }
@@ -93,6 +97,7 @@ HRESULT PageControllerW10M::proceed(WKW10MCertificateToken token, uint64_t* navi
 {
     auto ready = checkBound();
     if (FAILED(ready)) return ready;
+    if (!(m_api.capabilities & WKW10MCapabilityCertificateDecisions)) return E_NOTIMPL;
     if (!token.issuer || !token.decision || !navigationId) return E_INVALIDARG;
     return resultToHRESULT(m_api.proceedWithCertificateFailure(m_page, &token, navigationId));
 }
@@ -141,6 +146,51 @@ HRESULT PageControllerW10M::setFocused(bool focused)
     return resultToHRESULT(m_api.setFocus(m_page, focused ? 1u : 0u));
 }
 
+// Apply checked CSS viewport/device geometry; scale changes require detach first.
+HRESULT PageControllerW10M::resize(unsigned widthCssPixels, unsigned heightCssPixels, double scaleX, double scaleY)
+{
+    auto ready = checkBound();
+    if (FAILED(ready)) return ready;
+    if (!m_api.resize)
+        return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
+    return resultToHRESULT(m_api.resize(m_page, widthCssPixels, heightCssPixels, scaleX, scaleY));
+}
+
+// Attach one engine-owned GPU surface; the engine QIs/AddRefs what it retains.
+HRESULT PageControllerW10M::attachCompositor(IUnknown* panel, double scaleX, double scaleY)
+{
+    auto ready = checkBound();
+    if (FAILED(ready)) return ready;
+    if (!(m_api.capabilities & WKW10MCapabilityGPUCompositor)) return E_NOTIMPL;
+    if (!panel) return E_INVALIDARG;
+    if (!m_api.attachCompositor)
+        return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
+    WKW10MCompositorOptions options { { sizeof(options), WKW10M_STRUCTURE_VERSION }, panel, scaleX, scaleY };
+    return resultToHRESULT(m_api.attachCompositor(m_page, &options));
+}
+
+// Release the engine surface; a missing attachment is a successful no-op in the engine.
+HRESULT PageControllerW10M::detachCompositor()
+{
+    auto ready = checkBound();
+    if (FAILED(ready)) return ready;
+    if (!(m_api.capabilities & WKW10MCapabilityGPUCompositor)) return E_NOTIMPL;
+    if (!m_api.detachCompositor)
+        return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
+    return resultToHRESULT(m_api.detachCompositor(m_page));
+}
+
+// Render dirty layers; S_OK when nothing was dirty is reported by the engine.
+HRESULT PageControllerW10M::renderCompositor(double overscrollYCssPixels)
+{
+    auto ready = checkBound();
+    if (FAILED(ready)) return ready;
+    if (!(m_api.capabilities & WKW10MCapabilityGPUCompositor)) return E_NOTIMPL;
+    if (!m_api.renderCompositor)
+        return HRESULT_FROM_WIN32(ERROR_REVISION_MISMATCH);
+    return resultToHRESULT(m_api.renderCompositor(m_page, overscrollYCssPixels));
+}
+
 // Keep Pending ownership until provider close acknowledgement, without hot-unloading code.
 HRESULT PageControllerW10M::close()
 {
@@ -149,8 +199,16 @@ HRESULT PageControllerW10M::close()
     auto ready = checkBound();
     if (FAILED(ready)) return ready;
     m_closeRequested = true;
-    auto result = m_api.closePage(m_page);
+    m_closeCallActive = true;
+    auto result = m_moduleOwner ? m_moduleOwner->closePage(m_page) : m_api.closePage(m_page);
+    m_closeCallActive = false;
     if (result == WKW10MResultOK || result == WKW10MResultClosed) {
+        m_page = 0;
+        return S_OK;
+    }
+    if (result == WKW10MResultPending && m_closeAcknowledged) {
+        if (m_moduleOwner)
+            m_moduleOwner->acknowledgeClosedPage(m_page);
         m_page = 0;
         return S_OK;
     }
@@ -160,8 +218,15 @@ HRESULT PageControllerW10M::close()
 // Treat the engine's retained-context release as cleanup acknowledgement, never a log signal.
 void PageControllerW10M::acknowledgeClose()
 {
-    if (GetCurrentThreadId() == m_owner && m_closeRequested)
+    if (GetCurrentThreadId() == m_owner && m_closeRequested) {
+        if (m_closeCallActive) {
+            m_closeAcknowledged = true;
+            return;
+        }
+        if (m_moduleOwner && m_page)
+            m_moduleOwner->acknowledgeClosedPage(m_page);
         m_page = 0;
+    }
 }
 
 } // namespace WebKit

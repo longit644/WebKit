@@ -1,6 +1,7 @@
 // Transient substitute-data host HTML (M10 task 4.5); see TransientPageW10M.h.
 #include "config.h"
 #include "TransientPageW10M.h"
+#include "WKW10MPageForwardW10M.h"
 
 #include "CertificateExceptionStoreW10M.h"
 #include "FrameLoadRequest.h"
@@ -24,6 +25,20 @@ void TransientPageW10M::show(TransientContentKindW10M kind, const String& html)
 {
     // Every show is a command with its own ledger ID, even a refused one.
     m_transientNavigationId = m_owner->navigation.beginNavigation();
+    m_owner->engineContentKind = WKW10MContentHostHtml;
+    m_owner->engineIsLoading = true;
+    m_owner->engineTerminalId = 0;
+    uint32_t cancel = 0;
+    auto policy = startEngineNavigationW10M(*m_owner, m_transientNavigationId,
+        WKW10MContentHostHtml, "about:blank", &cancel);
+    if (policy != WKW10MResultOK || cancel) {
+        if (m_owner->navigation.cancelNavigation(NavigationOutcomeW10M::Vetoed) && m_owner->log)
+            m_owner->log("navigation-vetoed", m_transientNavigationId);
+        notifyEngineNavigationCompletedW10M(*m_owner, WKW10MContentHostHtml,
+            WKW10MOutcomeCancelled);
+        return;
+    }
+
     // Host consent gates transient content like NavigationStarting gates
     // navigations: substitute loads skip loader policy, so the host veto is
     // consulted here, synchronously, before any transfer or commit. A
@@ -33,6 +48,8 @@ void TransientPageW10M::show(TransientContentKindW10M kind, const String& html)
         if (!m_owner->policyHandler(m_owner->policyContext, "about:blank")) {
             if (m_owner->navigation.cancelNavigation(NavigationOutcomeW10M::Vetoed) && m_owner->log)
                 m_owner->log("navigation-vetoed", m_transientNavigationId);
+            notifyEngineNavigationCompletedW10M(*m_owner, WKW10MContentHostHtml,
+                WKW10MOutcomeCancelled);
             return;
         }
     }

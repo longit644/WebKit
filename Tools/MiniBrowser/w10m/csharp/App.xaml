@@ -2,4 +2,46 @@
     x:Class="WebKitMiniBrowser.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Dark">
+                    <Color x:Key="BrowserEditSurfaceColor">#FF1C1B1F</Color>
+                    <Color x:Key="BrowserEditFieldColor">#FF343238</Color>
+                    <Color x:Key="BrowserEditForegroundColor">#FFF5F5F5</Color>
+                    <Color x:Key="BrowserDimOverlayColor">#80000000</Color>
+                    <Color x:Key="BrowserMenuHoverColor">#33808080</Color>
+                    <Color x:Key="BrowserMenuPressedColor">#66808080</Color>
+                    <SolidColorBrush x:Key="BrowserEditSurfaceBrush" Color="{ThemeResource BrowserEditSurfaceColor}" />
+                    <SolidColorBrush x:Key="BrowserEditFieldBrush" Color="{ThemeResource BrowserEditFieldColor}" />
+                    <SolidColorBrush x:Key="BrowserEditForegroundBrush" Color="{ThemeResource BrowserEditForegroundColor}" />
+                    <SolidColorBrush x:Key="BrowserDimOverlayBrush" Color="{ThemeResource BrowserDimOverlayColor}" />
+                    <SolidColorBrush x:Key="BrowserMenuHoverBrush" Color="{ThemeResource BrowserMenuHoverColor}" />
+                    <SolidColorBrush x:Key="BrowserMenuPressedBrush" Color="{ThemeResource BrowserMenuPressedColor}" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Light">
+                    <Color x:Key="BrowserEditSurfaceColor">#FFFFFFFF</Color>
+                    <Color x:Key="BrowserEditFieldColor">#FFF1F1F3</Color>
+                    <Color x:Key="BrowserEditForegroundColor">#FF1C1B1F</Color>
+                    <Color x:Key="BrowserDimOverlayColor">#80000000</Color>
+                    <Color x:Key="BrowserMenuHoverColor">#33808080</Color>
+                    <Color x:Key="BrowserMenuPressedColor">#66808080</Color>
+                    <SolidColorBrush x:Key="BrowserEditSurfaceBrush" Color="{ThemeResource BrowserEditSurfaceColor}" />
+                    <SolidColorBrush x:Key="BrowserEditFieldBrush" Color="{ThemeResource BrowserEditFieldColor}" />
+                    <SolidColorBrush x:Key="BrowserEditForegroundBrush" Color="{ThemeResource BrowserEditForegroundColor}" />
+                    <SolidColorBrush x:Key="BrowserDimOverlayBrush" Color="{ThemeResource BrowserDimOverlayColor}" />
+                    <SolidColorBrush x:Key="BrowserMenuHoverBrush" Color="{ThemeResource BrowserMenuHoverColor}" />
+                    <SolidColorBrush x:Key="BrowserMenuPressedBrush" Color="{ThemeResource BrowserMenuPressedColor}" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="HighContrast">
+                    <SolidColorBrush x:Key="BrowserEditSurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="BrowserEditFieldBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="BrowserEditForegroundBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="BrowserDimOverlayBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="BrowserMenuHoverBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+                    <SolidColorBrush x:Key="BrowserMenuPressedBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
 </Application>

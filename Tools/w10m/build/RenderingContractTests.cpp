@@ -1,5 +1,6 @@
 // Native ownership/metrics oracle: real WARP DirectX objects and controlled V1 GPU slots.
 #include "rendering/SwapChainPresenterW10M.h"
+#include "rendering/ViewportExtentW10M.h"
 #include "WebKitWebViewPresenterW10M.h"
 
 #include <atomic>
@@ -283,7 +284,12 @@ void runOwnership()
         "CPU allocation/upload is blocked while engine GPU owns the visual");
     check(presenter.renderCompositor(7.5) == S_OK && gpu.renders == 1 && closeTo(gpu.overscroll, 7.5) && !peer.renders,
         "GPU render routes exact CSS overscroll only to its explicit page");
-    check(presenter.renderCompositor(std::numeric_limits<double>::infinity()) == E_INVALIDARG && gpu.renders == 1,
+    gpu.renderResult = WKW10MResultPending;
+    check(presenter.renderCompositor(0) == S_FALSE && gpu.renders == 2 && panel->references == 3
+        && presenter.mode() == PresentationModeW10M::GPU,
+        "deferred GPU frame is not presentation success and retains the live attachment");
+    gpu.renderResult = WKW10MResultOK;
+    check(presenter.renderCompositor(std::numeric_limits<double>::infinity()) == E_INVALIDARG && gpu.renders == 2,
         "nonfinite GPU overscroll rejects before provider call");
     gpu.renderResult = static_cast<WKW10MResult>(E_ACCESSDENIED);
     check(presenter.renderCompositor(0) == E_ACCESSDENIED && presenter.mode() == PresentationModeW10M::GPU,
@@ -450,6 +456,18 @@ void runRecovery()
 // Run native host ownership checks without pretending to construct a XAML control.
 int main()
 {
+    bool coversBacking = true;
+    bool boundedRounding = true;
+    for (double extent : { 1.0, 24.25, 411.428558349609, 611.428588867188, 707.428588867188, 2048.0 }) {
+        auto css = enclosingCssViewportExtentW10M(extent);
+        for (double scale : { 1.0, 1.5, 3.5 }) {
+            coversBacking &= std::ceil(css * scale) >= std::ceil(extent * scale);
+            boundedRounding &= css >= extent && css - extent < 1.0
+                && std::ceil(css * scale) - std::ceil(extent * scale) <= std::ceil(scale);
+        }
+    }
+    check(coversBacking, "integer CSS viewport encloses fractional XAML backing coverage at phone scales");
+    check(boundedRounding, "viewport rounding adds less than one DIP and stays inside ANGLE synchronization tolerance");
     auto apartment = RoInitialize(RO_INIT_MULTITHREADED);
     check(SUCCEEDED(apartment), "native COM test apartment initialized");
     if (SUCCEEDED(apartment)) { runOwnership(); runRecovery(); runMetrics(); RoUninitialize(); }

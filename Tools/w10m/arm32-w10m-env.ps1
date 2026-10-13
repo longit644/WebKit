@@ -74,7 +74,9 @@ $linkerBin = Get-NativeFlagPathW10M $llvmBin
 $env:WK_W10M_CLANG_CL = $clang.Replace('\', '/')
 $env:WK_W10M_RC = Get-NativeFlagPathW10M $rc
 $env:WK_W10M_BUILTINS_ARM = $builtins
-$env:WK_W10M_NATIVE_C_FLAGS = "--target=armv7-unknown-windows-msvc -B$linkerBin -fuse-ld=lld /MD -DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP -D_WIN32_WINNT=0x0A00 -D_HAS_EXCEPTIONS=0 -Wno-error=incompatible-function-pointer-types -DU_PLATFORM_HAS_WINUWP_API=1 -DSQLITE_OMIT_SEH -D_WINRT_DLL /FI$include/intrin.h -FI$compat /EHs-c- /GR- -imsvc$include $($headers -join ' ')"
+# All dependency builds must initialize mutex storage through Mobile's older
+# MSVCP runtime, rather than the newer headers' incompatible constexpr layout.
+$env:WK_W10M_NATIVE_C_FLAGS = "--target=armv7-unknown-windows-msvc -B$linkerBin -fuse-ld=lld /MD -DWINAPI_FAMILY=WINAPI_FAMILY_PC_APP -D_WIN32_WINNT=0x0A00 -D_HAS_EXCEPTIONS=0 -D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR -Wno-error=incompatible-function-pointer-types -DU_PLATFORM_HAS_WINUWP_API=1 -DSQLITE_OMIT_SEH -D_WINRT_DLL /FI$include/intrin.h -FI$compat /EHs-c- /GR- -imsvc$include $($headers -join ' ')"
 $env:WK_W10M_NATIVE_LINK_FLAGS = "/APPCONTAINER /MACHINE:ARM /SUBSYSTEM:CONSOLE /FORCE:MULTIPLE /NODEFAULTLIB:libcmt /NODEFAULTLIB:libcmtd /NODEFAULTLIB:msvcrt /NODEFAULTLIB:msvcrtd /NODEFAULTLIB:msvcprt /NODEFAULTLIB:msvcprtd /NODEFAULTLIB:oldnames /LIBPATH:$umLib /LIBPATH:$ucrtLib /LIBPATH:$nativeLib /LIBPATH:$support $builtins $startup $nativeLib/vcruntime.lib $nativeLib/msvcprt.lib $ucrtLib/ucrt.lib $umLib/OneCoreUAP.lib"
 $env:WK_W10M_VS_ROOT = $VsPath
 $env:WK_W10M_TOOLSET_ROOT = $toolset

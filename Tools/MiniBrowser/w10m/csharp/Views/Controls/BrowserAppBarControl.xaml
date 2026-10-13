@@ -5,9 +5,7 @@
     Canvas.ZIndex="10">
 
     <UserControl.Resources>
-        <SolidColorBrush x:Key="BrowserDimOverlayBrush" Color="#80000000" />
-        <SolidColorBrush x:Key="BrowserMenuHoverBrush" Color="#33808080" />
-        <SolidColorBrush x:Key="BrowserMenuPressedBrush" Color="#66808080" />
+        <!-- Brushes live in App.xaml ThemeDictionaries (Dark/Light/HighContrast) so dim/hover follow the system theme. -->
         <ControlTemplate x:Key="BrowserMenuCommandTemplate" TargetType="Button">
             <Grid x:Name="MenuCommandSurface" Background="{TemplateBinding Background}">
                 <VisualStateManager.VisualStateGroups>
@@ -22,7 +20,7 @@
                                 <PointerUpThemeAnimation Storyboard.TargetName="MenuCommandContent" />
                                 <ObjectAnimationUsingKeyFrames Storyboard.TargetName="MenuCommandSurface"
                                                                Storyboard.TargetProperty="Background">
-                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource BrowserMenuHoverBrush}" />
+                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource BrowserMenuHoverBrush}" />
                                 </ObjectAnimationUsingKeyFrames>
                             </Storyboard>
                         </VisualState>
@@ -30,8 +28,8 @@
                             <Storyboard>
                                 <PointerDownThemeAnimation Storyboard.TargetName="MenuCommandContent" />
                                 <ObjectAnimationUsingKeyFrames Storyboard.TargetName="MenuCommandSurface"
-                                                               Storyboard.TargetProperty="Background">
-                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{StaticResource BrowserMenuPressedBrush}" />
+                                                                Storyboard.TargetProperty="Background">
+                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource BrowserMenuPressedBrush}" />
                                 </ObjectAnimationUsingKeyFrames>
                             </Storyboard>
                         </VisualState>
@@ -74,7 +72,7 @@
 
     <Grid>
         <Button x:Name="AddressEditingOverlayElement" Canvas.ZIndex="10"
-                Visibility="{Binding AddressEditingVisibility}"
+                Visibility="Collapsed"
                 MinWidth="0" MinHeight="0" Padding="0" BorderThickness="0"
                 HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                 IsTabStop="False" AllowFocusOnInteraction="False" UseSystemFocusVisuals="False"
@@ -82,7 +80,7 @@
                 AutomationProperties.Name="Dismiss address editing">
             <Button.Template>
                 <ControlTemplate TargetType="Button">
-                    <Border Background="{StaticResource BrowserDimOverlayBrush}" />
+                    <Border Background="{ThemeResource BrowserEditSurfaceBrush}" />
                 </ControlTemplate>
             </Button.Template>
         </Button>
@@ -98,10 +96,11 @@
                     Command="{Binding CloseMenuCommand}" AutomationProperties.Name="Dismiss actions">
                 <Button.Template>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{StaticResource BrowserDimOverlayBrush}" />
+                        <Border Background="{ThemeResource BrowserDimOverlayBrush}" />
                     </ControlTemplate>
                 </Button.Template>
             </Button>
+
             <Border x:Name="MenuSheetElement" Margin="0,0,0,48"
                     HorizontalAlignment="Right" VerticalAlignment="Bottom"
                     Background="{ThemeResource SystemControlBackgroundChromeMediumLowBrush}"
@@ -150,7 +149,7 @@
                     </ScrollViewer>
                     <Border x:Name="MenuTopDividerElement" Grid.Row="0" Height="1"
                             HorizontalAlignment="Stretch" VerticalAlignment="Top"
-                            Background="{StaticResource BrowserMenuPressedBrush}" IsHitTestVisible="False" />
+                            Background="{ThemeResource BrowserMenuPressedBrush}" IsHitTestVisible="False" />
                     <Grid Grid.Row="1" Background="{ThemeResource AppBarBackground}">
                         <Grid x:Name="HelloActionHostElement" Width="68" HorizontalAlignment="Right">
                             <AppBarButton x:Name="HelloActionButtonElement" Icon="Contact" Label="Hello"
@@ -162,7 +161,7 @@
                                     Visibility="{Binding HelloNotificationVisibility}"
                                     IsHitTestVisible="False" AutomationProperties.Name="One new notification">
                                 <TextBlock Text="1" FontSize="10" FontWeight="SemiBold"
-                                           Foreground="White" HorizontalAlignment="Center"
+                                           Foreground="{ThemeResource SystemControlForegroundChromeWhiteBrush}" HorizontalAlignment="Center"
                                            VerticalAlignment="Center" />
                             </Border>
                         </Grid>

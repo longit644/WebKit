@@ -50,6 +50,10 @@ enum FirstPageResultW10M {
     FirstPageResultConfigurationConflictW10M = 9
 };
 
+// Lowercase hex SHA-256 over canonically sorted font file names and contents
+// in a directory; empty when nothing readable backs the configuration.
+String fontFingerprintForDirectory(const String& directory);
+
 // Initializes WebCore's main thread, bundled fonts and W10M platform strategies
 // once per process. The first successful setup freezes the font directory and
 // its content fingerprint; a later directory or content conflict reports the

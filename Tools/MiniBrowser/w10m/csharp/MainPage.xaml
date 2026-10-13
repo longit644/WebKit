@@ -8,25 +8,33 @@
     IsTabStop="True" UseSystemFocusVisuals="False"
     KeyDown="OnPageKeyDown">
 
-    <Grid x:Name="ShellRoot" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
-          SizeChanged="OnShellRootSizeChanged">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
+    <Grid>
+        <!-- Web viewport follows system bars; IME motion belongs to the opaque edit/chrome layer. -->
+        <Grid x:Name="WebLayoutRoot" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="48" />
+            </Grid.RowDefinitions>
+            <!-- Engine paints opaque after first frame; page background avoids white flash in dark theme. -->
+            <web:WebKitWebView x:Name="Browser" Grid.Row="0"
+                               Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
+                               HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+        </Grid>
+        <Grid x:Name="ShellRoot" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+              SizeChanged="OnShellRootSizeChanged">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
 
-        <web:WebKitWebView x:Name="Browser" Grid.Row="0"
-                           Background="White"
-                           HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+            <ProgressBar x:Name="LoadingProgress" Grid.Row="1" Height="2" MinHeight="2"
+                         VerticalAlignment="Bottom" Foreground="{ThemeResource SystemControlHighlightAccentBrush}"
+                         Background="Transparent" IsIndeterminate="True"
+                         Visibility="{Binding LoadingVisibility}" />
 
-        <ProgressBar x:Name="LoadingProgress" Grid.Row="1" Height="2" MinHeight="2"
-                     VerticalAlignment="Bottom" Foreground="{ThemeResource SystemControlHighlightAccentBrush}"
-                     Background="Transparent" IsIndeterminate="True"
-                     Visibility="{Binding LoadingVisibility}" />
-
-        <controls:BrowserAppBarControl x:Name="BrowserAppBar" Grid.RowSpan="3" />
-        <controls:AddressBarControl x:Name="AddressBar" Grid.Row="2"
-                                    IsAddressEditing="{Binding IsAddressEditing}" />
+            <controls:BrowserAppBarControl x:Name="BrowserAppBar" Grid.RowSpan="3" />
+            <controls:AddressBarControl x:Name="AddressBar" Grid.Row="2" />
+        </Grid>
     </Grid>
 </Page>

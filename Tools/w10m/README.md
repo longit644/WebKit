@@ -72,6 +72,36 @@ CMake cache, resumes native targets, and reuses only completed CX phases with
 their build identities. The individual component/app commands above remain
 supported for targeted builds.
 
+For task 11.0 phone qualification only, `-HostHtmlCandidate` opts the configured
+engine into `StructuredNotifications (0x001)` + `HostHtml (0x002)` + `GPUCompositor (0x010)`
+(mask `0x013`) for the local HostHtml presentation path. `CertificateDecisions (0x040)`
+remains gated for warning/consent and is not part of this demo mask.
+The ordinary build keeps the production capability mask at zero (`0x0`); do not use the
+candidate as a release package until its matching on-device run is recorded.
+
+`build/stage-minibrowser-candidate.py` also requires `--dependency-baseline`
+and `--baseline-identity`: use a previously phone-tested dependency stage and
+its recorded DLL hashes. The baseline is passed through the runtime stager's
+`--override` before the vcpkg prefix. The configured build retains priority for
+`WebCore.dll`, `JavaScriptCore.dll`, `libEGL.dll` and `libGLESv2.dll`; staging checks
+all four payload hashes against that build. The preserved vcpkg install contains
+older FreeType/Fontconfig runtime helpers and
+ICU mutex initialization; copying those DLLs back into an otherwise fresh
+package reintroduces their phone failures. Staging validates every baseline DLL
+hash and records baseline provenance alongside the final payload hashes.
+Candidate native diagnostics are written to `AC/Temp/hosthtml-engine.txt` on
+Mobile; the C# event/state report remains `LocalState/hosthtml-candidate.txt`.
+
+The CMake cache option `WKW10M_FRAME_READBACK_DIAGNOSTICS` defaults to `OFF`.
+Enabling it in a HostHtml candidate adds a synchronous `glReadPixels` sample to
+geometry/exposure frames; leave it off for interaction-performance comparisons.
+Those frames still report `gpu-painted-present ... readback=off`. Build the C#
+shell with `-HostHtmlSmoke` and omit `-LayoutDiagnostics` for the same comparison:
+layout snapshots otherwise call `UpdateLayout()` on the UI thread. GPU aggregate
+`flush-us`, `composite-us` and `swap-us` values are microseconds; v99 and earlier
+logs overstate those three values by 1,000 and require normalization before
+comparison. Tile `paint-us`, `upload-us` and `submit-us` were already correct.
+
 The ABI layout check compiles the frozen `Source/WebKit/Shared/w10m` assertions with
 both boundary compilers **as C and as C++**, and inspects all four objects with
 `llvm-readobj`; the C++ pass exists because the framework consumer is C++/CX and a

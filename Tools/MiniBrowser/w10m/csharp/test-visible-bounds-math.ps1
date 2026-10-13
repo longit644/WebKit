@@ -3,7 +3,7 @@
 .SYNOPSIS
 Host-runnable unit check for the visible-bounds margin math (M10 task 8.1).
 Compiles the shipped Tools/MiniBrowser/w10m/csharp/VisibleBoundsHelper.cs with the
-desktop compiler and executes 31 vectors (124 margin assertions).
+desktop compiler and executes chrome/browser viewport vectors (140 margin assertions).
 #>
 [CmdletBinding()]
 param(
@@ -86,6 +86,19 @@ sealed class VisibleBoundsDriver
         Check(m.Left, el, name + ".left"); Check(m.Top, et, name + ".top");
         Check(m.Right, er, name + ".right"); Check(m.Bottom, eb, name + ".bottom");
     }
+    /// <summary>Checks that web layout keeps system insets while only chrome follows the IME.</summary>
+    /// <param name="vh">Current visible height.</param>
+    /// <param name="keyboardVisible">Whether keyboard occlusion is active.</param>
+    /// <param name="systemBottom">Last independently observed system inset.</param>
+    /// <param name="expectedBottom">Expected browser bottom margin.</param>
+    /// <param name="name">The transition scenario.</param>
+    static void BrowserVector(double vh, bool keyboardVisible, double systemBottom, double expectedBottom, string name)
+    {
+        var m = WebKitMiniBrowser.VisibleBoundsHelper.ComputeBrowserMargins(
+            100, 200, 411, 731, 100, 224, 411, vh, keyboardVisible, 431, systemBottom);
+        Check(m.Left, 0, name + ".left"); Check(m.Top, 24, name + ".top");
+        Check(m.Right, 0, name + ".right"); Check(m.Bottom, expectedBottom, name + ".bottom");
+    }
     /// <summary>Runs all test vectors and returns the assertion result.</summary>
     /// <returns>Zero when all assertions pass; otherwise one.</returns>
     static int Main()
@@ -122,6 +135,10 @@ sealed class VisibleBoundsDriver
         KeyboardVector(0, 0, 400, double.MaxValue, 0, 0, 400, double.MaxValue, 0, double.MaxValue / 2, 400, double.MaxValue, 0, 0, 0, 0, "overflowing-keyboard-bottom");
         KeyboardVector(0, 0, 411, 731, 0, 24, 411, 659, 0, 431, 411, 400, 0, 24, 0, 300, "keyboard-extends-below-window");
         KeyboardVector(0, 0, 411, 731, 0, 24, 411, 659, -100, 431, 200, 300, 0, 24, 0, 300, "keyboard-partial-horizontal-overlap");
+        BrowserVector(659, true, 48, 48, "web-stable-while-chrome-avoids-keyboard");
+        BrowserVector(407, true, 48, 48, "web-stable-with-keyboard-reduced-visible-bounds");
+        BrowserVector(408, true, 0, 0, "web-stable-with-hidden-navbar-and-rounded-keyboard-top");
+        BrowserVector(707, false, 48, 0, "web-follows-navbar-hidden-after-keyboard-dismissal");
         Console.WriteLine("checks=" + checks);
         Console.WriteLine("failures=" + failures);
         return failures == 0 ? 0 : 1;
@@ -134,8 +151,8 @@ sealed class VisibleBoundsDriver
     $output = (& "$work\VisibleBoundsCheck.exe" | Out-String)
     Write-Output $output
     if ($LASTEXITCODE -ne 0) { throw "Visible-bounds math check failed" }
-    if ($output -notmatch 'checks=124' -or $output -notmatch 'failures=0') { throw 'Visible-bounds math check count mismatch' }
-    'Visible-bounds math PASS: 124/124'
+    if ($output -notmatch 'checks=140' -or $output -notmatch 'failures=0') { throw 'Visible-bounds math check count mismatch' }
+    'Visible-bounds math PASS: 140/140'
 } finally {
     Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 }

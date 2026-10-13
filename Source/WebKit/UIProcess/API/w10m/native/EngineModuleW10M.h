@@ -118,6 +118,9 @@ public:
     // still exists and a later close must still reach it.
     WKW10MResult closePage(WKW10MPageHandle page);
 
+    // Drop a tracked page only after its Pending close acknowledgement arrives.
+    WKW10MResult acknowledgeClosedPage(WKW10MPageHandle page);
+
     // Number of pages this object currently owns; the close/recreate baseline.
     uint32_t openPageCount() const;
 

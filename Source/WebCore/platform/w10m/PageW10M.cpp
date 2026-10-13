@@ -31,6 +31,7 @@
 #include "MemoryCache.h"
 #include "NetworkStorageSession.h"
 #include "PageHostW10M.h"
+#include "WKW10MPageForwardW10M.h"
 #include "RenderElement.h"
 #include "ResourceError.h"
 #include "ResourcePolicyW10M.h"
@@ -78,6 +79,7 @@ using namespace WebCore;
 // evict only this page's ephemeral session so other controls stay intact.
 PageHostW10M::~PageHostW10M()
 {
+    releaseEngineCallbacksW10M(*this);
     probeLifetime.reset();
     if (page)
         page->forEachLocalFrame([](LocalFrame& frame) { frame.loader().stopAllLoaders(); });
@@ -605,9 +607,11 @@ extern "C" __declspec(dllexport) unsigned __stdcall WKRenderCompositorW10M(void*
         return WKPageResultWrongThreadW10M;
     if (!view.compositorActive || !view.compositor)
         return WKPageResultCompositorConfigurationUnsupportedW10M;
+    auto before = view.compositor->presentedFrameCount();
     if (!view.compositor->render(overscrollY))
         return WKPageResultCompositorUnavailableW10M;
-    view.dirty = false;
+    // A deferred surface synchronization did not acknowledge this dirty frame.
+    view.dirty = before == view.compositor->presentedFrameCount();
     return WKPageResultOkW10M;
 }
 

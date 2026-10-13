@@ -31,6 +31,22 @@ def logo(size):
             + chunk(b"IDAT", zlib.compress(pixels)) + chunk(b"IEND", b""))
 
 
+def binary_candidates(build, engine, overrides, prefix):
+    """Select dependency overrides while retaining one coherent engine output set."""
+    available = {}
+    for directory in (build, *overrides, engine, prefix / "bin"):
+        for path in directory.glob("*.dll"):
+            available.setdefault(path.name.lower(), path)
+    # These images are outputs of the configured engine build, not arbitrary
+    # dependencies. An old baseline must not silently replace JavaScriptCore
+    # or disable current ANGLE source fixes beside a fresh WebCore.
+    for name in ("WebCore.dll", "JavaScriptCore.dll", "libEGL.dll", "libGLESv2.dll"):
+        path = engine / name
+        if path.is_file():
+            available[name.lower()] = path
+    return available
+
+
 def main():
     """Stage the app closure (binary, engine, fonts, manifest) for MakeAppx."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -52,10 +68,7 @@ def main():
     paths = [args.build / args.host, args.engine / "WebCore.dll"]
     if not args.no_probe:
         paths.append(args.build / "WebKitRuntimeSmoke.dll")
-    available = {}
-    for directory in (args.build, args.engine, *args.override, args.prefix / "bin"):
-        for path in directory.glob("*.dll"):
-            available.setdefault(path.name.lower(), path)
+    available = binary_candidates(args.build, args.engine, args.override, args.prefix)
     seen = set()
     external = set()
     args.stage.mkdir(parents=True, exist_ok=True)

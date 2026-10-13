@@ -19,6 +19,7 @@ SOURCES = [
     "Source/WebKit/UIProcess/API/w10m/platform/PageCallbacksW10M.cpp",
     "Source/WebKit/UIProcess/API/w10m/platform/InitializationActionW10M.cpp",
     "Source/WebKit/UIProcess/API/w10m/native/PageControllerW10M.cpp",
+    "Source/WebKit/UIProcess/API/w10m/native/EngineModuleW10M.cpp",
 ]
 
 
